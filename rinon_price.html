@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>料金表 | Rinon</title>
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@400;500;600&family=Zen+Maru+Gothic:wght@400;500&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px; }
+.page { max-width: 720px; margin: 0 auto; }
+
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; background: white; border-radius: 16px; border: 0.5px solid #B3D9F5; margin-bottom: 32px; }
+.nav-logo-wrap { text-decoration: none; }
+.nav-logo-main { font-family: 'Pacifico', cursive; font-size: 20px; color: #1A6FA8; display: block; }
+.nav-logo-sub { font-size: 9px; color: #7AAAC0; letter-spacing: 0.22em; font-weight: 500; display: block; margin-top: 1px; }
+.nav-back { font-size: 12px; color: #5A9ABB; text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.nav-back:hover { color: #1A6FA8; }
+
+.page-title { text-align: center; margin-bottom: 32px; }
+.page-title-en { font-size: 11px; color: #7AAAC0; letter-spacing: 0.3em; font-weight: 600; margin-bottom: 8px; }
+.page-title h1 { font-family: 'Zen Maru Gothic', sans-serif; font-size: 24px; font-weight: 500; color: #0C447C; }
+.page-title p { font-size: 12px; color: #7AAAC0; margin-top: 8px; line-height: 1.8; }
+
+.price-note { font-size: 11px; color: #7AAAC0; text-align: center; margin-bottom: 24px; background: #EEF8FF; border: 0.5px solid #B3D9F5; border-radius: 10px; padding: 10px 16px; }
+
+.section-head { display: flex; align-items: center; gap: 10px; font-family: 'Zen Maru Gothic', sans-serif; font-size: 14px; font-weight: 500; margin-bottom: 12px; padding: 10px 16px; border-radius: 10px; }
+.section-head.shampoo { background: #E8F6FE; color: #185FA5; border-left: 3px solid #5DBAEC; border-radius: 0 10px 10px 0; }
+.section-head.full { background: #E8F6FE; color: #0C447C; border-left: 3px solid #1A6FA8; border-radius: 0 10px 10px 0; }
+
+.price-table { background: white; border: 0.5px solid #C8E8F8; border-radius: 14px; overflow: hidden; margin-bottom: 28px; }
+.price-table-header { display: grid; grid-template-columns: 2fr 1fr; background: #F0FAFF; border-bottom: 0.5px solid #C8E8F8; padding: 8px 16px; }
+.price-table-header span { font-size: 11px; font-weight: 600; color: #7AAAC0; }
+.price-table-header span:last-child { text-align: right; color: #185FA5; }
+
+.size-label { padding: 5px 16px; background: #F8FCFF; border-bottom: 0.5px solid #E8F4FC; }
+.size-label span { font-size: 11px; font-weight: 500; color: #5DBAEC; }
+
+.price-row { display: grid; grid-template-columns: 2fr 1fr; padding: 10px 16px; border-bottom: 0.5px solid #E8F4FC; align-items: center; }
+.price-row:last-child { border-bottom: none; }
+.pr-name { font-family: 'Zen Maru Gothic', sans-serif; font-size: 13px; color: #0C447C; margin: 0; }
+.pr-sub { font-size: 10px; color: #7AAAC0; margin: 2px 0 0; }
+.pr-price { font-family: 'Pacifico', cursive; font-size: 17px; color: #185FA5; text-align: right; margin: 0; }
+
+.option-section { margin-bottom: 28px; }
+.option-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.option-card { background: white; border: 0.5px solid #C8E8F8; border-radius: 12px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+.opt-name { font-family: 'Zen Maru Gothic', sans-serif; font-size: 12px; color: #185FA5; }
+.opt-sub { font-size: 10px; color: #7AAAC0; margin-top: 2px; }
+.opt-price { font-family: 'Pacifico', cursive; font-size: 15px; color: #185FA5; }
+
+.back-btn { display: block; text-align: center; margin-top: 40px; margin-bottom: 10px; }
+.back-btn a { display: inline-flex; align-items: center; gap: 8px; background: #1A6FA8; color: white; font-size: 12px; font-weight: 600; padding: 13px 32px; border-radius: 30px; text-decoration: none; letter-spacing: 0.1em; font-family: 'Quicksand', sans-serif; }
+
+.footer { text-align: center; padding: 20px; font-size: 11px; color: #7AAAC0; letter-spacing: 0.1em; }
+.divider { height: 0.5px; background: #C8E8F8; margin: 0 0 28px; }
+
+@media (max-width: 500px) {
+  .option-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="nav">
+    <a href="rinon.html" class="nav-logo-wrap">
+      <span class="nav-logo-main">Rinon</span>
+      <span class="nav-logo-sub">dog trimming salon</span>
+    </a>
+    <a class="nav-back" href="rinon.html">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2 L4 7 L9 12" stroke="#5A9ABB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      トップに戻る
+    </a>
+  </nav>
+
+  <div class="page-title">
+    <div class="page-title-en">PRICE LIST</div>
+    <h1>料金表</h1>
+    <p>すべて税込価格<br>ワンちゃんの大きさ・体重、毛量・毛の状態によって変動する場合がございます</p>
+  </div>
+
+  <div class="price-note">鹿児島エリア対応 ／ すべて税込価格</div>
+
+  <!-- シャンプーのみ -->
+  <div class="section-head shampoo">シャンプーコース</div>
+  <div class="price-table">
+    <div class="price-table-header"><span>犬種</span><span>料金</span></div>
+    <div class="size-label"><span>小型犬</span></div>
+    <div class="price-row">
+      <div><p class="pr-name">チワワ・ポメラニアン等</p><p class="pr-sub">〜3kg</p></div>
+      <p class="pr-price">¥3,000〜</p>
+    </div>
+    <div class="price-row">
+      <div><p class="pr-name">トイプードル・マルチーズ等</p><p class="pr-sub">3〜5kg</p></div>
+      <p class="pr-price">¥3,500〜</p>
+    </div>
+    <div class="price-row">
+      <div><p class="pr-name">シーズー・ミニダックス等</p><p class="pr-sub">5〜8kg</p></div>
+      <p class="pr-price">¥4,000〜</p>
+    </div>
+    <div class="size-label" style="border-top: 0.5px solid #E8F4FC;"><span>中型犬</span></div>
+    <div class="price-row">
+      <div><p class="pr-name">コーギー・ビーグル等</p><p class="pr-sub">8〜15kg</p></div>
+      <p class="pr-price">¥5,500〜</p>
+    </div>
+    <div class="price-row">
+      <div><p class="pr-name">柴犬・スピッツ等</p><p class="pr-sub">10〜15kg</p></div>
+      <p class="pr-price">¥6,000〜</p>
+    </div>
+  </div>
+
+  <!-- フルコース -->
+  <div class="section-head full">シャンプー・カットコース</div>
+  <div class="price-table">
+    <div class="price-table-header"><span>犬種</span><span>料金</span></div>
+    <div class="size-label"><span>小型犬</span></div>
+    <div class="price-row">
+      <div><p class="pr-name">チワワ・ポメラニアン等</p><p class="pr-sub">〜3kg</p></div>
+      <p class="pr-price">¥5,500〜</p>
+    </div>
+    <div class="price-row">
+      <div><p class="pr-name">トイプードル・マルチーズ等</p><p class="pr-sub">3〜5kg</p></div>
+      <p class="pr-price">¥6,500〜</p>
+    </div>
+    <div class="price-row">
+      <div><p class="pr-name">シーズー・ミニダックス等</p><p class="pr-sub">5〜8kg</p></div>
+      <p class="pr-price">¥7,500〜</p>
+    </div>
+    <div class="size-label" style="border-top: 0.5px solid #E8F4FC;"><span>中型犬</span></div>
+    <div class="price-row">
+      <div><p class="pr-name">コーギー・ビーグル等</p><p class="pr-sub">8〜15kg</p></div>
+      <p class="pr-price">¥9,500〜</p>
+    </div>
+    <div class="price-row">
+      <div><p class="pr-name">柴犬・スピッツ等</p><p class="pr-sub">10〜15kg</p></div>
+      <p class="pr-price">¥10,500〜</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- オプション -->
+  <div class="section-head shampoo">オプション</div>
+  <div class="option-grid">
+    <div class="option-card"><div><div class="opt-name">歯磨き</div></div><div class="opt-price">¥550〜</div></div>
+    <div class="option-card"><div><div class="opt-name">肛門腺絞り</div></div><div class="opt-price">¥550〜</div></div>
+    <div class="option-card"><div><div class="opt-name">耳掃除</div></div><div class="opt-price">¥550〜</div></div>
+    <div class="option-card"><div><div class="opt-name">爪切り</div></div><div class="opt-price">¥550〜</div></div>
+    <div class="option-card" style="grid-column: span 2;">
+      <div><div class="opt-name">薬用シャンプー</div><div class="opt-sub">皮膚トラブルのあるワンちゃんにも対応</div></div>
+      <div class="opt-price">¥1,100〜</div>
+    </div>
+  </div>
+
+  <div class="back-btn">
+    <a href="rinon.html">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2 L4 7 L9 12" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      トップページに戻る
+    </a>
+  </div>
+
+  <div class="footer">© 2026 Rinon. All rights reserved.</div>
+</div>
+</body>
+</html>
