@@ -192,21 +192,17 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 
   <div id="price" class="section-title">
     <div class="section-label"><span class="section-label-line"></span><span>PRICE</span><span class="section-label-line"></span></div>
-    <h2>料金表</h2>
-    <p>詳細な料金はこちらからご確認いただけます</p>
+    <h2 style="font-family: 'Zen Maru Gothic', sans-serif; font-size: 22px; font-weight: 500; color: #0C447C;">料金表</h2>
   </div>
   <div class="price-link-section">
-    <a href="rinon_price.html" class="price-link-card">
-      <div class="price-link-left">
-        <div class="price-link-icon"><svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect x="4" y="6" width="20" height="16" rx="3" fill="#B3D9F5"/><path d="M8 10 L20 10 M8 13 L20 13 M8 16 L15 16" stroke="#185FA5" stroke-width="1.2" stroke-linecap="round"/><circle cx="22" cy="6" r="4" fill="#5DBAEC"/><path d="M20.5 6 L23.5 6 M22 4.5 L22 7.5" stroke="white" stroke-width="1" stroke-linecap="round"/></svg></div>
-        <div class="price-link-text">
-          <h3>料金表を見る</h3>
-          <p>犬のサイズ別フルコース料金 ＋ オプション一覧</p>
-          <div class="price-link-tags">
-            <span class="price-tag">小型犬 ¥5,500〜</span><span class="price-tag">中型犬 ¥9,500〜</span>
-            <span class="price-tag">オプションあり</span>
-          </div>
-        </div>
+    <div class="price-link-card" style="justify-content:center; text-align:center; cursor:default;">
+      <div style="text-align:center;">
+        <div style="font-size:36px; margin-bottom:12px;">🐾</div>
+        <h3 style="font-family: 'Zen Maru Gothic', sans-serif; font-size: 18px; font-weight: 500; color: #0C447C; margin-bottom:8px;">料金表 準備中</h3>
+        <p style="font-size: 12px; color: #7AAAC0; line-height:1.8;">料金は現在準備中です。<br>詳しくはLINEにてお気軽にお問い合わせください。</p>
+      </div>
+    </div>
+  </div>
       </div>
       <div class="price-link-arrow"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 8 L12 8 M9 5 L12 8 L9 11" stroke="#5DBAEC" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
     </a>
@@ -220,7 +216,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
   </div>
   <div class="points-grid">
     <div class="point-card"><div class="point-num-wrap"><span class="point-num">01</span></div><div class="point-text"><h3>完全予約制</h3><p>予約制なので、ゆったりと施術を受けていただけます</p></div></div>
-    <div class="point-card"><div class="point-num-wrap"><span class="point-num">02</span></div><div class="point-text"><h3>トリマーによる施術</h3><p>経験豊富なトリマーが丁寧に仕上げます</p></div></div>
+    <div class="point-card"><div class="point-num-wrap"><span class="point-num">02</span></div><div class="point-text"><h3>経験豊富なトリマーです！</h3><p>サロンと動物病院どちらでも経験を積んだトリマーが丁寧に仕上げます</p></div></div>
     <div class="point-card"><div class="point-num-wrap"><span class="point-num">03</span></div><div class="point-text"><h3>厳選シャンプーでのケア</h3><p>厳選したシャンプーでワンちゃんの被毛を丁寧にケアします</p></div></div>
     <div class="point-card"><div class="point-num-wrap"><span class="point-num">04</span></div><div class="point-text"><h3>LINEで簡単予約</h3><p>LINEでご予約・ご相談を受け付けています</p></div></div>
   </div>
@@ -288,7 +284,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
     <p style="font-size: 12px; color: #7AAAC0; margin-top: 8px; line-height: 1.8;">休業日・受付終了日をご確認の上ご予約ください</p>
   </div>
 
-  <div style="background: white; border: 0.5px solid #B3D9F5; border-radius: 20px; padding: 28px; margin-bottom: 40px;">
+  <div style="background: white; border: 0.5px solid #B3D9F5; border-radius: 20px; padding: 28px; margin-bottom: 40px; max-width: 700px; margin-left: auto; margin-right: auto;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
       <button onclick="prevMonth()" style="background: #E8F6FE; border: 0.5px solid #B3D9F5; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 16px; color: #1A6FA8; display: flex; align-items: center; justify-content: center;">‹</button>
       <div id="cal-title" style="font-family: 'Zen Maru Gothic', sans-serif; font-size: 16px; font-weight: 500; color: #0C447C;"></div>
@@ -304,21 +300,41 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       <div style="font-size: 11px; color: #6080E0; font-weight: 600;">土</div>
     </div>
     <div id="cal-grid" style="display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; text-align: center;"></div>
-    <div style="display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap;">
-      <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #FFE0E0; border-radius: 4px;"></div><span style="font-size: 11px; color: #7AAAC0;">休業日</span></div>
-      <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #FFF3CD; border-radius: 4px;"></div><span style="font-size: 11px; color: #7AAAC0;">受付終了</span></div>
-      <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #E8F6FE; border-radius: 4px; border: 0.5px solid #B3D9F5;"></div><span style="font-size: 11px; color: #7AAAC0;">営業日</span></div>
+    <div style="display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+      <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #FFE0E0; border-radius: 4px;"></div><span style="font-size: 11px; color: #7AAAC0;">休業日</span></div>
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #FFF3CD; border-radius: 4px;"></div><span style="font-size: 11px; color: #7AAAC0;">受付終了</span></div>
+        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #E8F6FE; border-radius: 4px; border: 0.5px solid #B3D9F5;"></div><span style="font-size: 11px; color: #7AAAC0;">営業日</span></div>
+      </div>
+      <button id="admin-btn" onclick="toggleAdmin()" style="background:#E8F6FE; color:#1A6FA8; border:0.5px solid #B3D9F5; font-size:11px; font-weight:600; padding:6px 14px; border-radius:20px; cursor:pointer;">管理者モード</button>
+    </div>
+    <div id="admin-hint" style="display:none; margin-top:10px; font-size:11px; color:#1A6FA8; background:#E8F6FE; border-radius:8px; padding:8px 12px;">
+      ✏️ 日付をタップ：営業日→休業日→受付終了→営業日 の順に切り替わります
     </div>
   </div>
 
 <script>
 // 休業日・受付終了日の設定（YYYY-MM-DD形式で追加）
-const CLOSED_DAYS = [
-  // 例: '2026-07-15', '2026-07-16'
-];
-const FULL_DAYS = [
-  // 例: '2026-07-20'
-];
+const // パスワード（変更可能）
+const ADMIN_PASSWORD = 'rinon2026';
+
+// localStorageから休業日・受付終了日を読み込む
+function loadDays() {
+  try {
+    CLOSED_DAYS = JSON.parse(localStorage.getItem('rinon_closed') || '[]');
+    FULL_DAYS = JSON.parse(localStorage.getItem('rinon_full') || '[]');
+  } catch(e) { CLOSED_DAYS = []; FULL_DAYS = []; }
+}
+
+function saveDays() {
+  localStorage.setItem('rinon_closed', JSON.stringify(CLOSED_DAYS));
+  localStorage.setItem('rinon_full', JSON.stringify(FULL_DAYS));
+}
+
+let CLOSED_DAYS = [];
+let FULL_DAYS = [];
+let adminMode = false;
+loadDays();
 
 let calYear, calMonth;
 const today = new Date();
@@ -330,39 +346,77 @@ function renderCalendar() {
   const grid = document.getElementById('cal-grid');
   title.textContent = calYear + '年 ' + (calMonth + 1) + '月';
   grid.innerHTML = '';
-  
+
   const first = new Date(calYear, calMonth, 1).getDay();
   const days = new Date(calYear, calMonth + 1, 0).getDate();
-  
+
   for (let i = 0; i < first; i++) {
     grid.innerHTML += '<div></div>';
   }
-  
+
   for (let d = 1; d <= days; d++) {
     const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
     const dow = new Date(calYear, calMonth, d).getDay();
     const isClosed = CLOSED_DAYS.includes(dateStr);
     const isFull = FULL_DAYS.includes(dateStr);
     const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
-    
+
     let bg = 'transparent';
     let color = dow === 0 ? '#E06060' : dow === 6 ? '#6080E0' : '#0C447C';
     let extra = '';
-    
+    let cursor = adminMode ? 'pointer' : 'default';
+    let border = adminMode ? '1px dashed #B3D9F5' : 'none';
+
     if (isClosed) { bg = '#FFE0E0'; color = '#C06060'; extra = '<div style="font-size:8px;color:#C06060;">休</div>'; }
     else if (isFull) { bg = '#FFF3CD'; color = '#A07000'; extra = '<div style="font-size:8px;color:#A07000;">終</div>'; }
     else if (isToday) { bg = '#E8F6FE'; }
-    
-    grid.innerHTML += '<div style="background:' + bg + '; border-radius: 8px; padding: 4px 2px; cursor:default;">' +
+
+    grid.innerHTML += '<div onclick="onDayClick('' + dateStr + '')" style="background:' + bg + '; border-radius: 8px; padding: 4px 2px; cursor:' + cursor + '; border:' + border + ';">' +
       '<div style="font-size:13px; font-weight:' + (isToday ? '700' : '400') + '; color:' + color + ';">' + d + '</div>' + extra + '</div>';
+  }
+}
+
+function onDayClick(dateStr) {
+  if (!adminMode) return;
+  if (CLOSED_DAYS.includes(dateStr)) {
+    CLOSED_DAYS = CLOSED_DAYS.filter(d => d !== dateStr);
+    FULL_DAYS.push(dateStr);
+  } else if (FULL_DAYS.includes(dateStr)) {
+    FULL_DAYS = FULL_DAYS.filter(d => d !== dateStr);
+  } else {
+    CLOSED_DAYS.push(dateStr);
+  }
+  saveDays();
+  renderCalendar();
+}
+
+function toggleAdmin() {
+  if (adminMode) {
+    adminMode = false;
+    document.getElementById('admin-btn').textContent = '管理者モード';
+    document.getElementById('admin-btn').style.background = '#E8F6FE';
+    document.getElementById('admin-btn').style.color = '#1A6FA8';
+    document.getElementById('admin-hint').style.display = 'none';
+    renderCalendar();
+    return;
+  }
+  var pw = prompt('パスワードを入力してください');
+  if (pw === ADMIN_PASSWORD) {
+    adminMode = true;
+    document.getElementById('admin-btn').textContent = '編集中（クリックで終了）';
+    document.getElementById('admin-btn').style.background = '#1A6FA8';
+    document.getElementById('admin-btn').style.color = 'white';
+    document.getElementById('admin-hint').style.display = 'block';
+    renderCalendar();
+  } else if (pw !== null) {
+    alert('パスワードが違います');
   }
 }
 
 function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
 function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 
-renderCalendar();
-</script>
+renderCalendar();</script>
 
   <div id="pc-qr-overlay" style="display:none; position:fixed; inset:0; background:rgba(245,251,255,0.97); z-index:9999; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
   <div style="background:white; border:0.5px solid #B3D9F5; border-radius:20px; padding:40px 32px; max-width:360px;">
