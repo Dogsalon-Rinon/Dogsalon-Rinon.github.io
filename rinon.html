@@ -304,7 +304,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       <div style="display:flex; gap:16px; flex-wrap:wrap;">
         <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #FFE0E0; border-radius: 4px;"></div><span style="font-size: 11px; color: #7AAAC0;">休業日</span></div>
         <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #FFF3CD; border-radius: 4px;"></div><span style="font-size: 11px; color: #7AAAC0;">受付終了</span></div>
-        <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 14px; height: 14px; background: #E8F6FE; border-radius: 4px; border: 0.5px solid #B3D9F5;"></div><span style="font-size: 11px; color: #7AAAC0;">営業日</span></div>
+        
       </div>
       <button id="admin-btn" onclick="toggleAdmin()" style="background:#E8F6FE; color:#1A6FA8; border:0.5px solid #B3D9F5; font-size:11px; font-weight:600; padding:6px 14px; border-radius:20px; cursor:pointer;">管理者モード</button>
     </div>
@@ -314,11 +314,15 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
   </div>
 
 <script>
-// 休業日・受付終了日の設定（YYYY-MM-DD形式で追加）
-const // パスワード（変更可能）
-const ADMIN_PASSWORD = 'rinon2026';
+var ADMIN_PASSWORD = 'rinon2026';
+var CLOSED_DAYS = [];
+var FULL_DAYS = [];
+var adminMode = false;
+var calYear, calMonth;
+var calToday = new Date();
+calYear = calToday.getFullYear();
+calMonth = calToday.getMonth();
 
-// localStorageから休業日・受付終了日を読み込む
 function loadDays() {
   try {
     CLOSED_DAYS = JSON.parse(localStorage.getItem('rinon_closed') || '[]');
@@ -327,65 +331,53 @@ function loadDays() {
 }
 
 function saveDays() {
-  localStorage.setItem('rinon_closed', JSON.stringify(CLOSED_DAYS));
-  localStorage.setItem('rinon_full', JSON.stringify(FULL_DAYS));
+  try {
+    localStorage.setItem('rinon_closed', JSON.stringify(CLOSED_DAYS));
+    localStorage.setItem('rinon_full', JSON.stringify(FULL_DAYS));
+  } catch(e) {}
 }
 
-let CLOSED_DAYS = [];
-let FULL_DAYS = [];
-let adminMode = false;
 loadDays();
 
-let calYear, calMonth;
-const today = new Date();
-calYear = today.getFullYear();
-calMonth = today.getMonth();
-
 function renderCalendar() {
-  const title = document.getElementById('cal-title');
-  const grid = document.getElementById('cal-grid');
-  title.textContent = calYear + '年 ' + (calMonth + 1) + '月';
+  var title = document.getElementById('cal-title');
+  var grid = document.getElementById('cal-grid');
+  if (!title || !grid) return;
+  title.textContent = calYear + '\u5e74 ' + (calMonth + 1) + '\u6708';
   grid.innerHTML = '';
-
-  const first = new Date(calYear, calMonth, 1).getDay();
-  const days = new Date(calYear, calMonth + 1, 0).getDate();
-
-  for (let i = 0; i < first; i++) {
-    grid.innerHTML += '<div></div>';
-  }
-
-  for (let d = 1; d <= days; d++) {
-    const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-    const dow = new Date(calYear, calMonth, d).getDay();
-    const isClosed = CLOSED_DAYS.includes(dateStr);
-    const isFull = FULL_DAYS.includes(dateStr);
-    const isToday = d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
-
-    let bg = 'transparent';
-    let color = dow === 0 ? '#E06060' : dow === 6 ? '#6080E0' : '#0C447C';
-    let extra = '';
-    let cursor = adminMode ? 'pointer' : 'default';
-    let border = adminMode ? '1px dashed #B3D9F5' : 'none';
-
-    if (isClosed) { bg = '#FFE0E0'; color = '#C06060'; extra = '<div style="font-size:8px;color:#C06060;">休</div>'; }
-    else if (isFull) { bg = '#FFF3CD'; color = '#A07000'; extra = '<div style="font-size:8px;color:#A07000;">終</div>'; }
+  var first = new Date(calYear, calMonth, 1).getDay();
+  var days = new Date(calYear, calMonth + 1, 0).getDate();
+  for (var i = 0; i < first; i++) { grid.innerHTML += '<div></div>'; }
+  for (var d = 1; d <= days; d++) {
+    var ds = calYear + '-' + ('0'+(calMonth+1)).slice(-2) + '-' + ('0'+d).slice(-2);
+    var dow = new Date(calYear, calMonth, d).getDay();
+    var isClosed = CLOSED_DAYS.indexOf(ds) !== -1;
+    var isFull = FULL_DAYS.indexOf(ds) !== -1;
+    var isToday = (d === calToday.getDate() && calMonth === calToday.getMonth() && calYear === calToday.getFullYear());
+    var bg = 'transparent';
+    var color = dow === 0 ? '#E06060' : dow === 6 ? '#6080E0' : '#0C447C';
+    var extra = '';
+    var cursor = adminMode ? 'pointer' : 'default';
+    var border = adminMode ? '1px dashed #B3D9F5' : 'none';
+    if (isClosed) { bg = '#FFE0E0'; color = '#C06060'; extra = '<div style="font-size:8px;color:#C06060;">\u4f11</div>'; }
+    else if (isFull) { bg = '#FFF3CD'; color = '#A07000'; extra = '<div style="font-size:8px;color:#A07000;">\u7d42</div>'; }
     else if (isToday) { bg = '#E8F6FE'; }
-
-    grid.innerHTML += '<div onclick="onDayClick('' + dateStr + '')" style="background:' + bg + '; border-radius: 8px; padding: 4px 2px; cursor:' + cursor + '; border:' + border + ';">' +
-      '<div style="font-size:13px; font-weight:' + (isToday ? '700' : '400') + '; color:' + color + ';">' + d + '</div>' + extra + '</div>';
+    var cell = document.createElement('div');
+    cell.setAttribute('data-date', ds);
+    cell.style.cssText = 'background:' + bg + ';border-radius:8px;padding:4px 2px;cursor:' + cursor + ';border:' + border;
+    cell.innerHTML = '<div style="font-size:13px;font-weight:' + (isToday?'700':'400') + ';color:' + color + ';">' + d + '</div>' + extra;
+    cell.addEventListener('click', function() { onDayClick(this.getAttribute('data-date')); });
+    grid.appendChild(cell);
   }
 }
 
-function onDayClick(dateStr) {
+function onDayClick(ds) {
   if (!adminMode) return;
-  if (CLOSED_DAYS.includes(dateStr)) {
-    CLOSED_DAYS = CLOSED_DAYS.filter(d => d !== dateStr);
-    FULL_DAYS.push(dateStr);
-  } else if (FULL_DAYS.includes(dateStr)) {
-    FULL_DAYS = FULL_DAYS.filter(d => d !== dateStr);
-  } else {
-    CLOSED_DAYS.push(dateStr);
-  }
+  var ci = CLOSED_DAYS.indexOf(ds);
+  var fi = FULL_DAYS.indexOf(ds);
+  if (ci !== -1) { CLOSED_DAYS.splice(ci, 1); FULL_DAYS.push(ds); }
+  else if (fi !== -1) { FULL_DAYS.splice(fi, 1); }
+  else { CLOSED_DAYS.push(ds); }
   saveDays();
   renderCalendar();
 }
@@ -393,30 +385,31 @@ function onDayClick(dateStr) {
 function toggleAdmin() {
   if (adminMode) {
     adminMode = false;
-    document.getElementById('admin-btn').textContent = '管理者モード';
+    document.getElementById('admin-btn').textContent = '\u7ba1\u7406\u8005\u30e2\u30fc\u30c9';
     document.getElementById('admin-btn').style.background = '#E8F6FE';
     document.getElementById('admin-btn').style.color = '#1A6FA8';
     document.getElementById('admin-hint').style.display = 'none';
     renderCalendar();
     return;
   }
-  var pw = prompt('パスワードを入力してください');
+  var pw = prompt('\u30d1\u30b9\u30ef\u30fc\u30c9\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044');
   if (pw === ADMIN_PASSWORD) {
     adminMode = true;
-    document.getElementById('admin-btn').textContent = '編集中（クリックで終了）';
+    document.getElementById('admin-btn').textContent = '\u7de8\u96c6\u4e2d\uff08\u30af\u30ea\u30c3\u30af\u3067\u7d42\u4e86\uff09';
     document.getElementById('admin-btn').style.background = '#1A6FA8';
     document.getElementById('admin-btn').style.color = 'white';
     document.getElementById('admin-hint').style.display = 'block';
     renderCalendar();
   } else if (pw !== null) {
-    alert('パスワードが違います');
+    alert('\u30d1\u30b9\u30ef\u30fc\u30c9\u304c\u9055\u3044\u307e\u3059');
   }
 }
 
 function prevMonth() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
 function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
 
-renderCalendar();</script>
+document.addEventListener('DOMContentLoaded', function() { renderCalendar(); });
+</script>
 
   <div id="pc-qr-overlay" style="display:none; position:fixed; inset:0; background:rgba(245,251,255,0.97); z-index:9999; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
   <div style="background:white; border:0.5px solid #B3D9F5; border-radius:20px; padding:40px 32px; max-width:360px;">
