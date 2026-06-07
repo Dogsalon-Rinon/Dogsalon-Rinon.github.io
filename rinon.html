@@ -364,7 +364,42 @@ function nextMonth() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++;
 renderCalendar();
 </script>
 
-  <div class="footer">© 2026 Rinon. All rights reserved.</div>
+  <div id="pc-qr-overlay" style="display:none; position:fixed; inset:0; background:rgba(245,251,255,0.97); z-index:9999; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
+  <div style="background:white; border:0.5px solid #B3D9F5; border-radius:20px; padding:40px 32px; max-width:360px;">
+    <p style="font-family:'Zen Maru Gothic',sans-serif; font-size:18px; font-weight:500; color:#0C447C; margin-bottom:8px;">📱 スマホから予約してください</p>
+    <p id="qr-label" style="font-size:12px; color:#7AAAC0; margin-bottom:24px; line-height:1.8;"></p>
+    <div id="qr-display" style="margin:0 auto 20px; display:flex; justify-content:center;"></div>
+    <button onclick="document.getElementById('pc-qr-overlay').style.display='none'; document.getElementById('qr-display').innerHTML='';" style="background:#E8F6FE; color:#1A6FA8; border:0.5px solid #B3D9F5; font-size:12px; font-weight:600; padding:10px 24px; border-radius:20px; cursor:pointer;">閉じる</button>
+  </div>
 </div>
+
+<div class="footer">© 2026 Rinon. All rights reserved.</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+var isPC = !/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+function showPCQR(e, url, label) {
+  if (!isPC) return;
+  e.preventDefault();
+  document.getElementById('qr-display').innerHTML = '';
+  document.getElementById('qr-label').innerHTML = label;
+  document.getElementById('pc-qr-overlay').style.display = 'flex';
+  new QRCode(document.getElementById('qr-display'), { text: url, width: 180, height: 180 });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('a[href="rinon_reserve.html"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      showPCQR(e, 'https://dogsalon-rinon.github.io/rinon_reserve.html', 'スマートフォンで読み取って<br>初回予約フォームを開いてください🐾');
+    });
+  });
+  document.querySelectorAll('a[href="rinon_reserve_repeat.html"]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      showPCQR(e, 'https://dogsalon-rinon.github.io/rinon_reserve_repeat.html', 'スマートフォンで読み取って<br>リピーター予約フォームを開いてください🐾');
+    });
+  });
+});
+</script>
 </body>
 </html>
