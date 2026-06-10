@@ -129,8 +129,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
           <h1 style="font-family: Zen Maru Gothic, sans-serif; font-size: 20px; font-weight: 500; color: white; line-height: 1.6; margin-top: 8px; text-align: right;">大切な<em style="font-style:normal; color:#B3D9F5;">愛犬</em>を<br>もっとかわいく</h1>
         </div>
         <div style="display: flex; flex-direction: column; gap: 12px;">
-          <a href="rinon_reserve.html" class="btn-white" style="display:block; text-align:center; width: 200px; margin: 0; font-size:11px;">初めての方のご予約</a>
-          <a href="rinon_reserve_repeat.html" class="btn-white" style="display:block; text-align:center; width: 200px; margin: 0; font-size:11px; background: rgba(255,255,255,0.85); color: #1A6FA8; border: none;">リピーター予約</a>
+          <a href="https://airrsv.net/dog-salon-rinon/calendar" target="_blank" class="btn-white" style="display:block; text-align:center; width: 200px; margin: 0; font-size:11px;">ご予約はこちら</a>
+          <a href="https://airrsv.net/dog-salon-rinon/calendar" target="_blank" class="btn-white" style="display:block; text-align:center; width: 200px; margin: 0; font-size:11px; background: rgba(255,255,255,0.85); color: #1A6FA8; border: none;">リピーター予約</a>
           <a href="rinon_price.html" class="btn-outline-white" style="display:block; text-align:center; width: 200px; margin: 0;">料金を見る</a>
         </div>
       </div>
@@ -304,12 +304,12 @@ function showPCQR(e, url, label) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('a[href="rinon_reserve.html"]').forEach(function(btn) {
+  document.querySelectorAll('a[href="https://airrsv.net/dog-salon-rinon/calendar" target="_blank"]').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       showPCQR(e, 'https://dogsalon-rinon.github.io/rinon_reserve.html', 'スマートフォンで読み取って<br>初回予約フォームを開いてください🐾');
     });
   });
-  document.querySelectorAll('a[href="rinon_reserve_repeat.html"]').forEach(function(btn) {
+  document.querySelectorAll('a[href="https://airrsv.net/dog-salon-rinon/calendar" target="_blank"]').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       showPCQR(e, 'https://dogsalon-rinon.github.io/rinon_reserve_repeat.html', 'スマートフォンで読み取って<br>リピーター予約フォームを開いてください🐾');
     });
