@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rinon カルテ管理</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; color: #0C447C; min-height: 100vh; }
+
+/* ヘッダー */
+.header { background: #0C447C; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header-logo { font-size: 22px; font-weight: 700; color: white; letter-spacing: 0.05em; }
+.header-logo span { color: #5DBAEC; }
+.header-sub { font-size: 11px; color: #B3D9F5; margin-top: 2px; }
+.header-right { display: flex; gap: 10px; align-items: center; }
+.btn { padding: 8px 16px; border-radius: 20px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: #1A6FA8; color: white; }
+.btn-light { background: #E8F4FC; color: #1A6FA8; }
+.btn-green { background: #2EA87E; color: white; }
+.btn-sm { padding: 5px 12px; font-size: 11px; }
+
+/* メインレイアウト */
+.main { display: grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 60px); }
+
+/* 左サイドバー（顧客一覧） */
+.sidebar { background: white; border-right: 1px solid #D0E8F8; overflow-y: auto; }
+.sidebar-header { padding: 16px; border-bottom: 1px solid #E8F4FC; }
+.sidebar-header h2 { font-size: 13px; font-weight: 700; color: #0C447C; margin-bottom: 10px; }
+.search-box { width: 100%; padding: 8px 12px; border: 1px solid #B3D9F5; border-radius: 20px; font-size: 12px; color: #0C447C; outline: none; }
+.search-box:focus { border-color: #1A6FA8; }
+.stats { display: flex; gap: 8px; margin-top: 10px; }
+.stat { background: #F0F7FF; border-radius: 8px; padding: 6px 10px; flex: 1; text-align: center; }
+.stat-num { font-size: 18px; font-weight: 700; color: #1A6FA8; }
+.stat-label { font-size: 10px; color: #7AAAC0; }
+
+/* 顧客リスト */
+.customer-list { padding: 8px; }
+.customer-card { padding: 12px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; border: 1.5px solid transparent; transition: all 0.15s; }
+.customer-card:hover { background: #F0F7FF; }
+.customer-card.active { background: #E8F4FC; border-color: #1A6FA8; }
+.customer-name { font-size: 13px; font-weight: 700; color: #0C447C; }
+.customer-dog { font-size: 12px; color: #1A6FA8; margin-top: 2px; }
+.customer-dog span { background: #E8F4FC; border-radius: 4px; padding: 1px 6px; font-size: 11px; }
+.customer-meta { font-size: 11px; color: #7AAAC0; margin-top: 4px; }
+.empty-list { text-align: center; padding: 40px 20px; color: #7AAAC0; font-size: 12px; }
+
+/* 右コンテンツ（カルテ詳細） */
+.content { padding: 24px; overflow-y: auto; }
+.welcome { text-align: center; padding: 80px 40px; color: #7AAAC0; }
+.welcome-icon { font-size: 48px; margin-bottom: 16px; }
+.welcome h2 { font-size: 18px; color: #1A6FA8; margin-bottom: 8px; }
+.welcome p { font-size: 13px; line-height: 1.8; }
+
+/* カルテ詳細 */
+.karte-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+.karte-title { font-size: 20px; font-weight: 700; color: #0C447C; }
+.karte-title span { color: #5DBAEC; }
+.karte-date { font-size: 12px; color: #7AAAC0; margin-top: 4px; }
+.karte-actions { display: flex; gap: 8px; }
+
+/* セクション */
+.section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #E0F0FB; }
+.section-title { font-size: 12px; font-weight: 700; color: #1A6FA8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #E8F4FC; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.info-item { }
+.info-label { font-size: 10px; font-weight: 600; color: #7AAAC0; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.info-value { font-size: 13px; color: #0C447C; font-weight: 500; }
+.info-value.large { grid-column: 1 / -1; }
+
+/* 施術メモ */
+.memo-box { width: 100%; padding: 12px; border: 1.5px solid #B3D9F5; border-radius: 8px; font-size: 13px; color: #0C447C; resize: vertical; min-height: 100px; font-family: inherit; outline: none; }
+.memo-box:focus { border-color: #1A6FA8; }
+.memo-saved { font-size: 11px; color: #2EA87E; margin-top: 6px; display: none; }
+
+/* ローディング */
+.loading { text-align: center; padding: 40px; color: #7AAAC0; font-size: 13px; }
+.spinner { width: 32px; height: 32px; border: 3px solid #E8F4FC; border-top-color: #1A6FA8; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* タグ */
+.tag { display: inline-block; background: #E8F4FC; color: #1A6FA8; border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+.tag-red { background: #FFE8E8; color: #C06060; }
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { max-height: 300px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-logo">Ri<span>n</span>on <span style="font-size:13px; font-weight:400; color:#B3D9F5;">カルテ管理</span></div>
+    <div class="header-sub">Dog Trimming Salon</div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
+    <button class="btn btn-green" onclick="exportExcel()">📊 Excelエクスポート</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- 左：顧客一覧 -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>顧客一覧</h2>
+      <input class="search-box" type="text" id="searchBox" placeholder="名前・犬種で検索..." oninput="filterCustomers()">
+      <div class="stats">
+        <div class="stat"><div class="stat-num" id="totalCount">-</div><div class="stat-label">総顧客数</div></div>
+        <div class="stat"><div class="stat-num" id="filteredCount">-</div><div class="stat-label">表示中</div></div>
+      </div>
+    </div>
+    <div class="customer-list" id="customerList">
+      <div class="loading"><div class="spinner"></div>データを読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- 右：カルテ詳細 -->
+  <div class="content" id="content">
+    <div class="welcome">
+      <div class="welcome-icon">🐾</div>
+      <h2>カルテを選択してください</h2>
+      <p>左の顧客一覧から名前をクリックすると<br>カルテ詳細が表示されます</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '19vWELviHaLORivnobZ88UVwa1StIOrEbWYQRFdV5Aiw';
+const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=フォームの回答1`;
+
+let allData = [];
+let memos = {};
+
+// localStorageからメモを読み込む
+function loadMemos() {
+  try { memos = JSON.parse(localStorage.getItem('rinon_memos') || '{}'); } catch(e) { memos = {}; }
+}
+
+function saveMemo(key, val) {
+  memos[key] = val;
+  localStorage.setItem('rinon_memos', JSON.stringify(memos));
+}
+
+// Googleスプレッドシートからデータ取得
+function loadData() {
+  document.getElementById('customerList').innerHTML = '<div class="loading"><div class="spinner"></div>データを読み込み中...</div>';
+  
+  var script = document.createElement('script');
+  script.src = SHEET_URL + '&callback=handleData&t=' + Date.now();
+  document.head.appendChild(script);
+}
+
+function handleData(response) {
+  var rows = response.table.rows;
+  var cols = response.table.cols;
+  
+  allData = rows.map(function(row) {
+    var obj = {};
+    cols.forEach(function(col, i) {
+      var cell = row.c[i];
+      obj[col.label] = cell ? (cell.f || cell.v || '') : '';
+    });
+    return obj;
+  }).filter(function(r) { return r['飼い主さまのお名前']; });
+
+  renderList(allData);
+  document.getElementById('totalCount').textContent = allData.length;
+  document.getElementById('filteredCount').textContent = allData.length;
+}
+
+function renderList(data) {
+  var list = document.getElementById('customerList');
+  if (data.length === 0) {
+    list.innerHTML = '<div class="empty-list">該当する顧客が見つかりません</div>';
+    return;
+  }
+  
+  list.innerHTML = data.map(function(row, i) {
+    var name = row['飼い主さまのお名前'] || '';
+    var dog = row['ワンちゃんのお名前'] || '';
+    var breed = row['犬種'] || '';
+    var date = row['タイムスタンプ'] || '';
+    var menu = row['メニュー'] || '';
+    return '<div class="customer-card" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
+      '<div class="customer-name">' + name + '</div>' +
+      '<div class="customer-dog">🐾 ' + dog + '　<span>' + breed + '</span></div>' +
+      '<div class="customer-meta">受付：' + date + (menu ? '　' + menu : '') + '</div>' +
+    '</div>';
+  }).join('');
+  
+  document.getElementById('filteredCount').textContent = data.length;
+}
+
+function filterCustomers() {
+  var q = document.getElementById('searchBox').value.toLowerCase();
+  var filtered = allData.filter(function(row) {
+    return (row['飼い主さまのお名前'] || '').toLowerCase().includes(q) ||
+           (row['ワンちゃんのお名前'] || '').toLowerCase().includes(q) ||
+           (row['犬種'] || '').toLowerCase().includes(q);
+  });
+  renderList(filtered);
+}
+
+function showKarte(idx) {
+  // アクティブ状態
+  document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
+  var card = document.getElementById('card-' + idx);
+  if (card) card.classList.add('active');
+  
+  var r = allData[idx];
+  var key = r['飼い主さまのお名前'] + '_' + r['ワンちゃんのお名前'] + '_' + r['タイムスタンプ'];
+  var memo = memos[key] || '';
+  
+  var medical = r['病歴・現在の治療（選択肢）必須 '] || 'なし';
+  var medicalTag = medical && medical !== 'なし' ? '<span class="tag tag-red">' + medical + '</span>' : '<span class="tag">なし</span>';
+  
+  document.getElementById('content').innerHTML = 
+    '<div class="karte-header">' +
+      '<div>' +
+        '<div class="karte-title">' + (r['飼い主さまのお名前'] || '') + ' 様　<span>/ ' + (r['ワンちゃんのお名前'] || '') + '</span></div>' +
+        '<div class="karte-date">受付日時：' + (r['タイムスタンプ'] || '') + '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<div class="section-title">飼い主情報</div>' +
+      '<div class="info-grid">' +
+        '<div class="info-item"><div class="info-label">お名前</div><div class="info-value">' + (r['飼い主さまのお名前'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">電話番号</div><div class="info-value">' + (r['電話番号'] || '') + '</div></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<div class="section-title">ワンちゃん情報</div>' +
+      '<div class="info-grid">' +
+        '<div class="info-item"><div class="info-label">名前</div><div class="info-value">' + (r['ワンちゃんのお名前'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (r['犬種'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (r['性別'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (r['生年月日'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (r['毛の色'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">性格</div><div class="info-value">' + (r['家でのふだんの性格'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">病歴・治療</div><div class="info-value">' + medicalTag + '</div></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<div class="section-title">予約内容</div>' +
+      '<div class="info-grid">' +
+        '<div class="info-item"><div class="info-label">メニュー</div><div class="info-value">' + (r['メニュー'] || '未選択') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">希望日時①</div><div class="info-value">' + (r['希望日時①'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">希望日時②</div><div class="info-value">' + (r['希望日時②'] || 'なし') + '</div></div>' +
+        '<div class="info-item info-value large"><div class="info-label">ご要望</div><div class="info-value">' + (r['ご要望'] || 'なし') + '</div></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="section">' +
+      '<div class="section-title">施術メモ</div>' +
+      '<textarea class="memo-box" id="memoBox" placeholder="施術の様子・次回への引き継ぎなどを記録..." onchange="saveMemoNow(\'' + key.replace(/'/g, "\\'") + '\')">' + memo + '</textarea>' +
+      '<div class="memo-saved" id="memoSaved">✅ 保存しました</div>' +
+      '<button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="saveMemoNow(\'' + key.replace(/'/g, "\\'") + '\')">メモを保存</button>' +
+    '</div>';
+}
+
+function saveMemoNow(key) {
+  var val = document.getElementById('memoBox').value;
+  saveMemo(key, val);
+  var saved = document.getElementById('memoSaved');
+  saved.style.display = 'block';
+  setTimeout(function() { saved.style.display = 'none'; }, 2000);
+}
+
+function exportExcel() {
+  if (allData.length === 0) { alert('データがありません'); return; }
+  
+  var exportData = allData.map(function(r) {
+    var key = r['飼い主さまのお名前'] + '_' + r['ワンちゃんのお名前'] + '_' + r['タイムスタンプ'];
+    return {
+      '受付日時': r['タイムスタンプ'] || '',
+      '飼い主名': r['飼い主さまのお名前'] || '',
+      '電話番号': r['電話番号'] || '',
+      'ワンちゃん名': r['ワンちゃんのお名前'] || '',
+      '犬種': r['犬種'] || '',
+      '性別': r['性別'] || '',
+      '生年月日': r['生年月日'] || '',
+      '毛の色': r['毛の色'] || '',
+      '性格': r['家でのふだんの性格'] || '',
+      '病歴・治療': r['病歴・現在の治療（選択肢）必須 '] || '',
+      'メニュー': r['メニュー'] || '',
+      '希望日時①': r['希望日時①'] || '',
+      '希望日時②': r['希望日時②'] || '',
+      'ご要望': r['ご要望'] || '',
+      '施術メモ': memos[key] || ''
+    };
+  });
+  
+  var ws = XLSX.utils.json_to_sheet(exportData);
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'カルテ一覧');
+  
+  // 列幅設定
+  ws['!cols'] = [
+    {wch:18},{wch:14},{wch:14},{wch:12},{wch:14},{wch:10},
+    {wch:12},{wch:10},{wch:18},{wch:14},{wch:16},{wch:14},{wch:14},{wch:24},{wch:30}
+  ];
+  
+  XLSX.writeFile(wb, 'Rinon_カルテ_' + new Date().toISOString().slice(0,10) + '.xlsx');
+}
+
+// 起動
+loadMemos();
+loadData();
+</script>
+</body>
+</html>
