@@ -150,8 +150,8 @@ function saveMemo(key, val) {
   localStorage.setItem('rinon_memos', JSON.stringify(memos));
 }
 
-function sheetUrl(id, name) {
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(name)}`;
+function sheetUrl(id) {
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=0`;
 }
 
 function loadData() {
@@ -159,30 +159,24 @@ function loadData() {
   firstDataRaw = null;
   repeatDataRaw = null;
 
-  window.google = {
-    visualization: {
-      Query: {
-        setResponse: function(response) {
-          try {
-            var cols = response.table.cols.map(function(c){ return c.label; });
-            if (cols.indexOf('前回の施術からの期間') !== -1) {
-              repeatDataRaw = parseSheet(response);
-            } else {
-              firstDataRaw = parseSheet(response);
-            }
-          } catch(e) {
-            console.error('parse error', e);
-          }
-          tryRender();
-        }
-      }
-    }
-  };
+  fetchCsv(sheetUrl(FIRST_SHEET_ID)).then(function(data) {
+    firstDataRaw = data;
+    tryRender();
+  }).catch(function(e) {
+    console.error('first sheet error', e);
+    firstDataRaw = [];
+    tryRender();
+  });
 
-  loadScript(sheetUrl(FIRST_SHEET_ID, FIRST_SHEET_NAME), 1);
-  loadScript(sheetUrl(REPEAT_SHEET_ID, REPEAT_SHEET_NAME), 2);
+  fetchCsv(sheetUrl(REPEAT_SHEET_ID)).then(function(data) {
+    repeatDataRaw = data;
+    tryRender();
+  }).catch(function(e) {
+    console.error('repeat sheet error', e);
+    repeatDataRaw = [];
+    tryRender();
+  });
 
-  // タイムアウト：10秒経っても読み込めなければエラー表示
   setTimeout(function() {
     if (firstDataRaw === null || repeatDataRaw === null) {
       document.getElementById('customerList').innerHTML =
@@ -195,28 +189,46 @@ function loadData() {
   }, 10000);
 }
 
-function loadScript(url, n) {
-  var script = document.createElement('script');
-  script.src = url + '&t=' + Date.now() + '_' + n;
-  script.onerror = function() {
-    console.error('script load error', url);
-    if (n === 1) firstDataRaw = [];
-    if (n === 2) repeatDataRaw = [];
-    tryRender();
-  };
-  document.head.appendChild(script);
+function fetchCsv(url) {
+  return fetch(url).then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.text();
+  }).then(function(text) {
+    return parseCsv(text);
+  });
 }
 
-function parseSheet(response) {
-  var rows = response.table.rows;
-  var cols = response.table.cols;
-  return rows.map(function(row) {
+// CSVパーサー（カンマ・改行・引用符対応）
+function parseCsv(text) {
+  var rows = [];
+  var row = [];
+  var field = '';
+  var inQuotes = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else { field += c; }
+    } else {
+      if (c === '"') { inQuotes = true; }
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else { field += c; }
+    }
+  }
+  if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+
+  if (rows.length === 0) return [];
+  var headers = rows[0].map(function(h) { return h.trim(); });
+  return rows.slice(1).map(function(r) {
     var obj = {};
-    cols.forEach(function(col, i) {
-      var cell = row.c && row.c[i];
-      var label = (col.label || '').trim();
-      obj[label] = cell ? (cell.f || cell.v || '') : '';
-    });
+    headers.forEach(function(h, i) { obj[h] = (r[i] || '').trim(); });
     return obj;
   }).filter(function(r) {
     return r['飼い主さまのお名前'] || r['飼い主様のお名前'];
