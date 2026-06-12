@@ -150,9 +150,21 @@ function saveMemo(key, val) {
 // Googleスプレッドシートからデータ取得
 function loadData() {
   document.getElementById('customerList').innerHTML = '<div class="loading"><div class="spinner"></div>データを読み込み中...</div>';
-  
+
+  // googleオブジェクトをモックして、setResponseが呼ばれたらhandleDataに渡す
+  window.google = {
+    visualization: {
+      Query: {
+        setResponse: function(response) { handleData(response); }
+      }
+    }
+  };
+
   var script = document.createElement('script');
-  script.src = SHEET_URL + '&callback=handleData&t=' + Date.now();
+  script.src = SHEET_URL + '&t=' + Date.now();
+  script.onerror = function() {
+    document.getElementById('customerList').innerHTML = '<div class="empty-list">データの読み込みに失敗しました。<br>スプレッドシートの共有設定を確認してください。</div>';
+  };
   document.head.appendChild(script);
 }
 
