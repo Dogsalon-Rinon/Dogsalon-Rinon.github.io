@@ -163,12 +163,15 @@ function loadData() {
     visualization: {
       Query: {
         setResponse: function(response) {
-          // どちらのデータか判定（カラム名で）
-          var cols = response.table.cols.map(c => c.label);
-          if (cols.indexOf('前回の施術からの期間') !== -1) {
-            repeatDataRaw = parseSheet(response);
-          } else {
-            firstDataRaw = parseSheet(response);
+          try {
+            var cols = response.table.cols.map(function(c){ return c.label; });
+            if (cols.indexOf('前回の施術からの期間') !== -1) {
+              repeatDataRaw = parseSheet(response);
+            } else {
+              firstDataRaw = parseSheet(response);
+            }
+          } catch(e) {
+            console.error('parse error', e);
           }
           tryRender();
         }
@@ -178,12 +181,25 @@ function loadData() {
 
   loadScript(sheetUrl(FIRST_SHEET_ID, FIRST_SHEET_NAME), 1);
   loadScript(sheetUrl(REPEAT_SHEET_ID, REPEAT_SHEET_NAME), 2);
+
+  // タイムアウト：10秒経っても読み込めなければエラー表示
+  setTimeout(function() {
+    if (firstDataRaw === null || repeatDataRaw === null) {
+      document.getElementById('customerList').innerHTML =
+        '<div class="empty-list">' +
+        '⚠️ データの読み込みに失敗しました。<br><br>' +
+        'スプレッドシートの共有設定が<br>「リンクを知っている全員（閲覧者）」<br>になっているか確認してください。<br><br>' +
+        '<button class="btn btn-primary btn-sm" onclick="loadData()">再試行</button>' +
+        '</div>';
+    }
+  }, 10000);
 }
 
 function loadScript(url, n) {
   var script = document.createElement('script');
   script.src = url + '&t=' + Date.now() + '_' + n;
   script.onerror = function() {
+    console.error('script load error', url);
     if (n === 1) firstDataRaw = [];
     if (n === 2) repeatDataRaw = [];
     tryRender();
