@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Rinon カルテ管理</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; color: #0C447C; min-height: 100vh; }
@@ -421,37 +421,142 @@ function exportExcel() {
   if (customers.length === 0) { alert('データがありません'); return; }
 
   var wb = XLSX.utils.book_new();
-  var aoa = [];
+  var ws = {};
+  var merges = [];
+  var rowHeights = {};
+  var currentRow = 0; // 0-indexed
+
+  // スタイル定義
+  var NAVY  = '0C447C';
+  var BLUE  = '1A6FA8';
+  var LBLUE = '5DBAEC';
+  var PALE  = 'E8F4FC';
+  var WHITE = 'FFFFFF';
+  var VLIGHT = 'F0F8FF';
+  var BORDER = 'B3D9F5';
+
+  function thinBorder() {
+    return {
+      top: {style:'thin', color:{rgb:BORDER}},
+      bottom: {style:'thin', color:{rgb:BORDER}},
+      left: {style:'thin', color:{rgb:BORDER}},
+      right: {style:'thin', color:{rgb:BORDER}}
+    };
+  }
+
+  function setCell(r, c, value, style) {
+    var addr = XLSX.utils.encode_cell({r: r, c: c});
+    ws[addr] = { v: value, t: 's', s: style };
+  }
+
+  function titleStyle() {
+    return { fill:{fgColor:{rgb:NAVY}}, font:{color:{rgb:WHITE}, bold:true, sz:13}, alignment:{horizontal:'left', vertical:'center'}, border: thinBorder() };
+  }
+  function labelStyle() {
+    return { fill:{fgColor:{rgb:PALE}}, font:{color:{rgb:NAVY}, bold:true, sz:10}, alignment:{horizontal:'center', vertical:'center', wrapText:true}, border: thinBorder() };
+  }
+  function valueStyle() {
+    return { fill:{fgColor:{rgb:WHITE}}, font:{sz:10}, alignment:{horizontal:'left', vertical:'center', wrapText:true}, border: thinBorder() };
+  }
+  function memoLabelStyle() {
+    return { fill:{fgColor:{rgb:LBLUE}}, font:{color:{rgb:WHITE}, bold:true, sz:10}, alignment:{horizontal:'center', vertical:'center', wrapText:true}, border: thinBorder() };
+  }
+  function memoValueStyle() {
+    return { fill:{fgColor:{rgb:VLIGHT}}, font:{sz:10}, alignment:{horizontal:'left', vertical:'center', wrapText:true}, border: thinBorder() };
+  }
+  function tableHeaderStyle() {
+    return { fill:{fgColor:{rgb:BLUE}}, font:{color:{rgb:WHITE}, bold:true, sz:10}, alignment:{horizontal:'center', vertical:'center'}, border: thinBorder() };
+  }
+  function visitFirstStyle() {
+    return { fill:{fgColor:{rgb:PALE}}, font:{color:{rgb:BLUE}, bold:true, sz:10}, alignment:{horizontal:'center', vertical:'center'}, border: thinBorder() };
+  }
+  function visitRepeatStyle() {
+    return { fill:{fgColor:{rgb:'F0F8E8'}}, font:{color:{rgb:'5A9050'}, bold:true, sz:10}, alignment:{horizontal:'center', vertical:'center'}, border: thinBorder() };
+  }
+  function visitCellStyle() {
+    return { fill:{fgColor:{rgb:WHITE}}, font:{sz:10}, alignment:{horizontal:'left', vertical:'center', wrapText:true}, border: thinBorder() };
+  }
 
   customers.forEach(function(c, idx) {
     var p = c.profile;
-    aoa.push(['🐾 カルテ No.' + (idx+1), c.owner + ' 様 / ' + c.dog, '', '', '来店回数', c.visitCount + '回']);
-    aoa.push(['飼い主名', p['飼い主さまのお名前'] || c.owner, '', '電話番号', p['電話番号'] || '', '']);
-    aoa.push(['ワンちゃん名', c.dog, '', '犬種', p['犬種'] || '', '']);
-    aoa.push(['性別', p['性別'] || '', '', '生年月日', p['生年月日'] || '', '']);
-    aoa.push(['毛の色', p['毛の色'] || '', '', '性格', p['家でのふだんの性格'] || '', '']);
-    aoa.push(['病歴・治療', p['病歴・現在の治療（選択肢）必須 '] || p['病歴・現在の治療'] || '', '', '', '', '']);
-    aoa.push([]);
-    aoa.push(['--- 来店履歴 ---']);
-    aoa.push(['日時', '種別', 'メニュー', '希望日時①', '希望日時②', '施術メモ']);
-    c.visits.forEach(function(v) {
-      aoa.push([
-        formatDateFull(v.date),
-        v.type === 'first' ? '初回' : 'リピート',
-        v.menu || '',
-        v.datetime1 || '',
-        v.datetime2 || '',
-        memos[v.key] || ''
-      ]);
+    var medical = p['病歴・現在の治療（選択肢）必須 '] || p['病歴・現在の治療'] || 'なし';
+
+    // タイトル行
+    merges.push({ s: {r: currentRow, c: 0}, e: {r: currentRow, c: 5} });
+    setCell(currentRow, 0, '🐾 カルテ No.' + (idx+1) + '　　' + c.owner + ' 様 / ' + c.dog + '　　（来店' + c.visitCount + '回）', titleStyle());
+    for (var cc = 1; cc <= 5; cc++) setCell(currentRow, cc, '', titleStyle());
+    rowHeights[currentRow] = 24;
+    currentRow++;
+
+    // 2列ペア情報
+    var pairs = [
+      ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', p['電話番号'] || ''],
+      ['ワンちゃん名', c.dog, '犬種', p['犬種'] || ''],
+      ['性別', p['性別'] || '', '生年月日', p['生年月日'] || ''],
+      ['毛の色', p['毛の色'] || '', '性格', p['家でのふだんの性格'] || ''],
+      ['病歴・治療', medical, '', '']
+    ];
+
+    pairs.forEach(function(pair) {
+      setCell(currentRow, 0, pair[0], labelStyle());
+      setCell(currentRow, 1, pair[1], valueStyle());
+      if (pair[2]) {
+        setCell(currentRow, 2, pair[2], labelStyle());
+        merges.push({ s: {r: currentRow, c: 3}, e: {r: currentRow, c: 5} });
+        setCell(currentRow, 3, pair[3], valueStyle());
+        setCell(currentRow, 4, '', valueStyle());
+        setCell(currentRow, 5, '', valueStyle());
+      } else {
+        merges.push({ s: {r: currentRow, c: 1}, e: {r: currentRow, c: 5} });
+        for (var cc = 2; cc <= 5; cc++) setCell(currentRow, cc, '', valueStyle());
+      }
+      rowHeights[currentRow] = 22;
+      currentRow++;
     });
-    aoa.push([]);
-    aoa.push([]);
+
+    // 来店履歴ヘッダー
+    merges.push({ s: {r: currentRow, c: 0}, e: {r: currentRow, c: 5} });
+    setCell(currentRow, 0, '来店履歴', tableHeaderStyle());
+    for (var cc = 1; cc <= 5; cc++) setCell(currentRow, cc, '', tableHeaderStyle());
+    rowHeights[currentRow] = 22;
+    currentRow++;
+
+    // 来店履歴テーブルヘッダー
+    var tHeaders = ['日時', '種別', 'メニュー', '希望日時①', '希望日時②', '施術メモ'];
+    tHeaders.forEach(function(h, ci) {
+      setCell(currentRow, ci, h, labelStyle());
+    });
+    rowHeights[currentRow] = 22;
+    currentRow++;
+
+    // 来店データ
+    c.visits.forEach(function(v) {
+      var isFirst = v.type === 'first';
+      setCell(currentRow, 0, formatDateFull(v.date), visitCellStyle());
+      setCell(currentRow, 1, isFirst ? '初回' : 'リピート', isFirst ? visitFirstStyle() : visitRepeatStyle());
+      setCell(currentRow, 2, v.menu || '', visitCellStyle());
+      setCell(currentRow, 3, v.datetime1 || '', visitCellStyle());
+      setCell(currentRow, 4, v.datetime2 || '', visitCellStyle());
+      setCell(currentRow, 5, memos[v.key] || '', memoValueStyle());
+      rowHeights[currentRow] = 24;
+      currentRow++;
+    });
+
+    // 余白行
+    currentRow += 2;
   });
 
-  var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:16},{wch:20},{wch:14},{wch:16},{wch:16},{wch:30}];
+  // 範囲設定
+  ws['!ref'] = XLSX.utils.encode_range({ s: {r:0, c:0}, e: {r: currentRow, c: 5} });
+  ws['!merges'] = merges;
+  ws['!cols'] = [{wch:16},{wch:18},{wch:14},{wch:14},{wch:14},{wch:28}];
+  ws['!rows'] = [];
+  for (var r = 0; r <= currentRow; r++) {
+    ws['!rows'][r] = { hpx: rowHeights[r] || 18 };
+  }
+
   XLSX.utils.book_append_sheet(wb, ws, 'カルテ一覧');
-  XLSX.writeFile(wb, 'Rinon_カルテ_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  XLSX.writeFile(wb, 'Rinon_カルテ_' + new Date().toISOString().slice(0,10) + '.xlsx', { cellStyles: true });
 }
 
 loadMemos();
