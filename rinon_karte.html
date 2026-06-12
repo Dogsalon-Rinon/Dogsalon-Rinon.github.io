@@ -150,8 +150,11 @@ function saveMemo(key, val) {
   localStorage.setItem('rinon_memos', JSON.stringify(memos));
 }
 
-function sheetUrl(id) {
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=0`;
+const FIRST_GID = '1818317443';
+const REPEAT_GID = '2045705147';
+
+function sheetUrl(id, gid) {
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
 }
 
 function loadData() {
@@ -159,7 +162,7 @@ function loadData() {
   firstDataRaw = null;
   repeatDataRaw = null;
 
-  fetchCsv(sheetUrl(FIRST_SHEET_ID)).then(function(data) {
+  fetchCsv(sheetUrl(FIRST_SHEET_ID, FIRST_GID)).then(function(data) {
     firstDataRaw = data;
     tryRender();
   }).catch(function(e) {
@@ -168,7 +171,7 @@ function loadData() {
     tryRender();
   });
 
-  fetchCsv(sheetUrl(REPEAT_SHEET_ID)).then(function(data) {
+  fetchCsv(sheetUrl(REPEAT_SHEET_ID, REPEAT_GID)).then(function(data) {
     repeatDataRaw = data;
     tryRender();
   }).catch(function(e) {
