@@ -78,6 +78,16 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 .terms-check { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; cursor: pointer; }
 .terms-check input { width: 16px; height: 16px; margin-top: 1px; accent-color: #1A6FA8; cursor: pointer; flex-shrink: 0; }
 .terms-check span { font-size: 12px; color: #185FA5; font-weight: 600; line-height: 1.6; }
+
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:10000; align-items:center; justify-content:center; padding:20px; }
+.modal-overlay.open { display:flex; }
+.modal-box { background:white; border-radius:16px; max-width:560px; width:100%; max-height:85vh; overflow-y:auto; padding:28px 24px; position:relative; }
+.modal-box h2 { font-family:'Zen Maru Gothic',sans-serif; font-size:18px; color:#0C447C; margin-bottom:16px; text-align:center; }
+.modal-box h3 { font-family:'Zen Maru Gothic',sans-serif; font-size:13px; font-weight:500; color:#1A6FA8; margin:18px 0 8px; padding-bottom:4px; border-bottom:0.5px solid #E0F0FB; }
+.modal-box h3:first-of-type { margin-top: 0; }
+.modal-box ul { padding-left:18px; }
+.modal-box li { font-size:12px; color:#3A6A88; line-height:1.9; }
+.modal-close { display:block; width:100%; margin-top:20px; background:#1A6FA8; color:white; border:none; border-radius:24px; padding:12px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Quicksand',sans-serif; }
 </style>
 </head>
 <body>
@@ -85,7 +95,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
     <div style="background:white; border:0.5px solid #B3D9F5; border-radius:20px; padding:40px 32px; max-width:400px;">
       <p style="font-family:'Zen Maru Gothic',sans-serif; font-size:18px; font-weight:500; color:#0C447C; margin-bottom:8px;">📱 スマホから予約してください</p>
       <p style="font-size:12px; color:#7AAAC0; margin-bottom:24px; line-height:1.8;">パソコンからはご予約いただけません。<br>下のQRコードをスマートフォンで読み取って<br>予約フォームを開いてください。</p>
-      <div id="qr-code" style="margin:0 auto 20px;"></div>
+      <div id="qr-code" style="margin:0 auto 20px; display:flex; justify-content:center;"></div>
       <p style="font-size:11px; color:#7AAAC0;">https://dogsalon-rinon.github.io/rinon_reserve_repeat.html</p>
       <a href="rinon.html" style="display:inline-block; margin-top:20px; background:#1A6FA8; color:white; font-size:12px; font-weight:600; padding:10px 24px; border-radius:20px; text-decoration:none;">トップページに戻る</a>
     </div>
@@ -217,7 +227,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         </ul>
         <label class="terms-check">
           <input type="checkbox" id="agreeTerms" required>
-          <span>上記の内容および<a href="rinon_terms.html" target="_blank">利用規約</a>に同意します</span>
+          <span>上記の内容および<a href="#" onclick="showTermsModal(); return false;">利用規約</a>に同意します</span>
         </label>
       </div>
 
@@ -350,8 +360,60 @@ function submitRepeat() {
       btn.textContent = 'この内容で予約する';
     });
 }
+
+function showTermsModal() { document.getElementById('termsModal').classList.add('open'); }
+function hideTermsModal() { document.getElementById('termsModal').classList.remove('open'); }
 </script>
 
+
+<div class="modal-overlay" id="termsModal" onclick="if(event.target===this) hideTermsModal()">
+  <div class="modal-box">
+    <h2>🐾 ご利用規約</h2>
+
+    <h3>ご予約について</h3>
+    <ul>
+      <li>完全予約制です。当日のご予約はお電話・LINEにてご相談ください。</li>
+      <li>ご予約の変更・キャンセルは前日までにご連絡ください。</li>
+      <li>当日キャンセル・無断キャンセルはキャンセル料（施術料金の50%）が発生する場合がございます。</li>
+    </ul>
+
+    <h3>ご来店について</h3>
+    <ul>
+      <li>ご予約時間の5分前までにお越しください。</li>
+      <li>10分以上の遅刻の場合、施術内容が変更・キャンセルになる場合がございます。</li>
+      <li>ご来店時はリードまたはキャリーバッグをご使用ください。</li>
+    </ul>
+
+    <h3>施術時間・内容について</h3>
+    <ul>
+      <li>毛量・毛玉・毛質・ワンちゃんの状態により、施術時間や内容が予定より前後する場合がございます。</li>
+      <li>毛玉やもつれが激しい場合、カット内容が変わる場合がございます。あらかじめご了承ください。</li>
+      <li>毛量・毛玉の状態により、料金が変動する場合がございます。</li>
+    </ul>
+
+    <h3>お断りについて</h3>
+    <ul>
+      <li>体調不良・発熱・下痢・嘔吐など体調が優れない場合、施術をお断りする場合がございます。</li>
+      <li>ノミ・ダニが確認された場合、施術をお断りする場合がございます。</li>
+      <li>ワクチン接種が済んでいることを前提としております。接種証明書の提示をお願いする場合がございます。</li>
+      <li>てんかん・心臓疾患・重篤なアレルギーなど既往症がある場合は、事前にご申告ください。</li>
+      <li>高齢・病気・体調不安定なワンちゃんの施術中に万が一の事態が生じた場合、当サロンは責任を負いかねます。施術前に同意書へのご署名をお願いする場合がございます。</li>
+    </ul>
+
+    <h3>お支払いについて</h3>
+    <ul>
+      <li>お支払いはお迎え時に現金にてお願いしております。</li>
+    </ul>
+
+    <h3>写真・SNS掲載について</h3>
+    <ul>
+      <li>施術後のお写真をInstagram・TikTokに掲載させていただく場合がございます。</li>
+      <li>掲載を希望されない場合はご予約時またはご来店時にお申し付けください。</li>
+    </ul>
+
+    <button type="button" class="modal-close" onclick="hideTermsModal()">閉じる</button>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
