@@ -53,6 +53,8 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 .submit-btn:hover { opacity: 0.88; }
 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .note { font-size: 11px; color: #7AAAC0; text-align: center; margin-top: 14px; line-height: 1.8; }
+
+.terms-check a { color: #1A6FA8; font-weight: 600; text-decoration: underline; }
 .success-msg { display: none; background: #E8F6FE; border: 0.5px solid #B3D9F5; border-radius: 16px; padding: 24px; text-align: center; margin-top: 20px; }
 .success-msg h3 { font-family: 'Zen Maru Gothic', sans-serif; font-size: 16px; color: #0C447C; margin-bottom: 8px; }
 .success-msg p { font-size: 12px; color: #5A8FAA; line-height: 1.8; }
@@ -67,6 +69,15 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 .slot-info.warn { color: #C06060; }
 
 @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } .form-card { padding: 24px 18px; } }
+
+.terms-box { background: #F8FCFF; border: 0.5px solid #C8E8F8; border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; }
+.terms-box-title { font-size: 12px; font-weight: 700; color: #185FA5; margin-bottom: 8px; }
+.terms-box ul { list-style: none; padding: 0; margin: 0; }
+.terms-box li { font-size: 11px; color: #5A8FAA; line-height: 1.9; padding-left: 14px; position: relative; margin-bottom: 4px; }
+.terms-box li::before { content: '・'; position: absolute; left: 0; color: #5DBAEC; }
+.terms-check { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; cursor: pointer; }
+.terms-check input { width: 16px; height: 16px; margin-top: 1px; accent-color: #1A6FA8; cursor: pointer; flex-shrink: 0; }
+.terms-check span { font-size: 12px; color: #185FA5; font-weight: 600; line-height: 1.6; }
 </style>
 </head>
 <body>
@@ -192,20 +203,22 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
       </div>
 
       <div class="form-group">
-        <div class="form-label">前回の施術からの期間 <span class="optional">任意</span></div>
-        <select name="last_trim">
-          <option value="">選択してください</option>
-          <option>1ヶ月以内</option>
-          <option>1〜2ヶ月</option>
-          <option>2〜3ヶ月</option>
-          <option>3〜6ヶ月</option>
-          <option>6ヶ月以上</option>
-        </select>
-      </div>
-
-      <div class="form-group">
         <div class="form-label">ご要望・変更点など <span class="optional">任意</span></div>
         <textarea name="request" placeholder="カットスタイルの変更、気になることなどご自由にどうぞ"></textarea>
+      </div>
+
+      <div class="terms-box">
+        <div class="terms-box-title">ご予約前に必ずご確認ください</div>
+        <ul>
+          <li>毛玉・毛の量・毛質などにより、施術時間や仕上がりが前後する場合があります</li>
+          <li>体調不良、ノミ・ダニの確認、攻撃的な様子が見られる場合などは、施術をお断りする場合があります</li>
+          <li>ご予約の変更・キャンセルは前日までにご連絡ください。当日キャンセルはキャンセル料が発生する場合があります</li>
+          <li>施術後のお写真をInstagram・TikTokに掲載させていただく場合があります（ご希望されない場合はお申し付けください）</li>
+        </ul>
+        <label class="terms-check">
+          <input type="checkbox" id="agreeTerms" required>
+          <span>上記の内容および<a href="rinon_terms.html" target="_blank">利用規約</a>に同意します</span>
+        </label>
       </div>
 
       <button type="button" class="submit-btn" id="submitBtn" onclick="submitRepeat()">この内容で予約する</button>
@@ -305,6 +318,10 @@ function submitRepeat() {
     alert('ご希望の時間を選択してください。');
     return;
   }
+  if (!document.getElementById('agreeTerms').checked) {
+    alert('ご利用規約への同意が必要です。');
+    return;
+  }
 
   var btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -318,7 +335,6 @@ function submitRepeat() {
   params.set('menu', get('menu'));
   params.set('date', get('reserve_date'));
   params.set('time', selectedTime);
-  params.set('last_trim', get('last_trim'));
   params.set('request', get('request'));
 
   fetch(API_URL + '?' + params.toString())
