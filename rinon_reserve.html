@@ -86,6 +86,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 .terms-check { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; cursor: pointer; }
 .terms-check input { width: 16px; height: 16px; margin-top: 1px; accent-color: #1A6FA8; cursor: pointer; flex-shrink: 0; }
 .terms-check span { font-size: 12px; color: #185FA5; font-weight: 600; line-height: 1.6; }
+.terms-hint { font-size: 11px; color: #B8743A; margin: 6px 0 0 24px; }
 
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:10000; align-items:center; justify-content:center; padding:20px; }
 .modal-overlay.open { display:flex; }
@@ -340,9 +341,10 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
           <li>施術後のお写真をInstagram・TikTokに掲載させていただく場合があります（ご希望されない場合はお申し付けください）</li>
         </ul>
         <label class="terms-check">
-          <input type="checkbox" id="agreeTerms" required>
+          <input type="checkbox" id="agreeTerms" required disabled>
           <span>上記の内容および<a href="#" onclick="showTermsModal(); return false;">利用規約</a>に同意します</span>
         </label>
+        <p class="terms-hint" id="termsHint">※「利用規約」を開いてご確認いただくと選択できるようになります</p>
       </div>
 
       <button type="button" class="submit-btn" id="submitBtn" onclick="submitReserve()">この内容で予約する</button>
@@ -505,7 +507,12 @@ function submitReserve() {
     });
 }
 
-function showTermsModal() { document.getElementById('termsModal').classList.add('open'); }
+function showTermsModal() {
+  document.getElementById('termsModal').classList.add('open');
+  document.getElementById('agreeTerms').disabled = false;
+  var hint = document.getElementById('termsHint');
+  if (hint) hint.style.display = 'none';
+}
 function hideTermsModal() { document.getElementById('termsModal').classList.remove('open'); }
 </script>
 
