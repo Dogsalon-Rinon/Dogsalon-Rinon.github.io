@@ -462,9 +462,12 @@ function showHiddenManager() {
     html += '<div class="section">' + keys.map(function(k) {
       var parts = k.split('___');
       var owner = parts[0], dog = parts[1];
-      return '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #E8F4FC;">' +
+      return '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #E8F4FC; gap:8px;">' +
         '<span style="font-size:13px; color:#0C447C;">' + owner + ' 様 / ' + dog + '</span>' +
-        '<button class="btn btn-primary btn-sm" onclick="restoreCustomer(\'' + k.replace(/'/g, "\\'") + '\')">復元</button>' +
+        '<span style="display:flex; gap:6px; flex-shrink:0;">' +
+          '<button class="btn btn-primary btn-sm" onclick="restoreCustomer(\'' + k.replace(/'/g, "\\'") + '\')">復元</button>' +
+          '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="purgeHidden(\'' + k.replace(/'/g, "\\'") + '\')">完全に削除</button>' +
+        '</span>' +
       '</div>';
     }).join('') + '</div>';
   }
@@ -475,6 +478,13 @@ function restoreCustomer(key) {
   unhideCustomerKey(key);
   buildCustomers();
   renderList(customers);
+  showHiddenManager();
+}
+
+function purgeHidden(key) {
+  if (!confirm('このリストから完全に削除します。\n\n※スプレッドシート側で該当データを削除済みであることを確認してください。スプレッドシートにまだデータが残っていると、次回の「データ更新」で一覧に再表示されます。\n\nよろしいですか？')) return;
+  delete hidden[key];
+  localStorage.setItem('rinon_hidden', JSON.stringify(hidden));
   showHiddenManager();
 }
 
