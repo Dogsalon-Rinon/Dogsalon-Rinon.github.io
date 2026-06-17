@@ -119,6 +119,9 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
     <div class="customer-list" id="customerList">
       <div class="loading"><div class="spinner"></div>データを読み込み中...</div>
     </div>
+    <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
+      <button class="btn btn-light btn-sm" style="width:100%;" onclick="showHiddenManager()">🗑 削除したカルテを管理</button>
+    </div>
   </div>
 
   <div class="content" id="content">
@@ -150,11 +153,24 @@ function saveMemo(key, val) {
   localStorage.setItem('rinon_memos', JSON.stringify(memos));
 }
 
+let hidden = {}; // 削除（非表示）にした顧客のキー一覧
+function loadHidden() {
+  try { hidden = JSON.parse(localStorage.getItem('rinon_hidden') || '{}'); } catch(e) { hidden = {}; }
+}
+function hideCustomerKey(key) {
+  hidden[key] = true;
+  localStorage.setItem('rinon_hidden', JSON.stringify(hidden));
+}
+function unhideCustomerKey(key) {
+  delete hidden[key];
+  localStorage.setItem('rinon_hidden', JSON.stringify(hidden));
+}
+
 const FIRST_GID = '1818317443';
 const REPEAT_GID = '2045705147';
 
 function sheetUrl(id, gid) {
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}&_=` + Date.now();
 }
 
 function loadData() {
@@ -193,7 +209,7 @@ function loadData() {
 }
 
 function fetchCsv(url) {
-  return fetch(url).then(function(res) {
+  return fetch(url, { cache: 'no-store' }).then(function(res) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.text();
   }).then(function(text) {
@@ -309,6 +325,9 @@ function buildCustomers() {
     return c;
   });
 
+  // 削除（非表示）にした顧客を除外
+  customers = customers.filter(function(c) { return !hidden[customerKey(c.owner, c.dog)]; });
+
   // 最終来店日が新しい順にソート
   customers.sort(function(a, b) { return new Date(b.lastVisit.date) - new Date(a.lastVisit.date); });
 }
@@ -388,6 +407,7 @@ function showKarte(idx) {
         '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span></div>' +
         '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
       '</div>' +
+      '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteCustomer(' + idx + ')">🗑 このカルテを削除</button>' +
     '</div>' +
 
     '<div class="section">' +
@@ -415,6 +435,47 @@ function saveMemoNow(key, el) {
   saveMemo(key, el.value);
   el.style.borderColor = '#2EA87E';
   setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
+}
+
+function deleteCustomer(idx) {
+  var c = customers[idx];
+  if (!c) return;
+  if (!confirm(c.owner + ' 様 / ' + c.dog + ' のカルテを一覧から削除します。\n\n※スプレッドシート自体のデータは消えません。後から「削除したカルテを管理」で復元できます。\n\n削除してよろしいですか？')) return;
+  hideCustomerKey(customerKey(c.owner, c.dog));
+  buildCustomers();
+  renderList(customers);
+  document.getElementById('content').innerHTML =
+    '<div class="welcome">' +
+      '<div class="welcome-icon">🐾</div>' +
+      '<h2>カルテを選択してください</h2>' +
+      '<p>左の顧客一覧から名前をクリックすると<br>カルテ詳細と来店履歴が表示されます</p>' +
+    '</div>';
+}
+
+function showHiddenManager() {
+  document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
+  var keys = Object.keys(hidden);
+  var html = '<div class="karte-header"><div><div class="karte-title">削除したカルテ</div><div class="karte-date">' + keys.length + '件　|　復元すると一覧に戻ります</div></div></div>';
+  if (keys.length === 0) {
+    html += '<div class="section"><div style="text-align:center; color:#7AAAC0; padding:30px; font-size:13px;">削除したカルテはありません</div></div>';
+  } else {
+    html += '<div class="section">' + keys.map(function(k) {
+      var parts = k.split('___');
+      var owner = parts[0], dog = parts[1];
+      return '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #E8F4FC;">' +
+        '<span style="font-size:13px; color:#0C447C;">' + owner + ' 様 / ' + dog + '</span>' +
+        '<button class="btn btn-primary btn-sm" onclick="restoreCustomer(\'' + k.replace(/'/g, "\\'") + '\')">復元</button>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+function restoreCustomer(key) {
+  unhideCustomerKey(key);
+  buildCustomers();
+  renderList(customers);
+  showHiddenManager();
 }
 
 function exportExcel() {
@@ -560,6 +621,7 @@ function exportExcel() {
 }
 
 loadMemos();
+loadHidden();
 loadData();
 </script>
 </body>
