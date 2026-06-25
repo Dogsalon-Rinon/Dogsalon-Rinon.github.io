@@ -123,7 +123,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
     </a>
   </nav>
 
-  <div class="page-title">
+  <div class="page-title" id="reserveFormTitle">
     <div class="page-title-en">RESERVATION</div>
     <h1>ご予約フォーム</h1>
     <p>初回のお客さま専用のご予約フォームです。<br>空き時間からご希望の時間をお選びください。<br>※ は必須項目です</p>
@@ -497,6 +497,7 @@ function submitReserve() {
     .then(function(r) { return r.json(); })
     .then(function(res) {
       document.getElementById('reserveForm').style.display = 'none';
+      document.getElementById('reserveFormTitle').style.display = 'none';
       document.getElementById('successMsg').style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
     })
@@ -523,7 +524,7 @@ function hideTermsModal() { document.getElementById('termsModal').classList.remo
 
     <h3>ご予約について</h3>
     <ul>
-      <li>完全予約制です。当日のご予約はお電話・LINEにてご相談ください。</li>
+      <li>完全予約制です。当日のご予約はお電話のみ承ります。</li>
       <li>ご予約の変更・キャンセルは前日までにご連絡ください。</li>
       <li>当日キャンセル・無断キャンセルはキャンセル料（施術料金の50%）が発生する場合がございます。</li>
     </ul>
@@ -533,6 +534,7 @@ function hideTermsModal() { document.getElementById('termsModal').classList.remo
       <li>ご予約時間の5分前までにお越しください。</li>
       <li>10分以上の遅刻の場合、施術内容が変更・キャンセルになる場合がございます。</li>
       <li>ご来店時はリードまたはキャリーバッグをご使用ください。</li>
+      <li>ご来店時はマナーベルトをご持参ください。お持ちでない場合は当店でご購入いただけます（別途料金）。</li>
     </ul>
 
     <h3>施術時間・内容について</h3>
@@ -546,7 +548,7 @@ function hideTermsModal() { document.getElementById('termsModal').classList.remo
     <ul>
       <li>体調不良・発熱・下痢・嘔吐など体調が優れない場合、施術をお断りする場合がございます。</li>
       <li>ノミ・ダニが確認された場合、施術をお断りする場合がございます。</li>
-      <li>ワクチン接種が済んでいることを前提としております。接種証明書の提示をお願いする場合がございます。</li>
+      <li>ご来店の際は接種証明書のご提示をお願いします。なお持病等によりワクチン接種ができない場合はご相談ください。</li>
       <li>てんかん・心臓疾患・重篤なアレルギーなど既往症がある場合は、事前にご申告ください。</li>
       <li>高齢・病気・体調不安定なワンちゃんの施術中に万が一の事態が生じた場合、当サロンは責任を負いかねます。施術前に同意書へのご署名をお願いする場合がございます。</li>
     </ul>
