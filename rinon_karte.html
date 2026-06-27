@@ -168,6 +168,9 @@ function unhideCustomerKey(key) {
 
 const FIRST_GID = '1818317443';
 const REPEAT_GID = '2045705147';
+const FIRST_API_URL  = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeho6g5YatScnQnXY8LlO3N6AHhJlYYaXTtSn2wrSKilFmWOWZIg/exec';
+const REPEAT_API_URL = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1T_TfAJsY3Gzo2xlLg686tHRSaszZ0K4Fk4mIti1vRToUbw/exec';
+const DELETE_SECRET  = 'rinon2026';
 
 function sheetUrl(id, gid) {
   return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}&_=` + Date.now();
@@ -245,9 +248,10 @@ function parseCsv(text) {
 
   if (rows.length === 0) return [];
   var headers = rows[0].map(function(h) { return h.trim(); });
-  return rows.slice(1).map(function(r) {
+  return rows.slice(1).map(function(r, i) {
     var obj = {};
-    headers.forEach(function(h, i) { obj[h] = (r[i] || '').trim(); });
+    headers.forEach(function(h, j) { obj[h] = (r[j] || '').trim(); });
+    obj['__rowNum'] = i + 2; // 1行目がヘッダーなのでデータは2行目から
     return obj;
   }).filter(function(r) {
     return r['飼い主さまのお名前'] || r['飼い主様のお名前'];
@@ -288,7 +292,8 @@ function buildCustomers() {
       datetime1: r['希望日時①'] || '',
       datetime2: r['希望日時②'] || '',
       request: r['ご要望'] || '',
-      key: key + '_' + r['タイムスタンプ']
+      key: key + '_' + r['タイムスタンプ'],
+      rowNum: r['__rowNum']
     });
   });
 
@@ -313,7 +318,8 @@ function buildCustomers() {
       datetime2: r['希望日時②'] || '',
       lastTrim: r['前回の施術からの期間'] || '',
       request: r['ご要望'] || '',
-      key: key + '_' + r['タイムスタンプ']
+      key: key + '_' + r['タイムスタンプ'],
+      rowNum: r['__rowNum']
     });
   });
 
@@ -440,16 +446,37 @@ function saveMemoNow(key, el) {
 function deleteCustomer(idx) {
   var c = customers[idx];
   if (!c) return;
-  if (!confirm(c.owner + ' 様 / ' + c.dog + ' のカルテを一覧から削除します。\n\n※スプレッドシート自体のデータは消えません。後から「削除したカルテを管理」で復元できます。\n\n削除してよろしいですか？')) return;
-  hideCustomerKey(customerKey(c.owner, c.dog));
-  buildCustomers();
-  renderList(customers);
-  document.getElementById('content').innerHTML =
-    '<div class="welcome">' +
-      '<div class="welcome-icon">🐾</div>' +
-      '<h2>カルテを選択してください</h2>' +
-      '<p>左の顧客一覧から名前をクリックすると<br>カルテ詳細と来店履歴が表示されます</p>' +
-    '</div>';
+  if (!confirm(c.owner + ' 様 / ' + c.dog + ' のカルテを削除します。\n\n※スプレッドシートの該当行もすべて削除されます。この操作は元に戻せません。\n\nよろしいですか？')) return;
+
+  // スプレッドシートの行を削除（行番号が大きい順に削除して行ずれを防ぐ）
+  var firstRows  = c.visits.filter(function(v) { return v.type === 'first';  }).map(function(v) { return v.rowNum; });
+  var repeatRows = c.visits.filter(function(v) { return v.type === 'repeat'; }).map(function(v) { return v.rowNum; });
+
+  // 降順に並べて上から順に削除すると行番号がずれないよう、大きい番号から削除
+  firstRows.sort(function(a,b){return b-a;});
+  repeatRows.sort(function(a,b){return b-a;});
+
+  var promises = [];
+  firstRows.forEach(function(row) {
+    promises.push(fetch(FIRST_API_URL + '?action=deleteRow&row=' + row + '&secret=' + DELETE_SECRET));
+  });
+  repeatRows.forEach(function(row) {
+    promises.push(fetch(REPEAT_API_URL + '?action=deleteRow&row=' + row + '&secret=' + DELETE_SECRET));
+  });
+
+  Promise.all(promises).then(function() {
+    hideCustomerKey(customerKey(c.owner, c.dog));
+    buildCustomers();
+    renderList(customers);
+    document.getElementById('content').innerHTML =
+      '<div class="welcome">' +
+        '<div class="welcome-icon">🐾</div>' +
+        '<h2>カルテを選択してください</h2>' +
+        '<p>左の顧客一覧から名前をクリックすると<br>カルテ詳細と来店履歴が表示されます</p>' +
+      '</div>';
+  }).catch(function(err) {
+    alert('削除中にエラーが発生しました。スプレッドシートを直接確認してください。\n' + err);
+  });
 }
 
 function showHiddenManager() {
