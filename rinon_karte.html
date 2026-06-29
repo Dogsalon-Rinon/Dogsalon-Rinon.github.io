@@ -122,6 +122,15 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
     <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
       <button class="btn btn-light btn-sm" style="width:100%;" onclick="showHiddenManager()">🗑 削除したカルテを管理</button>
     </div>
+    <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
+      <div style="font-size:11px; color:#7AAAC0; margin-bottom:6px; text-align:center;">📅 カレンダー登録</div>
+      <input type="date" id="statusDate" style="width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; color:#0C447C; box-sizing:border-box; margin-bottom:6px;">
+      <div style="display:flex; gap:6px;">
+        <button onclick="setCalStatus('満員')" style="flex:1; padding:6px; background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; border-radius:8px; font-size:12px; cursor:pointer;">満員</button>
+        <button onclick="setCalStatus('休業')" style="flex:1; padding:6px; background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; border-radius:8px; font-size:12px; cursor:pointer;">休業</button>
+        <button onclick="setCalStatus('解除')" style="flex:1; padding:6px; background:#E8F6FE; color:#0C447C; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; cursor:pointer;">解除</button>
+      </div>
+    </div>
   </div>
 
   <div class="content" id="content">
@@ -435,6 +444,28 @@ function showKarte(idx) {
       '<div class="section-title">来店履歴（' + c.visitCount + '回）<span style="font-size:10px; color:#7AAAC0; text-transform:none;">各回ごとにメモを記入できます</span></div>' +
       visitsHtml +
     '</div>';
+}
+
+function setCalStatus(status) {
+  var date = document.getElementById('statusDate').value;
+  if (!date) { alert('日付を選択してください'); return; }
+  var label = status === '解除' ? 'この日の満員・休業設定を解除' : date + ' を「' + status + '」に設定';
+  if (!confirm(label + 'します。よろしいですか？')) return;
+
+  var url = FIRST_API_URL + '?action=setStatus&secret=rinon2026&date=' + date +
+    (status === '解除' ? '&status=満員&remove=1' : '&status=' + encodeURIComponent(status));
+
+  // 休業の場合は両方のステータスを解除してから登録
+  var requests = [fetch(url)];
+  if (status === '解除') {
+    requests.push(fetch(FIRST_API_URL + '?action=setStatus&secret=rinon2026&date=' + date + '&status=' + encodeURIComponent('休業') + '&remove=1'));
+  }
+
+  Promise.all(requests).then(function() {
+    alert(status === '解除' ? '解除しました！' : date + ' を「' + status + '」に設定しました！');
+  }).catch(function() {
+    alert('エラーが発生しました。');
+  });
 }
 
 function saveMemoNow(key, el) {
