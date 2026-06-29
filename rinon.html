@@ -340,29 +340,21 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 
   <script>
   (function() {
-    var CAL_ID = 'a79db9ab8a882f2f8bbe68432bec47612858243dd55455a5717100a714a604a2@group.calendar.google.com';
-    var API_KEY = 'AIzaSyArpOtkdcR0qGnGgR3oG4zVY9WXX5mfK2w';
+    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeho6g5YatScnQnXY8LlO3N6AHhJlYYaXTtSn2wrSKilFmWOWZIg/exec';
     var today = new Date();
     var cur = new Date(today.getFullYear(), today.getMonth(), 1);
     var events = {};
 
     function fetchEvents(year, month) {
-      var timeMin = new Date(year, month, 1).toISOString();
-      var timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
-      var url = 'https://www.googleapis.com/calendar/v3/calendars/' +
-        encodeURIComponent(CAL_ID) +
-        '/events?key=' + API_KEY +
-        '&timeMin=' + encodeURIComponent(timeMin) +
-        '&timeMax=' + encodeURIComponent(timeMax) +
-        '&singleEvents=true&orderBy=startTime';
+      var monthStr = year + '-' + pad2(month + 1);
+      var url = APPS_SCRIPT_URL + '?action=getCalendar&month=' + monthStr;
       fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(data) {
           events = {};
-          (data.items || []).forEach(function(ev) {
-            var dateStr = ev.start.date || (ev.start.dateTime || '').slice(0, 10);
-            if (!events[dateStr]) events[dateStr] = [];
-            events[dateStr].push(ev.summary || '');
+          (data.events || []).forEach(function(ev) {
+            if (!events[ev.date]) events[ev.date] = [];
+            events[ev.date].push(ev.title || '');
           });
           renderCal();
         })
