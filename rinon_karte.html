@@ -124,8 +124,16 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
     </div>
     <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
       <div style="font-size:11px; color:#7AAAC0; margin-bottom:6px; text-align:center;">📅 カレンダー登録</div>
-      <input type="date" id="statusDate" style="width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; color:#0C447C; box-sizing:border-box; margin-bottom:6px;">
-      <div style="display:flex; gap:6px;">
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <button id="mode-single" onclick="setMode('single')" style="flex:1; padding:5px; background:#1A6FA8; color:white; border:none; border-radius:8px; font-size:11px; cursor:pointer;">単日</button>
+        <button id="mode-range" onclick="setMode('range')" style="flex:1; padding:5px; background:#E8F6FE; color:#1A6FA8; border:1px solid #B3D9F5; border-radius:8px; font-size:11px; cursor:pointer;">期間</button>
+      </div>
+      <input type="date" id="statusDate" style="width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; color:#0C447C; box-sizing:border-box; margin-bottom:4px;">
+      <div id="endDateWrap" style="display:none;">
+        <div style="font-size:10px; color:#7AAAC0; text-align:center; margin:2px 0;">〜</div>
+        <input type="date" id="statusEndDate" style="width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; color:#0C447C; box-sizing:border-box; margin-bottom:4px;">
+      </div>
+      <div style="display:flex; gap:6px; margin-top:4px;">
         <button onclick="setCalStatus('満員')" style="flex:1; padding:6px; background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; border-radius:8px; font-size:12px; cursor:pointer;">満員</button>
         <button onclick="setCalStatus('休業')" style="flex:1; padding:6px; background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; border-radius:8px; font-size:12px; cursor:pointer;">休業</button>
         <button onclick="setCalStatus('解除')" style="flex:1; padding:6px; background:#E8F6FE; color:#0C447C; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; cursor:pointer;">解除</button>
@@ -296,7 +304,8 @@ function buildCustomers() {
     }
     map[key].visits.push({
       type: 'first',
-      date: r['タイムスタンプ'],
+      date: r['希望日①'] || r['タイムスタンプ'],
+      time: r['希望時間①'] || '',
       menu: r['メニュー'] || '',
       datetime1: r['希望日時①'] || '',
       datetime2: r['希望日時②'] || '',
@@ -321,7 +330,8 @@ function buildCustomers() {
     }
     map[key].visits.push({
       type: 'repeat',
-      date: r['タイムスタンプ'],
+      date: r['希望日①'] || r['タイムスタンプ'],
+      time: r['希望時間①'] || '',
       menu: r['メニュー'] || '',
       datetime1: r['希望日時①'] || '',
       datetime2: r['希望日時②'] || '',
@@ -409,7 +419,7 @@ function showKarte(idx) {
     var memo = memos[memoKey] || '';
     return '<div class="visit-item' + (isFirst ? ' first' : '') + '">' +
       '<div class="visit-header"><span class="visit-date">' + formatDateFull(v.date) + '</span><span class="visit-type ' + typeClass + '">' + typeLabel + '</span></div>' +
-      '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '　|　希望日時：' + (v.datetime1 || '') + (v.datetime2 ? ' / ' + v.datetime2 : '') + '</div>' +
+      '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '　|　希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
       (v.lastTrim ? '<div class="visit-detail">前回からの期間：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' + memo + '</textarea>' +
@@ -429,7 +439,7 @@ function showKarte(idx) {
       '<div class="section-title">飼い主・ワンちゃん情報</div>' +
       '<div class="info-grid">' +
         '<div class="info-item"><div class="info-label">飼い主名</div><div class="info-value">' + (p['飼い主さまのお名前'] || c.owner) + '</div></div>' +
-        '<div class="info-item"><div class="info-label">電話番号</div><div class="info-value">' + (p['電話番号'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">電話番号</div><div class="info-value">' + formatPhone(p['電話番号']) + '</div></div>' +
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
@@ -446,26 +456,55 @@ function showKarte(idx) {
     '</div>';
 }
 
+var calMode = 'single';
+function setMode(mode) {
+  calMode = mode;
+  document.getElementById('endDateWrap').style.display = mode === 'range' ? 'block' : 'none';
+  document.getElementById('mode-single').style.background = mode === 'single' ? '#1A6FA8' : '#E8F6FE';
+  document.getElementById('mode-single').style.color = mode === 'single' ? 'white' : '#1A6FA8';
+  document.getElementById('mode-single').style.border = mode === 'single' ? 'none' : '1px solid #B3D9F5';
+  document.getElementById('mode-range').style.background = mode === 'range' ? '#1A6FA8' : '#E8F6FE';
+  document.getElementById('mode-range').style.color = mode === 'range' ? 'white' : '#1A6FA8';
+  document.getElementById('mode-range').style.border = mode === 'range' ? 'none' : '1px solid #B3D9F5';
+}
+
 function setCalStatus(status) {
   var date = document.getElementById('statusDate').value;
+  var endDate = calMode === 'range' ? document.getElementById('statusEndDate').value : '';
   if (!date) { alert('日付を選択してください'); return; }
-  var label = status === '解除' ? 'この日の満員・休業設定を解除' : date + ' を「' + status + '」に設定';
+  if (calMode === 'range' && !endDate) { alert('終了日を選択してください'); return; }
+  if (calMode === 'range' && endDate < date) { alert('終了日は開始日より後を選択してください'); return; }
+
+  var label = status === '解除'
+    ? (calMode === 'range' ? date + ' 〜 ' + endDate + ' の設定を解除' : date + ' の設定を解除')
+    : (calMode === 'range' ? date + ' 〜 ' + endDate + ' を「' + status + '」に設定' : date + ' を「' + status + '」に設定');
   if (!confirm(label + 'します。よろしいですか？')) return;
 
-  var url = FIRST_API_URL + '?action=setStatus&secret=rinon2026&date=' + date +
-    (status === '解除' ? '&status=満員&remove=1' : '&status=' + encodeURIComponent(status));
-
-  // 休業の場合は両方のステータスを解除してから登録
-  var requests = [fetch(url)];
+  var url = FIRST_API_URL + '?action=setStatus&secret=rinon2026&date=' + date;
+  if (endDate) url += '&endDate=' + endDate;
   if (status === '解除') {
-    requests.push(fetch(FIRST_API_URL + '?action=setStatus&secret=rinon2026&date=' + date + '&status=' + encodeURIComponent('休業') + '&remove=1'));
+    var requests = [
+      fetch(url + '&status=' + encodeURIComponent('満員') + '&remove=1'),
+      fetch(url + '&status=' + encodeURIComponent('休業') + '&remove=1')
+    ];
+    Promise.all(requests).then(function() { alert('解除しました！'); }).catch(function() { alert('エラーが発生しました。'); });
+  } else {
+    fetch(url + '&status=' + encodeURIComponent(status))
+      .then(function() { alert(label + 'しました！'); })
+      .catch(function() { alert('エラーが発生しました。'); });
   }
+}
 
-  Promise.all(requests).then(function() {
-    alert(status === '解除' ? '解除しました！' : date + ' を「' + status + '」に設定しました！');
-  }).catch(function() {
-    alert('エラーが発生しました。');
-  });
+function formatPhone(val) {
+  if (!val) return '';
+  var s = String(val).trim();
+  // 数字のみで10桁なら先頭に0を補完（0が消えて9桁になっているケース）
+  if (/^\d{9,10}$/.test(s.replace(/-/g, ''))) {
+    var digits = s.replace(/-/g, '');
+    if (digits.length === 9) digits = '0' + digits;
+    return digits;
+  }
+  return s;
 }
 
 function saveMemoNow(key, el) {
