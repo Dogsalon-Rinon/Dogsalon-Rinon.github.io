@@ -353,8 +353,28 @@ function buildCustomers() {
   // 削除（非表示）にした顧客を除外
   customers = customers.filter(function(c) { return !hidden[customerKey(c.owner, c.dog)]; });
 
-  // 最終来店日が新しい順にソート
-  customers.sort(function(a, b) { return new Date(b.lastVisit.date) - new Date(a.lastVisit.date); });
+  // 今日の日付
+  var todayStr = (function() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth()+1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+  })();
+
+  // 今日の予約は時間順で先頭に、それ以外は最終来店日が新しい順にソート
+  customers.sort(function(a, b) {
+    var aToday = a.lastVisit.date === todayStr;
+    var bToday = b.lastVisit.date === todayStr;
+    if (aToday && bToday) {
+      // 両方今日→時間順
+      return (a.lastVisit.time || '99:99').localeCompare(b.lastVisit.time || '99:99');
+    }
+    if (aToday) return -1;
+    if (bToday) return 1;
+    // それ以外は最終来店日が新しい順
+    return new Date(b.lastVisit.date) - new Date(a.lastVisit.date);
+  });
 }
 
 function renderList(data) {
