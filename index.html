@@ -155,15 +155,23 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 
   <div style="max-width:720px; margin:32px auto 0; padding:0 20px;">
     <div style="background:white; border:2px solid #B3D9F5; border-radius:24px; padding:36px 32px; position:relative; box-shadow:0 4px 20px rgba(93,186,236,0.1);">
-      <div style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:white; padding:0 16px;">
-        <span style="font-family:'Zen Maru Gothic',sans-serif; font-size:13px; font-weight:500; color:#5DBAEC; letter-spacing:0.2em;">🐾 当サロンの想い 🐾</span>
+      <div style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:white; padding:0 16px; white-space:nowrap;">
+        <span style="font-family:'Zen Maru Gothic',sans-serif; font-size:12px; font-weight:500; color:#5DBAEC; letter-spacing:0.15em;">🐾 当サロンの想い 🐾</span>
       </div>
       <p style="font-family:'Zen Maru Gothic',sans-serif; font-size:14px; color:#3A6080; line-height:2.2; text-align:justify;">
-        小さい頃から、私のそばにはいつもわんちゃんがいました。一緒に笑って、一緒に過ごして、家族として当たり前に暮らしてきたからこそ、わんちゃんは私にとって「ペット」ではなく、大切な家族です。だからこそ、一頭一頭としっかり向き合い、その子にとって無理のないトリミングをしたいという想いから、このサロンをオープンしました。<br><br>
-        目指しているのは、わんちゃんが「ここなら安心」と思い、嫌がらずに来てくれる場所。そして飼い主さまにも、「ここなら安心して任せられる」と思っていただけるサロンです。<br><br>
-        私自身、動物が大好きで、優しく寄り添うことを何より大切にしています。大切なご家族との毎日が、少しでも幸せで笑顔あふれるものになるよう、一頭一頭、心を込めてお手伝いさせていただきます。<br><br>
-        私のサロンロゴには、大好きだった愛犬のシーズーへの想いを込めています。今は虹の橋を渡りましたが、その子が教えてくれた「家族の大切さ」を忘れず、一頭一頭を自分の家族のように大切にお迎えしたいと思っています。
+        小さい頃から、私のそばにはいつもわんちゃんがいました。一緒に笑って、一緒に過ごして、家族として当たり前に暮らしてきたからこそ、わんちゃんは私にとって「ペット」ではなく、大切な家族です。
       </p>
+      <div id="omoi-more" style="display:none;">
+        <p style="font-family:'Zen Maru Gothic',sans-serif; font-size:14px; color:#3A6080; line-height:2.2; text-align:justify; margin-top:12px;">
+          だからこそ、一頭一頭としっかり向き合い、その子にとって無理のないトリミングをしたいという想いから、このサロンをオープンしました。<br><br>
+          目指しているのは、わんちゃんが「ここなら安心」と思い、嫌がらずに来てくれる場所。そして飼い主さまにも、「ここなら安心して任せられる」と思っていただけるサロンです。<br><br>
+          私自身、動物が大好きで、優しく寄り添うことを何より大切にしています。大切なご家族との毎日が、少しでも幸せで笑顔あふれるものになるよう、一頭一頭、心を込めてお手伝いさせていただきます。<br><br>
+          私のサロンロゴには、大好きだった愛犬のシーズーへの想いを込めています。今は虹の橋を渡りましたが、その子が教えてくれた「家族の大切さ」を忘れず、一頭一頭を自分の家族のように大切にお迎えしたいと思っています。
+        </p>
+      </div>
+      <div style="text-align:center; margin-top:16px;">
+        <button id="omoi-btn" onclick="var m=document.getElementById('omoi-more');var b=document.getElementById('omoi-btn');if(m.style.display==='none'){m.style.display='block';b.textContent='閉じる ▲';}else{m.style.display='none';b.textContent='続きを読む ▼';}" style="background:none; border:1px solid #B3D9F5; border-radius:20px; padding:8px 24px; font-size:12px; color:#5DBAEC; cursor:pointer; font-family:'Zen Maru Gothic',sans-serif;">続きを読む ▼</button>
+      </div>
     </div>
   </div>
 
