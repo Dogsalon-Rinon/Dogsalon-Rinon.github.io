@@ -504,12 +504,34 @@ async function resetReceiptNumber() {
 
 populateMenuSelects();
 
+function findBreedKey(text) {
+  if (!text) return null;
+  if (BREED_MENU[text]) return text;
+  var base = text.replace(/[（(].*[）)]/g, '').trim(); // 括弧内（スムース等）を除いた基本名
+  for (var k in BREED_MENU) {
+    if (k.indexOf(text) !== -1 || text.indexOf(k) !== -1) return k;
+  }
+  for (var k2 in BREED_MENU) {
+    var kBase = k2.replace(/[（(].*[）)]/g, '').trim();
+    if (kBase === base) return k2;
+  }
+  return null;
+}
+
+function detectCourse(menuText) {
+  if (!menuText) return 'shampoo';
+  if (menuText.indexOf('スペシャル') !== -1) return 'special';
+  if (menuText.indexOf('カット') !== -1) return 'cut';
+  return 'shampoo';
+}
+
 (function autofillFromParams() {
   var params = new URLSearchParams(window.location.search);
   var owner = params.get('owner');
   var dog = params.get('dog');
+  var breed = params.get('breed');
   var menu = params.get('menu');
-  var amount = params.get('amount');
+  var amount = params.get('amount'); // 旧バージョンとの互換用（あれば使う）
   var dateStr = params.get('date');
 
   if (owner) document.getElementById('owner').value = owner;
@@ -530,12 +552,26 @@ populateMenuSelects();
     document.getElementById('d').value = today.getDate();
   }
 
-  if (menu || amount) {
-    addRow(menu || '', amount || '');
+  // 犬種＋メニューから料金表を自動参照して金額を入れる
+  var breedKey = findBreedKey(breed);
+  var course = detectCourse(menu);
+  if (breedKey && BREED_MENU[breedKey][course] !== null && BREED_MENU[breedKey][course] !== undefined) {
+    // 犬種選択欄にも反映しておく（追加で単品を足したい時のため）
+    document.getElementById('breedSelect').value = breedKey;
+    updateCourseOptions();
+    document.getElementById('courseSelect').value = course;
+    addRow(breedKey + '　' + COURSE_LABEL[course] + '（目安）', BREED_MENU[breedKey][course]);
+  } else if (amount) {
+    // 旧パラメータ形式（金額指定あり）との互換
+    addRow(menu || '', amount);
+  } else if (menu) {
+    // 料金表に一致がなければメニュー名だけ入れて金額は手入力してもらう
+    addRow(menu, '');
   } else {
     addRow('', '');
   }
 })();
+
 </script>
 
 </body>
