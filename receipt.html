@@ -130,6 +130,21 @@
     font-size: 11px; background: #fff6e8; color: #c98a3e; border: 1.5px solid #ffe1b3;
     border-radius: 14px; padding: 3px 12px; cursor: pointer; font-family: inherit; font-weight: 700;
   }
+  .menu-picker {
+    background: #f4faff; border: 1.5px dashed #b9dcf0; border-radius: 14px;
+    padding: 3mm 3.5mm; margin-bottom: 3mm;
+  }
+  .picker-row { display: flex; gap: 2mm; align-items: center; margin-bottom: 2mm; }
+  .picker-row:last-child { margin-bottom: 0; }
+  .picker-row select {
+    flex: 1; font-size: 11.5px; font-family: inherit; padding: 1.5mm 2mm;
+    border: 1.5px solid #cfe6f5; border-radius: 8px; background: #fff; color: #4a4038;
+  }
+  .picker-row button {
+    font-size: 11px; background: #4a90c4; color: #fff; border: none;
+    border-radius: 999px; padding: 4px 12px; cursor: pointer; font-family: inherit; font-weight: 700;
+    white-space: nowrap;
+  }
   table.items {
     width: 100%; border-collapse: separate; border-spacing: 0;
     font-size: 12px; margin-bottom: 3mm;
@@ -148,11 +163,14 @@
   }
   .subtotal-row {
     display: flex; justify-content: flex-end; align-items: center; gap: 6mm;
-    font-size: 12.5px; padding: 2mm 3mm; margin-bottom: 7mm;
+    font-size: 12.5px; padding: 2mm 3mm; margin-bottom: 1.5mm;
     background: #fff6e8; border-radius: 12px;
   }
   .subtotal-row .label { color: #c98a3e; font-weight: 700; }
   .subtotal-row .value { font-weight: 900; min-width: 24mm; text-align: right; color: #d9822b; font-size: 14px; }
+  .tax-breakdown {
+    text-align: right; font-size: 10.5px; color: #a9927f; margin-bottom: 7mm;
+  }
 
   .footer {
     position: relative; margin-top: 10mm;
@@ -174,7 +192,7 @@
 
   @media print {
     body { background: #fff; }
-    .toolbar, .add-btn, td.del { display: none !important; }
+    .toolbar, .add-btn, td.del, .no-print { display: none !important; }
     .sheet { margin: 0; box-shadow: none; width: 182mm; min-height: 257mm; border-radius: 0; border: none; }
     input:focus { background: transparent; }
     table.items td.del { display: none; }
@@ -239,6 +257,27 @@
     <div class="items-title">
       <span>明細</span>
     </div>
+
+    <div class="menu-picker no-print">
+      <div class="picker-row">
+        <select id="breedSelect"></select>
+        <select id="courseSelect"></select>
+        <button type="button" onclick="addBreedRow()">＋追加</button>
+      </div>
+      <div class="picker-row">
+        <select id="singleSelect"></select>
+        <select id="sizeSelect">
+          <option value="small">小型犬</option>
+          <option value="medium">中型犬</option>
+        </select>
+        <button type="button" onclick="addSingleRow()">＋追加</button>
+      </div>
+      <div class="picker-row">
+        <select id="optionSelect"></select>
+        <button type="button" onclick="addOptionRow()">＋追加</button>
+      </div>
+    </div>
+
     <table class="items" id="itemsTable">
       <thead>
         <tr><th style="width:65%;">品目</th><th style="width:30%;">金額（円）</th><th></th></tr>
@@ -248,6 +287,9 @@
     <div class="subtotal-row">
       <span class="label">合計</span>
       <span class="value" id="subtotalDisplay">0円</span>
+    </div>
+    <div class="tax-breakdown">
+      <span>（内訳：税抜金額 <span id="taxExclDisplay">0円</span>　／　消費税10% <span id="taxAmountDisplay">0円</span>）</span>
     </div>
 
     <div class="footer">
@@ -262,6 +304,128 @@
   </div>
 
 <script>
+// ── メニュー料金表（Dog Salon Rinon トリミング料金表より） ──
+var BREED_MENU = {
+  "ミニピン":            { shampoo: 4500, cut: null, special: null },
+  "チワワ(スムース)":     { shampoo: 4500, cut: null, special: null },
+  "チワワ(ロング)":       { shampoo: 5000, cut: 6100, special: 6600 },
+  "ダックス(スムース)":   { shampoo: 5000, cut: null, special: null },
+  "ダックス(ロング)":     { shampoo: 5500, cut: 6600, special: 7100 },
+  "パピヨン":             { shampoo: 5500, cut: 6600, special: null },
+  "パグ":                 { shampoo: 5500, cut: 6600, special: null },
+  "ジャックラッセル":     { shampoo: 5000, cut: null, special: null },
+  "ボストンテリア":       { shampoo: 5000, cut: null, special: null },
+  "フレンチブル":         { shampoo: 5500, cut: null, special: null },
+  "ヨーキー":             { shampoo: 5500, cut: 7000, special: 7500 },
+  "マルチーズ":           { shampoo: 5500, cut: 7000, special: 7500 },
+  "ポメラニアン":         { shampoo: 5500, cut: 6600, special: 7500 },
+  "シーズー":             { shampoo: 5500, cut: 7000, special: 7500 },
+  "ペキニーズ":           { shampoo: 5500, cut: 7000, special: 7500 },
+  "トイプードル":         { shampoo: 6000, cut: 7500, special: 8000 },
+  "Mシュナウザー":        { shampoo: 6500, cut: 8000, special: 8500 },
+  "ビション":             { shampoo: 7000, cut: 8500, special: 9000 },
+  "コーギー":             { shampoo: 6600, cut: 8100, special: null },
+  "柴犬(6kg未満)":        { shampoo: 6800, cut: null, special: null },
+  "柴犬(6kg~)":           { shampoo: 7300, cut: null, special: null },
+  "キャバリア":           { shampoo: 7000, cut: 8500, special: 9000 },
+  "シェルティ":           { shampoo: 7000, cut: 8500, special: 9000 },
+  "Aコッカー":            { shampoo: 7500, cut: 9500, special: null }
+};
+var COURSE_LABEL = { shampoo: "シャンプーコース", cut: "カットコース", special: "スペシャルコース" };
+
+var SINGLE_MENU = [
+  { name: "爪切り(やすりがけ含む)",       small: 550,  medium: 660 },
+  { name: "耳掃除",                       small: 550,  medium: 660 },
+  { name: "足裏バリカン",                 small: 550,  medium: 660 },
+  { name: "足回りカット(前足・後足)",     small: 550,  medium: 660 },
+  { name: "お腹バリカン(おへそ下まで)",   small: 385,  medium: 495 },
+  { name: "お尻カット",                   small: 550,  medium: 660 },
+  { name: "顔カット",                     small: 1100, medium: 1320 },
+  { name: "肛門腺絞り",                   small: 550,  medium: 660 },
+  { name: "耳毛抜き",                     small: 385,  medium: 495 },
+  { name: "足先バリカン",                 small: 550,  medium: 660 }
+];
+
+var OPTION_MENU = [
+  { name: "薬用シャンプー",                     price: 550 },
+  { name: "ひげ切り",                           price: 550 },
+  { name: "デザインカット(ワンポイント)",       price: 550 },
+  { name: "デザインカット(アフロや足フレアなど)", price: 1100 },
+  { name: "オールシザー",                       price: 1100 },
+  { name: "部分カット",                         price: 550 },
+  { name: "お顔カット",                         price: 1100 }
+];
+
+function populateMenuSelects() {
+  var breedSel = document.getElementById('breedSelect');
+  Object.keys(BREED_MENU).forEach(function(breed) {
+    var opt = document.createElement('option');
+    opt.value = breed;
+    opt.textContent = breed;
+    breedSel.appendChild(opt);
+  });
+  updateCourseOptions();
+  breedSel.addEventListener('change', updateCourseOptions);
+
+  var singleSel = document.getElementById('singleSelect');
+  SINGLE_MENU.forEach(function(item, i) {
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = item.name + '（小型¥' + item.small.toLocaleString('ja-JP') + ' / 中型¥' + item.medium.toLocaleString('ja-JP') + '）';
+    singleSel.appendChild(opt);
+  });
+
+  var optionSel = document.getElementById('optionSelect');
+  OPTION_MENU.forEach(function(item, i) {
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = item.name + '（+¥' + item.price.toLocaleString('ja-JP') + '~）';
+    optionSel.appendChild(opt);
+  });
+}
+
+function updateCourseOptions() {
+  var breed = document.getElementById('breedSelect').value;
+  var courseSel = document.getElementById('courseSelect');
+  courseSel.innerHTML = '';
+  var menu = BREED_MENU[breed];
+  if (!menu) return;
+  ['shampoo', 'cut', 'special'].forEach(function(course) {
+    if (menu[course] !== null) {
+      var opt = document.createElement('option');
+      opt.value = course;
+      opt.textContent = COURSE_LABEL[course] + '（¥' + menu[course].toLocaleString('ja-JP') + '~）';
+      courseSel.appendChild(opt);
+    }
+  });
+}
+
+function addBreedRow() {
+  var breed = document.getElementById('breedSelect').value;
+  var course = document.getElementById('courseSelect').value;
+  var menu = BREED_MENU[breed];
+  if (!menu || menu[course] === undefined || menu[course] === null) return;
+  var label = breed + '　' + COURSE_LABEL[course] + '（目安）';
+  addRow(label, menu[course]);
+}
+
+function addSingleRow() {
+  var idx = parseInt(document.getElementById('singleSelect').value, 10);
+  var size = document.getElementById('sizeSelect').value;
+  var item = SINGLE_MENU[idx];
+  if (!item) return;
+  var price = size === 'medium' ? item.medium : item.small;
+  var sizeLabel = size === 'medium' ? '中型犬' : '小型犬';
+  addRow(item.name + '（' + sizeLabel + '）', price);
+}
+
+function addOptionRow() {
+  var idx = parseInt(document.getElementById('optionSelect').value, 10);
+  var item = OPTION_MENU[idx];
+  if (!item) return;
+  addRow(item.name + '（目安）', item.price);
+}
+
 function makeRow(name, price) {
   var tr = document.createElement('tr');
   tr.innerHTML =
@@ -292,6 +456,12 @@ function recalc() {
   });
   document.getElementById('total').value = sum.toLocaleString('ja-JP');
   document.getElementById('subtotalDisplay').textContent = sum.toLocaleString('ja-JP') + '円';
+
+  // 合計金額を税込10%とみなして逆算（税抜金額・消費税額）
+  var taxExcl = Math.round(sum / 1.1);
+  var taxAmount = sum - taxExcl;
+  document.getElementById('taxExclDisplay').textContent = taxExcl.toLocaleString('ja-JP') + '円';
+  document.getElementById('taxAmountDisplay').textContent = taxAmount.toLocaleString('ja-JP') + '円';
 }
 
 // 通し番号の自動採番（Google Apps Script の共有カウンターを使用。
@@ -331,6 +501,8 @@ async function resetReceiptNumber() {
     alert('リセットに失敗しました。ネット接続を確認してください。');
   }
 }
+
+populateMenuSelects();
 
 (function autofillFromParams() {
   var params = new URLSearchParams(window.location.search);
