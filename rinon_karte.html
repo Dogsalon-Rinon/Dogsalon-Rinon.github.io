@@ -170,6 +170,36 @@ function saveMemo(key, val) {
   localStorage.setItem('rinon_memos', JSON.stringify(memos));
 }
 
+let amounts = {}; // 施術ごとの金額（領収書連携用）
+function loadAmounts() {
+  try { amounts = JSON.parse(localStorage.getItem('rinon_amounts') || '{}'); } catch(e) { amounts = {}; }
+}
+function saveAmount(key, val) {
+  amounts[key] = val;
+  localStorage.setItem('rinon_amounts', JSON.stringify(amounts));
+}
+function saveAmountNow(key, el) {
+  saveAmount(key, el.value);
+  el.style.borderColor = '#2EA87E';
+  setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
+}
+
+var visitLookup = {}; // uid -> {key, owner, dog, menu, date}
+function issueReceipt(uid) {
+  var info = visitLookup[uid];
+  if (!info) return;
+  var amtInput = document.getElementById('amt-' + uid);
+  var amt = (amtInput ? amtInput.value : '') || amounts[info.key] || '';
+  var params = new URLSearchParams({
+    owner: info.owner || '',
+    dog: info.dog || '',
+    menu: info.menu || '',
+    date: info.date || '',
+    amount: amt
+  });
+  window.open('receipt.html?' + params.toString(), '_blank');
+}
+
 let hidden = {}; // 削除（非表示）にした顧客のキー一覧
 function loadHidden() {
   try { hidden = JSON.parse(localStorage.getItem('rinon_hidden') || '{}'); } catch(e) { hidden = {}; }
@@ -431,18 +461,28 @@ function showKarte(idx) {
   var medical = p['病歴・現在の治療（選択肢）必須 '] || p['病歴・現在の治療'] || '';
   var medicalTag = medical && medical !== 'なし' ? '<span class="tag tag-red">' + medical + '</span>' : '<span class="tag">なし</span>';
 
+  visitLookup = {};
   var visitsHtml = c.visits.slice().reverse().map(function(v, vi) {
     var isFirst = v.type === 'first';
     var typeLabel = isFirst ? '初回' : 'リピート';
     var typeClass = isFirst ? 'first-type' : 'repeat-type';
     var memoKey = v.key;
     var memo = memos[memoKey] || '';
+    var amount = amounts[memoKey] || '';
+    var uid = idx + '_' + vi;
+    visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, menu: v.menu || '', date: v.date || '' };
     return '<div class="visit-item' + (isFirst ? ' first' : '') + '">' +
       '<div class="visit-header"><span class="visit-date">' + formatDateFull(v.date) + '</span><span class="visit-type ' + typeClass + '">' + typeLabel + '</span></div>' +
       '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '　|　希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
       (v.lastTrim ? '<div class="visit-detail">前回からの期間：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' + memo + '</textarea>' +
+      '<div style="display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
+        '<label style="font-size:11px; color:#7AAAC0;">金額</label>' +
+        '<input type="number" id="amt-' + uid + '" style="width:90px; padding:5px 8px; border:1.5px solid #B3D9F5; border-radius:6px; font-size:12px; color:#0C447C;" placeholder="0" value="' + amount + '" onchange="saveAmountNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' +
+        '<span style="font-size:11px; color:#7AAAC0;">円</span>' +
+        '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
+      '</div>' +
     '</div>';
   }).join('');
 
@@ -748,6 +788,7 @@ function exportExcel() {
 }
 
 loadMemos();
+loadAmounts();
 loadHidden();
 loadData();
 </script>
