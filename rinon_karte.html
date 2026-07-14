@@ -331,7 +331,7 @@ function buildCustomers() {
 
   // リピーターデータを追加
   repeatDataRaw.forEach(function(r) {
-    var owner = r['飼い主様のお名前'];
+    var owner = r['飼い主さまのお名前'] || r['飼い主様のお名前'];
     var dog = r['ワンちゃんのお名前'];
     var key = customerKey(owner, dog);
     if (!map[key]) {
@@ -484,7 +484,7 @@ function showKarte(idx) {
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
-        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['生年月日'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (p['毛の色'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性格</div><div class="info-value">' + (p['家でのふだんの性格'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">病歴・治療</div><div class="info-value">' + medicalTag + '</div></div>' +
@@ -539,10 +539,15 @@ function setCalStatus(status) {
 function formatPhone(val) {
   if (!val) return '';
   var s = String(val).trim();
-  // 数字のみで10桁なら先頭に0を補完（0が消えて9桁になっているケース）
-  if (/^\d{9,10}$/.test(s.replace(/-/g, ''))) {
-    var digits = s.replace(/-/g, '');
-    if (digits.length === 9) digits = '0' + digits;
+  var digits = s.replace(/[-‐−ー\s]/g, '');
+  if (/^\d+$/.test(digits)) {
+    // Googleスプレッドシートが数値として保存すると先頭の0が消えるため補完する
+    // （携帯番号は11桁、一部の固定電話は10桁が正しい桁数）
+    if (digits.charAt(0) !== '0' && (digits.length === 9 || digits.length === 10)) {
+      digits = '0' + digits;
+    }
+    if (digits.length === 11) return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+    if (digits.length === 10) return digits.slice(0, 2) + '-' + digits.slice(2, 6) + '-' + digits.slice(6);
     return digits;
   }
   return s;
@@ -699,9 +704,9 @@ function exportExcel() {
 
     // 2列ペア情報
     var pairs = [
-      ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', p['電話番号'] || ''],
+      ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', formatPhone(p['電話番号'])],
       ['ワンちゃん名', c.dog, '犬種', p['犬種'] || ''],
-      ['性別', p['性別'] || '', '生年月日', p['生年月日'] || ''],
+      ['性別', p['性別'] || '', '生年月日', p['ワンちゃんの生年月日'] || p['生年月日'] || ''],
       ['毛の色', p['毛の色'] || '', '性格', p['家でのふだんの性格'] || ''],
       ['病歴・治療', medical, '', '']
     ];
