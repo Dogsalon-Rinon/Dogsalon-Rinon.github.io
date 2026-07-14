@@ -308,6 +308,10 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 
       <div class="form-group">
         <div class="form-label">ご希望時間 <span class="required">必須</span></div>
+        <div id="selectedTimeDisplay" style="display:none; background:#E8F6FE; border:1.5px solid #5DBAEC; border-radius:12px; padding:12px 16px; margin-bottom:12px; text-align:center;">
+          <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">選択中の時間</div>
+          <div id="selectedTimeText" style="font-size:22px; font-weight:700; color:#1A6FA8;"></div>
+        </div>
         <div id="timeSlotContainer">
           <p class="slot-info">犬種・メニュー・日付を選択すると空き時間が表示されます</p>
         </div>
@@ -403,6 +407,7 @@ let selectedTime = '';
 
 function updateTimeSlots() {
   selectedTime = '';
+  var d = document.getElementById('selectedTimeDisplay'); if (d) d.style.display='none';
   var breed = document.getElementById('breedSelect').value;
   var menu = document.getElementById('menuSelect').value;
   var date = document.getElementById('reserveDate').value;
@@ -445,6 +450,11 @@ function updateTimeSlots() {
 
 function selectTime(btn) {
   document.querySelectorAll('.time-slot-btn').forEach(function(b) { b.classList.remove('selected'); });
+  // 選択時間を表示
+  var t = btn.getAttribute('data-time');
+  var display = document.getElementById('selectedTimeDisplay');
+  var text = document.getElementById('selectedTimeText');
+  if (display && text) { display.style.display='block'; text.textContent = t; }
   btn.classList.add('selected');
   selectedTime = btn.getAttribute('data-time');
 }
