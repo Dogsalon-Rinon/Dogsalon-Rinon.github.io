@@ -562,7 +562,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
         });
     }
 
-    function selectSlot(date, time) {
+    window.selectSlot = function(date, time) {
       var popup = document.getElementById('slot-popup');
       document.getElementById('slot-popup-label').textContent = date.replace(/-/g, '/') + '  ' + time;
       document.getElementById('slot-popup-first').href = 'rinon_reserve.html?date=' + date + '&time=' + encodeURIComponent(time);
