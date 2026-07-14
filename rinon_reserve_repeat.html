@@ -100,7 +100,8 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
     <h2 style="font-family:'Zen Maru Gothic',sans-serif; font-size:18px; font-weight:500; color:#0C447C; margin-bottom:8px;">リピーターの方の予約フォーム</h2>
     <p style="font-size:12px; color:#7AAAC0; margin-bottom:24px; line-height:1.8;">以前ご来店いただいた際に登録された<br>お名前を入力してください</p>
     <input type="text" id="verify-owner" placeholder="飼い主様のお名前" style="width:100%; padding:12px; border:1px solid #B3D9F5; border-radius:10px; font-size:14px; color:#0C447C; box-sizing:border-box; margin-bottom:12px; font-family:'Zen Maru Gothic',sans-serif;">
-    <input type="text" id="verify-dog" placeholder="ワンちゃんのお名前" style="width:100%; padding:12px; border:1px solid #B3D9F5; border-radius:10px; font-size:14px; color:#0C447C; box-sizing:border-box; margin-bottom:16px; font-family:'Zen Maru Gothic',sans-serif;">
+    <input type="text" id="verify-dog" placeholder="ワンちゃんのお名前" style="width:100%; padding:12px; border:1px solid #B3D9F5; border-radius:10px; font-size:14px; color:#0C447C; box-sizing:border-box; margin-bottom:12px; font-family:'Zen Maru Gothic',sans-serif;">
+    <input type="tel" id="verify-phone" placeholder="電話番号（ハイフンなし）" style="width:100%; padding:12px; border:1px solid #B3D9F5; border-radius:10px; font-size:14px; color:#0C447C; box-sizing:border-box; margin-bottom:16px; font-family:'Zen Maru Gothic',sans-serif;">
     <div id="verify-error" style="color:#C06060; font-size:12px; margin-bottom:12px; display:none;"></div>
     <button id="verify-btn" onclick="doVerify()" style="width:100%; padding:14px; background:#1A6FA8; color:white; border:none; border-radius:24px; font-size:14px; font-weight:700; cursor:pointer; font-family:'Zen Maru Gothic',sans-serif;">確認する</button>
     <p style="font-size:11px; color:#7AAAC0; margin-top:16px;">初めてご来店の方は<a href="rinon_reserve.html" style="color:#5DBAEC;">こちら</a>からご予約ください</p>
@@ -112,11 +113,12 @@ const VERIFY_URL = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeh
 function doVerify() {
   var owner = document.getElementById('verify-owner').value.trim();
   var dog   = document.getElementById('verify-dog').value.trim();
+  var phone = document.getElementById('verify-phone').value.trim().replace(/-/g, '');
   var err   = document.getElementById('verify-error');
   var btn   = document.getElementById('verify-btn');
-  if (!owner || !dog) { err.textContent = 'お名前を入力してください'; err.style.display='block'; return; }
+  if (!owner || !dog || !phone) { err.textContent = '全ての項目を入力してください'; err.style.display='block'; return; }
   btn.textContent = '確認中...'; btn.disabled = true;
-  fetch(VERIFY_URL + '?action=verify&owner_name=' + encodeURIComponent(owner) + '&dog_name=' + encodeURIComponent(dog))
+  fetch(VERIFY_URL + '?action=verify&owner_name=' + encodeURIComponent(owner) + '&dog_name=' + encodeURIComponent(dog) + '&phone=' + encodeURIComponent(phone))
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.verified) {
@@ -259,6 +261,11 @@ function doVerify() {
         <div class="form-label">ご要望・変更点など <span class="optional">任意</span></div>
         <textarea name="request" placeholder="カットスタイルの変更、気になることなどご自由にどうぞ"></textarea>
       </div>
+      <div class="form-card">
+        <div class="form-label">メールアドレス <span class="optional">任意</span></div>
+        <p style="font-size:11px; color:#7AAAC0; margin-bottom:8px;">ご入力いただいた方に予約確認・お断りのメールをお送りします</p>
+        <input type="email" name="email" placeholder="例：rinon@example.com">
+      </div>
 
       <div class="terms-box">
         <div class="terms-box-title">ご予約前に必ずご確認ください</div>
@@ -356,6 +363,31 @@ document.getElementById('breedSelect').addEventListener('change', updateTimeSlot
 document.getElementById('menuSelect').addEventListener('change', updateTimeSlots);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
+// URLパラメータから日付・時間を自動入力
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var pDate = params.get('date');
+  var pTime = params.get('time');
+  if (pDate) {
+    document.getElementById('reserveDate').value = pDate;
+    if (pTime) {
+      // 時間ボタンが生成されたら自動選択
+      var origUpdate = updateTimeSlots;
+      window._autoTime = pTime;
+      var origFetch = window.fetch;
+      // スロット読み込み完了後に自動クリック
+      var observer = new MutationObserver(function() {
+        if (window._autoTime) {
+          var btn = document.querySelector('.time-slot-btn[data-time="' + window._autoTime + '"]');
+          if (btn) { selectTime(btn); window._autoTime = null; }
+        }
+      });
+      observer.observe(document.getElementById('timeSlotContainer'), { childList: true, subtree: true });
+    }
+    updateTimeSlots();
+  }
+})();
+
 // ===== 送信 =====
 function submitRepeat() {
   const f = document.getElementById('repeatForm');
@@ -390,6 +422,7 @@ function submitRepeat() {
   params.set('date', get('reserve_date'));
   params.set('time', selectedTime);
   params.set('request', get('request'));
+  params.set('email', get('email'));
 
   fetch(API_URL + '?' + params.toString())
     .then(function(r) { return r.json(); })

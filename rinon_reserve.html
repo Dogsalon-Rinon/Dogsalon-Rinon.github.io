@@ -330,6 +330,11 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         <div class="form-label">ご要望 <span class="optional">任意</span></div>
         <textarea name="request" placeholder="気になることがあればご記入ください"></textarea>
       </div>
+      <div class="form-card">
+        <div class="form-label">メールアドレス <span class="optional">任意</span></div>
+        <p style="font-size:11px; color:#7AAAC0; margin-bottom:8px;">ご入力いただいた方に予約確認・お断りのメールをお送りします</p>
+        <input type="email" name="email" placeholder="例：rinon@example.com">
+      </div>
 
       <div class="terms-box">
         <div class="terms-box-title">ご予約前に必ずご確認ください</div>
@@ -448,6 +453,31 @@ document.getElementById('breedSelect').addEventListener('change', updateTimeSlot
 document.getElementById('menuSelect').addEventListener('change', updateTimeSlots);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
+// URLパラメータから日付・時間を自動入力
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var pDate = params.get('date');
+  var pTime = params.get('time');
+  if (pDate) {
+    document.getElementById('reserveDate').value = pDate;
+    if (pTime) {
+      // 時間ボタンが生成されたら自動選択
+      var origUpdate = updateTimeSlots;
+      window._autoTime = pTime;
+      var origFetch = window.fetch;
+      // スロット読み込み完了後に自動クリック
+      var observer = new MutationObserver(function() {
+        if (window._autoTime) {
+          var btn = document.querySelector('.time-slot-btn[data-time="' + window._autoTime + '"]');
+          if (btn) { selectTime(btn); window._autoTime = null; }
+        }
+      });
+      observer.observe(document.getElementById('timeSlotContainer'), { childList: true, subtree: true });
+    }
+    updateTimeSlots();
+  }
+})();
+
 // ===== 送信 =====
 function submitReserve() {
   const f = document.getElementById('reserveForm');
@@ -491,6 +521,7 @@ function submitReserve() {
   params.set('time', selectedTime);
   params.set('last_trim', get('last_trim'));
   params.set('request', get('request'));
+  params.set('email', get('email'));
 
   fetch(API_URL + '?' + params.toString())
     .then(function(r) { return r.json(); })

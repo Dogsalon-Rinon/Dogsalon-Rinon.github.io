@@ -187,6 +187,20 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       <button class="hamburger" onclick="openMenu()"><span></span><span></span><span></span></button>
   </nav>
 
+  <!-- 空き時間選択ポップアップ -->
+  <div id="slot-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:white; border-radius:20px; padding:28px 24px; max-width:320px; width:100%; text-align:center;">
+      <div style="font-size:13px; color:#7AAAC0; margin-bottom:6px;">ご予約の時間</div>
+      <div id="slot-popup-label" style="font-size:18px; font-weight:700; color:#0C447C; margin-bottom:20px;"></div>
+      <div style="font-size:13px; color:#5A8FAA; margin-bottom:16px;">ご予約の種別を選択してください</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <a id="slot-popup-first" href="#" style="display:block; background:#1A6FA8; color:white; padding:14px; border-radius:24px; text-decoration:none; font-size:14px; font-weight:700;">🐾 初めての方のご予約</a>
+        <a id="slot-popup-repeat" href="#" style="display:block; background:#E8F6FE; color:#1A6FA8; border:1px solid #B3D9F5; padding:14px; border-radius:24px; text-decoration:none; font-size:14px; font-weight:700;">🔄 リピーターの方のご予約</a>
+        <button onclick="document.getElementById('slot-popup').style.display='none'" style="background:none; border:none; color:#7AAAC0; font-size:13px; cursor:pointer; margin-top:4px;">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
   <div class="side-menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
   <div class="side-menu" id="sideMenu">
     <button class="side-menu-close" onclick="closeMenu()">✕</button>
@@ -421,6 +435,13 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
     <!-- カレンダーグリッド -->
     <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px;"></div>
 
+    <!-- 空き時間パネル -->
+    <div id="slots-panel" style="display:none; margin-top:16px; background:#F5FBFF; border-radius:12px; padding:14px;">
+      <div style="font-size:12px; font-weight:600; color:#0C447C; margin-bottom:10px;" id="slots-date"></div>
+      <div id="slots-list" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+      <p style="font-size:10px; color:#7AAAC0; margin-top:10px;">※目安の空き時間です。犬種・メニューにより異なります</p>
+    </div>
+
   </div>
 
   <script>
@@ -486,10 +507,9 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       var bg = '#E8F6FE';
       var color = '#0C447C';
       var label = '';
-      var labelColor = 'white';
 
-      if (status === 'full') { bg = '#FEE2E2'; color = '#B91C1C'; label = '満員'; labelColor = '#B91C1C'; }
-      else if (status === 'closed') { bg = '#F1F5F9'; color = '#94A3B8'; label = '休業'; labelColor = '#94A3B8'; }
+      if (status === 'full') { bg = '#FEE2E2'; color = '#B91C1C'; label = '満員'; }
+      else if (status === 'closed') { bg = '#F1F5F9'; color = '#94A3B8'; label = '休業'; }
       else if (isPast) { bg = '#F8FAFC'; color = '#CBD5E1'; }
 
       if (dow === 0) color = status === 'open' ? '#EF4444' : color;
@@ -498,12 +518,57 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       div.style.background = bg;
       if (isToday) { div.style.outline = '2px solid #5DBAEC'; div.style.outlineOffset = '-2px'; }
 
+      // クリックで空き時間表示（満員・休業・過去日以外）
+      if (!isPast && status !== 'closed' && status !== 'full') {
+        div.style.cursor = 'pointer';
+        var dateStr = cur.getFullYear() + '-' + pad2(cur.getMonth()+1) + '-' + pad2(day);
+        div.onclick = function() { showSlots(dateStr); };
+      }
+
       div.innerHTML = '<span style="font-weight:' + (isToday ? '700' : '400') + '; color:' + color + ';">' + day + '</span>' +
-        (label ? '<span style="font-size:9px; color:' + labelColor + '; margin-top:2px;">' + label + '</span>' : '');
+        (label ? '<span style="font-size:9px; color:' + color + '; margin-top:2px;">' + label + '</span>' : '');
       return div;
     }
 
     function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function showSlots(dateStr) {
+      var panel = document.getElementById('slots-panel');
+      var dateEl = document.getElementById('slots-date');
+      var listEl = document.getElementById('slots-list');
+      panel.style.display = 'block';
+      dateEl.textContent = dateStr.replace(/-/g, '/') + ' の空き時間';
+      listEl.innerHTML = '<span style="font-size:12px; color:#7AAAC0;">読み込み中...</span>';
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      fetch(APPS_SCRIPT_URL + '?action=availability&date=' + dateStr + '&breed=トイプードル&menu=シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.closed) {
+            listEl.innerHTML = '<span style="font-size:12px; color:#94A3B8;">この日は満員または休業日です</span>';
+            return;
+          }
+          var slots = data.slots || [];
+          if (slots.length === 0) {
+            listEl.innerHTML = '<span style="font-size:12px; color:#94A3B8;">空き時間がありません</span>';
+            return;
+          }
+          listEl.innerHTML = slots.map(function(s) {
+            return '<span onclick="selectSlot(\'' + dateStr + '\',\'' + s + '\')" style="background:white; border:1px solid #B3D9F5; border-radius:8px; padding:4px 10px; font-size:12px; color:#0C447C; cursor:pointer;">' + s + '</span>';
+          }).join('');
+        })
+        .catch(function() {
+          listEl.innerHTML = '<span style="font-size:12px; color:#C06060;">読み込みに失敗しました</span>';
+        });
+    }
+
+    function selectSlot(date, time) {
+      var popup = document.getElementById('slot-popup');
+      document.getElementById('slot-popup-label').textContent = date.replace(/-/g, '/') + '  ' + time;
+      document.getElementById('slot-popup-first').href = 'rinon_reserve.html?date=' + date + '&time=' + encodeURIComponent(time);
+      document.getElementById('slot-popup-repeat').href = 'rinon_reserve_repeat.html?date=' + date + '&time=' + encodeURIComponent(time);
+      popup.style.display = 'flex';
+    }
 
     window.calMove = function(dir) {
       cur = new Date(cur.getFullYear(), cur.getMonth() + dir, 1);
