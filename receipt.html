@@ -311,8 +311,8 @@ var BREED_MENU = {
   "チワワ(ロング)":       { shampoo: 5000, cut: 6100, special: 6600 },
   "ダックス(スムース)":   { shampoo: 5000, cut: null, special: null },
   "ダックス(ロング)":     { shampoo: 5500, cut: 6600, special: 7100 },
-  "パピヨン":             { shampoo: 5500, cut: 6600, special: null },
-  "パグ":                 { shampoo: 5500, cut: 6600, special: null },
+  "パピヨン":             { shampoo: 5500, cut: null, special: 7100 },
+  "パグ":                 { shampoo: 5500, cut: null, special: null },
   "ジャックラッセル":     { shampoo: 5000, cut: null, special: null },
   "ボストンテリア":       { shampoo: 5000, cut: null, special: null },
   "フレンチブル":         { shampoo: 5500, cut: null, special: null },
@@ -324,10 +324,12 @@ var BREED_MENU = {
   "トイプードル":         { shampoo: 6000, cut: 7500, special: 8000 },
   "Mシュナウザー":        { shampoo: 6500, cut: 8000, special: 8500 },
   "ビション":             { shampoo: 7000, cut: 8500, special: 9000 },
-  "コーギー":             { shampoo: 6600, cut: 8100, special: null },
+  "コーギー":             { shampoo: 6600, cut: null, special: 8600 },
   "柴犬(6kg未満)":        { shampoo: 6800, cut: null, special: null },
   "柴犬(6kg~)":           { shampoo: 7300, cut: null, special: null },
-  "キャバリア":           { shampoo: 7000, cut: 8500, special: 9000 },
+  "柴犬(6kg未満)":        { shampoo: 6800, cut: null, special: null },
+  "柴犬(6kg~)":           { shampoo: 7300, cut: null, special: null },
+  "キャバリア":           { shampoo: 7000, cut: null, special: 9000 },
   "シェルティ":           { shampoo: 7000, cut: 8500, special: 9000 },
   "Aコッカー":            { shampoo: 7500, cut: 9500, special: null }
 };
@@ -350,10 +352,12 @@ var OPTION_MENU = [
   { name: "薬用シャンプー",                     price: 550 },
   { name: "ひげ切り",                           price: 550 },
   { name: "デザインカット(ワンポイント)",       price: 550 },
-  { name: "デザインカット(アフロや足フレアなど)", price: 1100 },
+  { name: "デザインカット(おぱんつetc)", price: 1100 },
   { name: "オールシザー",                       price: 1100 },
   { name: "部分カット",                         price: 550 },
-  { name: "お顔カット",                         price: 1100 }
+  { name: "お顔カット",                         price: 1100 },
+  { name: "足先バリカン",                       price: 550 },
+  { name: "足ハサミカット",                     price: 550 }
 ];
 
 function populateMenuSelects() {
