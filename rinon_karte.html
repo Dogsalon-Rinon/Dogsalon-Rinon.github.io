@@ -120,9 +120,6 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
       <div class="loading"><div class="spinner"></div>データを読み込み中...</div>
     </div>
     <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
-      <button class="btn btn-primary btn-sm" style="width:100%;" onclick="showPhoneReserveForm()">📞 電話予約を入力</button>
-    </div>
-    <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
       <button class="btn btn-light btn-sm" style="width:100%;" onclick="showHiddenManager()">🗑 削除したカルテを管理</button>
     </div>
     <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
@@ -171,6 +168,58 @@ function loadMemos() {
 function saveMemo(key, val) {
   memos[key] = val;
   localStorage.setItem('rinon_memos', JSON.stringify(memos));
+}
+
+function saveAddressToSheet(rowNum, val, el) {
+  fetch(FIRST_API_URL + '?action=saveAddress&row=' + rowNum + '&secret=' + DELETE_SECRET + '&value=' + encodeURIComponent(val))
+    .then(function(res){ return res.text(); })
+    .then(function(txt){
+      if (txt === 'OK') {
+        el.style.borderColor = '#2EA87E';
+        setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
+      } else {
+        alert('保存に失敗しました');
+      }
+    })
+    .catch(function(){ alert('保存に失敗しました（通信エラー）'); });
+}
+
+var visitLookup = {}; // uid -> {key, owner, dog, breed, menu, date}
+function issueReceipt(uid) {
+  var info = visitLookup[uid];
+  if (!info) return;
+  var params = new URLSearchParams({
+    owner: info.owner || '',
+    dog: info.dog || '',
+    breed: info.breed || '',
+    menu: info.menu || '',
+    date: info.date || ''
+  });
+  window.open('receipt.html?' + params.toString(), '_blank');
+}
+
+function notifyComplete(uid) {
+  var info = visitLookup[uid];
+  if (!info) return;
+
+  if (!info.email) {
+    alert(info.owner + '様はメールアドレス未登録のため、通知を送信できません。\n口頭またはお電話でお知らせください。');
+    return;
+  }
+  if (!confirm(info.dog + 'ちゃんの完了通知を ' + info.email + ' 宛に送信しますか？')) return;
+
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var params = new URLSearchParams({
+    action: 'complete',
+    row: info.rowNum,
+    secret: DELETE_SECRET,
+    email: info.email,
+    dog: info.dog
+  });
+  fetch(apiUrl + '?' + params.toString())
+    .then(function(res){ return res.text(); })
+    .then(function(txt){ alert(txt === 'OK' ? '通知を送信しました' : '送信に失敗しました'); })
+    .catch(function(){ alert('送信に失敗しました'); });
 }
 
 let hidden = {}; // 削除（非表示）にした顧客のキー一覧
@@ -300,10 +349,12 @@ function buildCustomers() {
       map[key] = {
         owner: owner, dog: dog,
         profile: r,
+        firstRowNum: r['__rowNum'],
         visits: []
       };
     } else {
       map[key].profile = r; // 最新の初回情報で更新
+      map[key].firstRowNum = r['__rowNum'];
     }
     map[key].visits.push({
       type: 'first',
@@ -320,7 +371,7 @@ function buildCustomers() {
 
   // リピーターデータを追加
   repeatDataRaw.forEach(function(r) {
-    var owner = r['飼い主様のお名前'];
+    var owner = r['飼い主さまのお名前'] || r['飼い主様のお名前'];
     var dog = r['ワンちゃんのお名前'];
     var key = customerKey(owner, dog);
     if (!map[key]) {
@@ -434,18 +485,30 @@ function showKarte(idx) {
   var medical = p['病歴・現在の治療（選択肢）必須 '] || p['病歴・現在の治療'] || '';
   var medicalTag = medical && medical !== 'なし' ? '<span class="tag tag-red">' + medical + '</span>' : '<span class="tag">なし</span>';
 
+  visitLookup = {};
+  var breedForReceipt = p['犬種'] || '';
   var visitsHtml = c.visits.slice().reverse().map(function(v, vi) {
     var isFirst = v.type === 'first';
     var typeLabel = isFirst ? '初回' : 'リピート';
     var typeClass = isFirst ? 'first-type' : 'repeat-type';
     var memoKey = v.key;
     var memo = memos[memoKey] || '';
+    var uid = idx + '_' + vi;
+    var email = p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '';
+    visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
+                          rowNum: v.rowNum, type: v.type, email: email };
     return '<div class="visit-item' + (isFirst ? ' first' : '') + '">' +
       '<div class="visit-header"><span class="visit-date">' + formatDateFull(v.date) + '</span><span class="visit-type ' + typeClass + '">' + typeLabel + '</span></div>' +
       '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '　|　希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
       (v.lastTrim ? '<div class="visit-detail">前回からの期間：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' + memo + '</textarea>' +
+      '<div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">' +
+        '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
+        (email
+          ? '<button class="btn btn-green btn-sm" onclick="notifyComplete(\'' + uid + '\')">✅ お迎え通知</button>'
+          : '<button class="btn btn-light btn-sm" disabled title="メール未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
+      '</div>' +
     '</div>';
   }).join('');
 
@@ -466,10 +529,15 @@ function showKarte(idx) {
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
-        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['生年月日'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (p['毛の色'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性格</div><div class="info-value">' + (p['家でのふだんの性格'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">病歴・治療</div><div class="info-value">' + medicalTag + '</div></div>' +
+        '<div class="info-item" style="grid-column:1/-1;"><div class="info-label">住所（手入力・全端末で共有）</div>' +
+          (c.firstRowNum
+            ? '<input type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="住所を入力..." value="' + (p['住所'] || '').replace(/"/g, '&quot;') + '" onchange="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)">'
+            : '<div class="info-value" style="color:#B0B0B0;">初回データがないため編集できません</div>') +
+        '</div>' +
       '</div>' +
     '</div>' +
 
@@ -521,10 +589,15 @@ function setCalStatus(status) {
 function formatPhone(val) {
   if (!val) return '';
   var s = String(val).trim();
-  // 数字のみで10桁なら先頭に0を補完（0が消えて9桁になっているケース）
-  if (/^\d{9,10}$/.test(s.replace(/-/g, ''))) {
-    var digits = s.replace(/-/g, '');
-    if (digits.length === 9) digits = '0' + digits;
+  var digits = s.replace(/[-‐−ー\s]/g, '');
+  if (/^\d+$/.test(digits)) {
+    // Googleスプレッドシートが数値として保存すると先頭の0が消えるため補完する
+    // （携帯番号は11桁、一部の固定電話は10桁が正しい桁数）
+    if (digits.charAt(0) !== '0' && (digits.length === 9 || digits.length === 10)) {
+      digits = '0' + digits;
+    }
+    if (digits.length === 11) return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7);
+    if (digits.length === 10) return digits.slice(0, 2) + '-' + digits.slice(2, 6) + '-' + digits.slice(6);
     return digits;
   }
   return s;
@@ -681,9 +754,9 @@ function exportExcel() {
 
     // 2列ペア情報
     var pairs = [
-      ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', p['電話番号'] || ''],
+      ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', formatPhone(p['電話番号'])],
       ['ワンちゃん名', c.dog, '犬種', p['犬種'] || ''],
-      ['性別', p['性別'] || '', '生年月日', p['生年月日'] || ''],
+      ['性別', p['性別'] || '', '生年月日', p['ワンちゃんの生年月日'] || p['生年月日'] || ''],
       ['毛の色', p['毛の色'] || '', '性格', p['家でのふだんの性格'] || ''],
       ['病歴・治療', medical, '', '']
     ];
@@ -754,102 +827,5 @@ loadMemos();
 loadHidden();
 loadData();
 </script>
-<!-- 電話予約オーバーレイ -->
-<div id="phoneReserveOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:10000; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:white; border-radius:20px; padding:24px; max-width:400px; width:100%; max-height:90vh; overflow-y:auto;">
-    <div style="font-family:'Zen Maru Gothic',sans-serif; font-size:16px; font-weight:500; color:#0C447C; margin-bottom:16px;">📞 電話予約を入力</div>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <div>
-        <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">飼い主名 <span style="color:#C06060;">必須</span></div>
-        <input id="pr-owner" type="text" placeholder="例：波戸 真由" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-      </div>
-      <div>
-        <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">ワンちゃんの名前 <span style="color:#C06060;">必須</span></div>
-        <input id="pr-dog" type="text" placeholder="例：りのん" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-      </div>
-      <div>
-        <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">犬種</div>
-        <input id="pr-breed" type="text" placeholder="例：トイプードル" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-      </div>
-      <div>
-        <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">メニュー</div>
-        <input id="pr-menu" type="text" placeholder="例：シャンプーカットコース" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-      </div>
-      <div>
-        <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">電話番号</div>
-        <input id="pr-phone" type="tel" placeholder="例：090-1234-5678" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-      </div>
-      <div>
-        <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">日付 <span style="color:#C06060;">必須</span></div>
-        <input id="pr-date" type="date" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-      </div>
-      <div style="display:flex; gap:8px;">
-        <div style="flex:1;">
-          <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">開始時間 <span style="color:#C06060;">必須</span></div>
-          <input id="pr-time" type="time" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">終了時間</div>
-          <input id="pr-endtime" type="time" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; box-sizing:border-box;">
-        </div>
-      </div>
-    </div>
-    <div id="pr-error" style="display:none; color:#C06060; font-size:12px; margin-top:10px;"></div>
-    <div style="display:flex; gap:8px; margin-top:16px;">
-      <button onclick="submitPhoneReserve()" style="flex:2; padding:12px; background:#1A6FA8; color:white; border:none; border-radius:24px; font-size:13px; font-weight:700; cursor:pointer;">登録する</button>
-      <button onclick="document.getElementById('phoneReserveOverlay').style.display='none'" style="flex:1; padding:12px; background:#F1F5F9; color:#64748B; border:none; border-radius:24px; font-size:13px; cursor:pointer;">キャンセル</button>
-    </div>
-  </div>
-</div>
-
-<script>
-function showPhoneReserveForm() {
-  document.getElementById('pr-error').style.display = 'none';
-  document.getElementById('phoneReserveOverlay').style.display = 'flex';
-}
-
-function submitPhoneReserve() {
-  var owner   = document.getElementById('pr-owner').value.trim();
-  var dog     = document.getElementById('pr-dog').value.trim();
-  var breed   = document.getElementById('pr-breed').value.trim();
-  var menu    = document.getElementById('pr-menu').value.trim();
-  var phone   = document.getElementById('pr-phone').value.trim();
-  var date    = document.getElementById('pr-date').value;
-  var time    = document.getElementById('pr-time').value;
-  var endTime = document.getElementById('pr-endtime').value;
-  var err     = document.getElementById('pr-error');
-
-  if (!owner || !dog || !date || !time) {
-    err.textContent = '飼い主名・ワンちゃん名・日付・開始時間は必須です';
-    err.style.display = 'block';
-    return;
-  }
-
-  var url = FIRST_API_URL + '?action=phoneReserve&secret=rinon2026' +
-    '&owner=' + encodeURIComponent(owner) +
-    '&dog='   + encodeURIComponent(dog) +
-    '&breed=' + encodeURIComponent(breed) +
-    '&menu='  + encodeURIComponent(menu) +
-    '&phone=' + encodeURIComponent(phone) +
-    '&date='  + encodeURIComponent(date) +
-    '&time='  + encodeURIComponent(time) +
-    '&endTime=' + encodeURIComponent(endTime);
-
-  fetch(url)
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-      if (res.success) {
-        alert('✅ 登録しました！スプレッドシートとGoogleカレンダーに反映されました。');
-        document.getElementById('phoneReserveOverlay').style.display = 'none';
-        loadData();
-      } else {
-        err.textContent = 'エラー：' + (res.error || '登録に失敗しました');
-        err.style.display = 'block';
-      }
-    })
-    .catch(function() {
-      err.textContent = '通信エラーが発生しました';
-      err.style.display = 'block';
-    });
-}
-</script>
+</body>
+</html>
