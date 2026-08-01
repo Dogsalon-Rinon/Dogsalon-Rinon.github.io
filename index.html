@@ -596,7 +596,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       listEl.innerHTML = '<span style="font-size:12px; color:#7AAAC0;">読み込み中...</span>';
       panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-      fetch(APPS_SCRIPT_URL + '?action=availability&date=' + dateStr + '&breed=トイプードル&menu=シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）')
+      fetch(APPS_SCRIPT_URL + '?action=availability&date=' + dateStr)
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.closed) {
@@ -614,7 +614,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
           }
           listEl.innerHTML = slots.map(function(s) {
             return '<span onclick="selectSlot(\'' + dateStr + '\',\'' + s + '\')" style="background:white; border:1px solid #B3D9F5; border-radius:8px; padding:4px 10px; font-size:12px; color:#0C447C; cursor:pointer;">' + s + '</span>';
-          }).join('');
+          }).join('') + '<div style="width:100%; font-size:11px; color:#94A3B8; margin-top:8px; line-height:1.6;">※表示時間は目安です。メニューやワンちゃんの状態により、ご希望に添えない場合は確認のうえご連絡いたします。</div>';
         })
         .catch(function() {
           listEl.innerHTML = '<span style="font-size:12px; color:#C06060;">読み込みに失敗しました</span>';
