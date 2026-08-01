@@ -172,13 +172,13 @@ function saveMemo(key, val) {
 
 function saveAddressToSheet(rowNum, val, el) {
   fetch(FIRST_API_URL + '?action=saveAddress&row=' + rowNum + '&secret=' + DELETE_SECRET + '&value=' + encodeURIComponent(val))
-    .then(function(res){ return res.text(); })
-    .then(function(txt){
-      if (txt === 'OK') {
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (data && data.success) {
         el.style.borderColor = '#2EA87E';
         setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
       } else {
-        alert('保存に失敗しました');
+        alert('保存に失敗しました: ' + (data && data.error ? data.error : '不明なエラー'));
       }
     })
     .catch(function(){ alert('保存に失敗しました（通信エラー）'); });
@@ -217,9 +217,9 @@ function notifyComplete(uid) {
     dog: info.dog
   });
   fetch(apiUrl + '?' + params.toString())
-    .then(function(res){ return res.text(); })
-    .then(function(txt){ alert(txt === 'OK' ? '通知を送信しました' : '送信に失敗しました'); })
-    .catch(function(){ alert('送信に失敗しました'); });
+    .then(function(res){ return res.json(); })
+    .then(function(data){ alert(data && data.success ? '通知を送信しました' : '送信に失敗しました: ' + (data && data.error ? data.error : '不明なエラー')); })
+    .catch(function(){ alert('送信に失敗しました（通信エラー）'); });
 }
 
 let hidden = {}; // 削除（非表示）にした顧客のキー一覧
