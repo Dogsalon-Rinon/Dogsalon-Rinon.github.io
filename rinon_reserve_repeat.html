@@ -222,6 +222,29 @@ function doVerify() {
         </select>
       </div>
 
+      <div class="form-row">
+        <div class="form-group">
+          <div class="form-label">体重 <span class="required">必須</span></div>
+          <select name="weight" id="weightSelect" required>
+            <option value="">選択してください</option>
+            <option value="1kg">1kg</option>
+            <option value="2kg">2kg</option>
+            <option value="3kg">3kg</option>
+            <option value="4kg">4kg</option>
+            <option value="5kg">5kg</option>
+            <option value="6kg">6kg</option>
+            <option value="7kg">7kg</option>
+            <option value="8kg">8kg</option>
+            <option value="9kg">9kg</option>
+            <option value="10kg以上">10kg以上</option>
+          </select>
+        </div>
+        <div class="form-group" id="mixDetailGroup" style="display:none;">
+          <div class="form-label">何のミックスですか？（わかる範囲で）</div>
+          <input type="text" name="mix_detail" placeholder="例）チワワ×トイプードル">
+        </div>
+      </div>
+
       <div class="divider"></div>
 
       <div class="section-head">
@@ -386,6 +409,16 @@ function selectTime(btn) {
 }
 
 document.getElementById('breedSelect').addEventListener('change', updateTimeSlots);
+document.getElementById('breedSelect').addEventListener('change', function() {
+  var mixGroup = document.getElementById('mixDetailGroup');
+  if (this.value === 'ミックス') {
+    mixGroup.style.display = 'block';
+  } else {
+    mixGroup.style.display = 'none';
+    var mixInput = document.querySelector('[name="mix_detail"]');
+    if (mixInput) mixInput.value = '';
+  }
+});
 document.getElementById('menuSelect').addEventListener('change', updateTimeSlots);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
@@ -419,7 +452,7 @@ function submitRepeat() {
   const f = document.getElementById('repeatForm');
   const get = id => { const el = f.querySelector('[name="' + id + '"]'); return el ? el.value : ''; };
 
-  const required = ['owner_name','dog_name','breed','menu','reserve_date'];
+  const required = ['owner_name','dog_name','breed','weight','menu','reserve_date'];
   for (const id of required) {
     if (!get(id)) {
       alert('未入力の必須項目があります。すべての必須項目を入力してください。');
@@ -444,6 +477,8 @@ function submitRepeat() {
   params.set('owner_name', get('owner_name'));
   params.set('dog_name', get('dog_name'));
   params.set('breed', get('breed'));
+  params.set('weight', get('weight'));
+  params.set('mix_detail', get('mix_detail'));
   params.set('menu', get('menu'));
   params.set('date', get('reserve_date'));
   params.set('time', selectedTime);

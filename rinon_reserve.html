@@ -224,6 +224,29 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 
       <div class="form-row">
         <div class="form-group">
+          <div class="form-label">体重 <span class="required">必須</span></div>
+          <select name="weight" id="weightSelect" required>
+            <option value="">選択してください</option>
+            <option value="1kg">1kg</option>
+            <option value="2kg">2kg</option>
+            <option value="3kg">3kg</option>
+            <option value="4kg">4kg</option>
+            <option value="5kg">5kg</option>
+            <option value="6kg">6kg</option>
+            <option value="7kg">7kg</option>
+            <option value="8kg">8kg</option>
+            <option value="9kg">9kg</option>
+            <option value="10kg以上">10kg以上</option>
+          </select>
+        </div>
+        <div class="form-group" id="mixDetailGroup" style="display:none;">
+          <div class="form-label">何のミックスですか？（わかる範囲で）</div>
+          <input type="text" name="mix_detail" placeholder="例）チワワ×トイプードル">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
           <div class="form-label">生年月日 <span class="required">必須</span></div>
           <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
             <select name="birthday_year" id="birthday_year" required><option value="">年</option><option value="2026">2026年</option><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option><option value="2022">2022年</option><option value="2021">2021年</option><option value="2020">2020年</option><option value="2019">2019年</option><option value="2018">2018年</option><option value="2017">2017年</option><option value="2016">2016年</option><option value="2015">2015年</option><option value="2014">2014年</option><option value="2013">2013年</option><option value="2012">2012年</option><option value="2011">2011年</option><option value="2010">2010年</option></select>
@@ -476,6 +499,16 @@ function selectTime(btn) {
 }
 
 document.getElementById('breedSelect').addEventListener('change', updateTimeSlots);
+document.getElementById('breedSelect').addEventListener('change', function() {
+  var mixGroup = document.getElementById('mixDetailGroup');
+  if (this.value === 'ミックス') {
+    mixGroup.style.display = 'block';
+  } else {
+    mixGroup.style.display = 'none';
+    var mixInput = document.querySelector('[name="mix_detail"]');
+    if (mixInput) mixInput.value = '';
+  }
+});
 document.getElementById('menuSelect').addEventListener('change', updateTimeSlots);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
@@ -509,7 +542,7 @@ function submitReserve() {
   const f = document.getElementById('reserveForm');
   const get = id => { const el = f.querySelector('[name="' + id + '"]'); return el ? el.value : ''; };
 
-  const required = ['owner_name','phone','dog_name','breed','color','birthday_year','birthday_month','birthday_day','gender','personality','medical','last_trim','menu','reserve_date'];
+  const required = ['owner_name','phone','dog_name','breed','weight','color','birthday_year','birthday_month','birthday_day','gender','personality','medical','last_trim','menu','reserve_date'];
   for (const id of required) {
     if (!get(id)) {
       alert('未入力の必須項目があります。すべての必須項目を入力してください。');
@@ -537,6 +570,8 @@ function submitReserve() {
   params.set('phone', get('phone'));
   params.set('dog_name', get('dog_name'));
   params.set('breed', get('breed'));
+  params.set('weight', get('weight'));
+  params.set('mix_detail', get('mix_detail'));
   params.set('color', get('color'));
   params.set('birthday', birthday);
   params.set('gender', get('gender'));
