@@ -115,6 +115,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
         <div class="stat"><div class="stat-num" id="totalCount">-</div><div class="stat-label">登録頭数</div></div>
         <div class="stat"><div class="stat-num" id="totalVisits">-</div><div class="stat-label">来店総数</div></div>
       </div>
+      <button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px;" onclick="openPhoneReserve()">📞 電話予約を入力</button>
     </div>
     <div class="customer-list" id="customerList">
       <div class="loading"><div class="spinner"></div>データを読み込み中...</div>
@@ -826,6 +827,326 @@ function exportExcel() {
 loadMemos();
 loadHidden();
 loadData();
+</script>
+
+<div id="phoneReserveOverlay" style="display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:white; border-radius:16px; padding:24px; max-width:460px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="font-size:16px; font-weight:700; color:#0C447C;">📞 電話予約を入力</div>
+      <button onclick="closePhoneReserve()" style="background:none; border:none; font-size:20px; color:#7AAAC0; cursor:pointer; line-height:1;">×</button>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <div class="info-label">区分</div>
+      <div style="display:flex; gap:8px; margin-top:4px;">
+        <button type="button" id="pr-type-first" onclick="setPrType('first')" class="btn btn-primary btn-sm" style="flex:1;">初回</button>
+        <button type="button" id="pr-type-repeat" onclick="setPrType('repeat')" class="btn btn-light btn-sm" style="flex:1;">リピーター</button>
+      </div>
+    </div>
+
+    <div style="font-size:11px; font-weight:700; color:#1A6FA8; margin:16px 0 6px; padding-bottom:4px; border-bottom:1px solid #E8F4FC;">お客様情報</div>
+
+    <div style="margin-bottom:10px;">
+      <div class="info-label">飼い主名 <span style="color:#C06060;">必須</span></div>
+      <input id="pr-owner" type="text" class="memo-box" style="min-height:auto; padding:8px 12px;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">電話番号</div>
+      <input id="pr-phone" type="tel" class="memo-box" style="min-height:auto; padding:8px 12px;">
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">メールアドレス</div>
+      <input id="pr-email" type="email" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="予約確認メールを送る場合">
+    </div>
+
+    <div style="font-size:11px; font-weight:700; color:#1A6FA8; margin:16px 0 6px; padding-bottom:4px; border-bottom:1px solid #E8F4FC;">ワンちゃん情報</div>
+
+    <div style="margin-bottom:10px;">
+      <div class="info-label">ワンちゃん名 <span style="color:#C06060;">必須</span></div>
+      <input id="pr-dog" type="text" class="memo-box" style="min-height:auto; padding:8px 12px;">
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:10px;">
+      <div style="flex:1;">
+        <div class="info-label">犬種</div>
+        <select id="pr-breed" class="memo-box" style="min-height:auto; padding:8px 12px;" onchange="prToggleMix()">
+          <option value="">選択してください</option>
+          <optgroup label="小型犬">
+            <option>チワワ（スムース）</option>
+            <option>チワワ（ロング）</option>
+            <option>ポメラニアン</option>
+            <option>トイプードル</option>
+            <option>マルチーズ</option>
+            <option>シーズー</option>
+            <option>ミニチュアダックス（ロング）</option>
+            <option>ヨークシャーテリア</option>
+            <option>パピヨン</option>
+            <option>ミニチュアピンシャー</option>
+            <option>イタリアングレーハウンド</option>
+            <option>フレンチブルドッグ</option>
+            <option>ミニチュアシュナウザー</option>
+            <option>ペキニーズ</option>
+            <option>パグ</option>
+            <option>ボストンテリア</option>
+            <option>ジャックラッセルテリア</option>
+            <option>ビションフリーゼ</option>
+            <option>ミックス</option>
+          </optgroup>
+          <optgroup label="中型犬">
+            <option>コーギー</option>
+            <option>ビーグル</option>
+            <option>柴犬</option>
+            <option>キャバリア</option>
+            <option>シェルティー</option>
+          </optgroup>
+          <option>その他</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <div class="info-label">体重</div>
+        <select id="pr-weight" class="memo-box" style="min-height:auto; padding:8px 12px;">
+          <option value="">選択してください</option>
+          <option value="1kg">1kg</option>
+          <option value="2kg">2kg</option>
+          <option value="3kg">3kg</option>
+          <option value="4kg">4kg</option>
+          <option value="5kg">5kg</option>
+          <option value="6kg">6kg</option>
+          <option value="7kg">7kg</option>
+          <option value="8kg">8kg</option>
+          <option value="9kg">9kg</option>
+          <option value="10kg以上">10kg以上</option>
+        </select>
+      </div>
+    </div>
+    <div id="pr-mix-group" style="display:none; margin-bottom:10px;">
+      <div class="info-label">何のミックスか（わかる範囲で）</div>
+      <input id="pr-mix-detail" type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="例）チワワ×トイプードル">
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">毛の色</div>
+      <select id="pr-color" class="memo-box" style="min-height:auto; padding:8px 12px;">
+        <option value="">選択してください</option>
+        <option>ホワイト</option>
+        <option>クリーム</option>
+        <option>ベージュ</option>
+        <option>ブラウン</option>
+        <option>チョコレート</option>
+        <option>ブラック</option>
+        <option>シルバー</option>
+        <option>ゴールド</option>
+        <option>レッド</option>
+        <option>ホワイト＆ブラウン</option>
+        <option>ホワイト＆ブラック</option>
+        <option>ブラック＆タン</option>
+        <option>トライカラー</option>
+        <option>その他</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">生年月日</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+        <select id="pr-by" class="memo-box" style="min-height:auto; padding:8px 6px;"><option value="">年</option><option value="2026">2026年</option><option value="2025">2025年</option><option value="2024">2024年</option><option value="2023">2023年</option><option value="2022">2022年</option><option value="2021">2021年</option><option value="2020">2020年</option><option value="2019">2019年</option><option value="2018">2018年</option><option value="2017">2017年</option><option value="2016">2016年</option><option value="2015">2015年</option><option value="2014">2014年</option><option value="2013">2013年</option><option value="2012">2012年</option><option value="2011">2011年</option><option value="2010">2010年</option></select>
+        <select id="pr-bm" class="memo-box" style="min-height:auto; padding:8px 6px;"><option value="">月</option><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select>
+        <select id="pr-bd" class="memo-box" style="min-height:auto; padding:8px 6px;"><option value="">日</option><option value="1">1日</option><option value="2">2日</option><option value="3">3日</option><option value="4">4日</option><option value="5">5日</option><option value="6">6日</option><option value="7">7日</option><option value="8">8日</option><option value="9">9日</option><option value="10">10日</option><option value="11">11日</option><option value="12">12日</option><option value="13">13日</option><option value="14">14日</option><option value="15">15日</option><option value="16">16日</option><option value="17">17日</option><option value="18">18日</option><option value="19">19日</option><option value="20">20日</option><option value="21">21日</option><option value="22">22日</option><option value="23">23日</option><option value="24">24日</option><option value="25">25日</option><option value="26">26日</option><option value="27">27日</option><option value="28">28日</option><option value="29">29日</option><option value="30">30日</option><option value="31">31日</option></select>
+      </div>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">性別</div>
+      <select id="pr-gender" class="memo-box" style="min-height:auto; padding:8px 12px;">
+        <option value="">選択してください</option>
+        <option>オス（未去勢）</option>
+        <option>オス（去勢済み）</option>
+        <option>メス（未避妊）</option>
+        <option>メス（避妊済み）</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">家でのふだんの性格</div>
+      <select id="pr-personality" class="memo-box" style="min-height:auto; padding:8px 12px;">
+        <option value="">選択してください</option>
+        <option>とても穏やか・おとなしい</option>
+        <option>穏やか</option>
+        <option>普通</option>
+        <option>やや活発・元気</option>
+        <option>とても活発・元気いっぱい</option>
+        <option>怖がり・緊張しやすい</option>
+        <option>甘えん坊</option>
+        <option>頑固・こだわりが強い</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">病歴・現在の治療</div>
+      <select id="pr-medical" class="memo-box" style="min-height:auto; padding:8px 12px;">
+        <option value="特になし">特になし</option>
+        <option>現在治療中（詳細は備考欄へ）</option>
+        <option>皮膚疾患あり</option>
+        <option>アレルギーあり</option>
+        <option>心臓疾患あり</option>
+        <option>関節・骨の疾患あり</option>
+        <option>てんかんあり</option>
+        <option>その他（詳細は備考欄へ）</option>
+      </select>
+    </div>
+
+    <div style="font-size:11px; font-weight:700; color:#1A6FA8; margin:16px 0 6px; padding-bottom:4px; border-bottom:1px solid #E8F4FC;">ご予約内容</div>
+
+    <div style="margin-bottom:10px;">
+      <div class="info-label">メニュー</div>
+      <select id="pr-menu" class="memo-box" style="min-height:auto; padding:8px 12px;">
+        <option value="">選択してください</option>
+        <option>シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）</option>
+        <option>シャンプーコース（シャンプー・ブロー・ブラッシング）</option>
+        <option>爪切りのみ</option>
+        <option>耳掃除のみ</option>
+        <option>肛門腺絞りのみ</option>
+        <option>部分カットのみ</option>
+        <option>ご相談したい</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">前回の施術からの期間</div>
+      <select id="pr-last-trim" class="memo-box" style="min-height:auto; padding:8px 12px;">
+        <option value="">選択してください</option>
+        <option>1ヶ月以内</option>
+        <option>1〜2ヶ月</option>
+        <option>2〜3ヶ月</option>
+        <option>3〜6ヶ月</option>
+        <option>6ヶ月以上</option>
+        <option>トリミング自体が初めて</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">ご要望</div>
+      <textarea id="pr-request" class="memo-box" placeholder="気になることがあればご記入ください"></textarea>
+    </div>
+    <div style="margin-bottom:10px;">
+      <div class="info-label">日付 <span style="color:#C06060;">必須</span></div>
+      <input id="pr-date" type="date" class="memo-box" style="min-height:auto; padding:8px 12px;">
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <div style="flex:1;">
+        <div class="info-label">開始時間 <span style="color:#C06060;">必須</span></div>
+        <input id="pr-time" type="time" class="memo-box" style="min-height:auto; padding:8px 12px;">
+      </div>
+      <div style="flex:1;">
+        <div class="info-label">終了時間</div>
+        <input id="pr-endtime" type="time" class="memo-box" style="min-height:auto; padding:8px 12px;">
+      </div>
+    </div>
+
+    <div id="pr-error" style="display:none; background:#FFF0F0; color:#C06060; font-size:12px; padding:8px 12px; border-radius:8px; margin-bottom:12px;"></div>
+
+    <button class="btn btn-primary" style="width:100%;" onclick="submitPhoneReserve()">登録する</button>
+  </div>
+</div>
+<script>
+var prType = 'first';
+function setPrType(type) {
+  prType = type;
+  document.getElementById('pr-type-first').className  = type === 'first'  ? 'btn btn-primary btn-sm' : 'btn btn-light btn-sm';
+  document.getElementById('pr-type-repeat').className  = type === 'repeat' ? 'btn btn-primary btn-sm' : 'btn btn-light btn-sm';
+  document.getElementById('pr-type-first').style.flex  = '1';
+  document.getElementById('pr-type-repeat').style.flex = '1';
+}
+
+function prToggleMix() {
+  var mixGroup = document.getElementById('pr-mix-group');
+  if (document.getElementById('pr-breed').value === 'ミックス') {
+    mixGroup.style.display = 'block';
+  } else {
+    mixGroup.style.display = 'none';
+    document.getElementById('pr-mix-detail').value = '';
+  }
+}
+
+function openPhoneReserve() {
+  ['pr-owner','pr-phone','pr-email','pr-dog','pr-mix-detail','pr-request','pr-date','pr-time','pr-endtime'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  ['pr-breed','pr-weight','pr-color','pr-by','pr-bm','pr-bd','pr-gender','pr-personality','pr-menu','pr-last-trim'].forEach(function(id) {
+    document.getElementById(id).selectedIndex = 0;
+  });
+  document.getElementById('pr-medical').value = '特になし';
+  document.getElementById('pr-mix-group').style.display = 'none';
+  document.getElementById('pr-error').style.display = 'none';
+  setPrType('first');
+  document.getElementById('phoneReserveOverlay').style.display = 'flex';
+}
+
+function closePhoneReserve() {
+  document.getElementById('phoneReserveOverlay').style.display = 'none';
+}
+
+function submitPhoneReserve() {
+  var owner   = document.getElementById('pr-owner').value.trim();
+  var phone   = document.getElementById('pr-phone').value.trim();
+  var email   = document.getElementById('pr-email').value.trim();
+  var dog     = document.getElementById('pr-dog').value.trim();
+  var breed   = document.getElementById('pr-breed').value;
+  var weight  = document.getElementById('pr-weight').value;
+  var mixDetail = document.getElementById('pr-mix-detail').value.trim();
+  var color   = document.getElementById('pr-color').value;
+  var by      = document.getElementById('pr-by').value;
+  var bm      = document.getElementById('pr-bm').value;
+  var bd      = document.getElementById('pr-bd').value;
+  var birthday = (by && bm && bd) ? (by + '年' + bm + '月' + bd + '日') : '';
+  var gender  = document.getElementById('pr-gender').value;
+  var personality = document.getElementById('pr-personality').value;
+  var medical = document.getElementById('pr-medical').value;
+  var menu    = document.getElementById('pr-menu').value;
+  var lastTrim = document.getElementById('pr-last-trim').value;
+  var request = document.getElementById('pr-request').value.trim();
+  var date    = document.getElementById('pr-date').value;
+  var time    = document.getElementById('pr-time').value;
+  var endTime = document.getElementById('pr-endtime').value;
+  var err     = document.getElementById('pr-error');
+
+  if (!owner || !dog || !date || !time) {
+    err.textContent = '飼い主名・ワンちゃん名・日付・開始時間は必須です';
+    err.style.display = 'block';
+    return;
+  }
+
+  var apiUrl = prType === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var params = new URLSearchParams();
+  params.set('action', 'phoneReserve');
+  params.set('secret', DELETE_SECRET);
+  params.set('owner', owner);
+  params.set('dog', dog);
+  params.set('breed', breed);
+  params.set('weight', weight);
+  params.set('mix_detail', mixDetail);
+  params.set('color', color);
+  params.set('birthday', birthday);
+  params.set('gender', gender);
+  params.set('personality', personality);
+  params.set('medical', medical);
+  params.set('menu', menu);
+  params.set('last_trim', lastTrim);
+  params.set('request', request);
+  params.set('phone', phone);
+  params.set('email', email);
+  params.set('date', date);
+  params.set('time', time);
+  params.set('endTime', endTime);
+
+  fetch(apiUrl + '?' + params.toString())
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.success) {
+        alert('✅ 登録しました！スプレッドシートとGoogleカレンダーに反映されました。');
+        closePhoneReserve();
+        loadData();
+      } else {
+        err.textContent = 'エラー：' + (res.error || '登録に失敗しました');
+        err.style.display = 'block';
+      }
+    })
+    .catch(function() {
+      err.textContent = '通信エラーが発生しました';
+      err.style.display = 'block';
+    });
+}
 </script>
 </body>
 </html>
