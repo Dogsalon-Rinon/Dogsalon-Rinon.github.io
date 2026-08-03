@@ -88,6 +88,8 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .visit-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
 .visit-memo { font-size: 11px; color: #7AAAC0; margin-top: 4px; font-style: italic; }
 
+.back-to-list { display: none; }
+
 @media (max-width: 768px) {
   .main { grid-template-columns: 1fr; }
   .sidebar { max-height: 300px; }
@@ -106,6 +108,12 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
   .visit-detail { font-size: 13px; line-height: 1.9; }
   .visit-actions { flex-direction: column; }
   .visit-actions .btn { width: 100%; padding: 10px 14px; font-size: 12px; }
+
+  .main.sidebar-collapsed .sidebar { display: none; }
+  .main.sidebar-collapsed .back-to-list {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 14px; padding: 8px 16px;
+  }
 }
 </style>
 </head>
@@ -492,10 +500,20 @@ function filterCustomers() {
   renderList(filtered);
 }
 
+function backToList() {
+  document.querySelector('.main').classList.remove('sidebar-collapsed');
+  window.scrollTo(0, 0);
+}
+
 function showKarte(idx) {
   document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
   var card = document.getElementById('card-' + idx);
   if (card) card.classList.add('active');
+
+  if (window.innerWidth <= 768) {
+    document.querySelector('.main').classList.add('sidebar-collapsed');
+    window.scrollTo(0, 0);
+  }
 
   var c = customers[idx];
   var p = c.profile;
@@ -531,6 +549,7 @@ function showKarte(idx) {
   }).join('');
 
   document.getElementById('content').innerHTML =
+    '<button class="btn btn-light btn-sm back-to-list" onclick="backToList()">← 顧客一覧に戻る</button>' +
     '<div class="karte-header">' +
       '<div>' +
         '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span></div>' +
@@ -652,6 +671,7 @@ function deleteCustomer(idx) {
     hideCustomerKey(customerKey(c.owner, c.dog));
     buildCustomers();
     renderList(customers);
+    document.querySelector('.main').classList.remove('sidebar-collapsed');
     document.getElementById('content').innerHTML =
       '<div class="welcome">' +
         '<div class="welcome-icon">🐾</div>' +
