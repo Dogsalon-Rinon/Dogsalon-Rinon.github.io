@@ -442,17 +442,25 @@ function buildCustomers() {
     return y + '-' + m + '-' + day;
   })();
 
-  // 今日の予約は時間順で先頭に、それ以外は最終来店日が新しい順にソート
+  // 表示順：①今日の予約(時間順) ②未来の予約(近い日付順) ③過去のみ(最終来店が新しい順)
+  function category(c) {
+    var d = c.lastVisit.date;
+    if (d === todayStr) return 0;
+    if (d > todayStr) return 1;
+    return 2;
+  }
   customers.sort(function(a, b) {
-    var aToday = a.lastVisit.date === todayStr;
-    var bToday = b.lastVisit.date === todayStr;
-    if (aToday && bToday) {
-      // 両方今日→時間順
+    var ca = category(a), cb = category(b);
+    if (ca !== cb) return ca - cb;
+    if (ca === 0) {
+      // 今日→時間順
       return (a.lastVisit.time || '99:99').localeCompare(b.lastVisit.time || '99:99');
     }
-    if (aToday) return -1;
-    if (bToday) return 1;
-    // それ以外は最終来店日が新しい順
+    if (ca === 1) {
+      // 未来→日付が近い順
+      return new Date(a.lastVisit.date) - new Date(b.lastVisit.date);
+    }
+    // 過去のみ→最終来店が新しい順
     return new Date(b.lastVisit.date) - new Date(a.lastVisit.date);
   });
 }
