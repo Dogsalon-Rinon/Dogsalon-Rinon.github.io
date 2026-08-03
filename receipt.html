@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>明細書・領収書 - Dog Salon Rinon</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -157,9 +158,27 @@
   table.items tr:last-child td { border-bottom: none; }
   table.items td input { width: 100%; border: none; font-size: 12px; font-family: inherit; background: transparent; color:#4a4038; }
   table.items td input.price { text-align: right; font-weight: 700; color:#d9822b; }
+  table.items tr.discount-item-row { background: #fff6e8; }
+  table.items tr.discount-item-row td input.price { color: #4a90c4; }
+  table.items tr.discount-item-row td input.item-name { color: #c98a3e; font-weight: 700; }
   table.items td.del { text-align: center; width: 8mm; }
   table.items td.del span {
     cursor: pointer; color: #f0a0a0; font-weight: 900; font-size: 14px;
+  }
+  .discount-row {
+    display: flex; align-items: center; gap: 2mm; margin-bottom: 3mm;
+    background: #f4faff; border: 1.5px dashed #b9dcf0; border-radius: 12px;
+    padding: 2.5mm 3mm; flex-wrap: wrap;
+  }
+  .discount-label { font-size: 11.5px; color: #4a90c4; font-weight: 700; margin-right: 1mm; }
+  .discount-btn {
+    font-size: 12px; background: #4a90c4; color: #fff; border: none;
+    border-radius: 999px; padding: 6px 16px; cursor: pointer; font-family: inherit; font-weight: 700;
+  }
+  .discount-btn:hover { transform: translateY(-1px); }
+  .discount-clear {
+    font-size: 11px; background: #fff; color: #a9927f; border: 1.5px solid #e4d6c5;
+    border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: inherit; font-weight: 700;
   }
   .subtotal-row {
     display: flex; justify-content: flex-end; align-items: center; gap: 6mm;
@@ -189,6 +208,48 @@
   .stamp-area img { width: 100%; height: 100%; object-fit: contain; }
 
   input:focus { outline: none; background: #fffaf0; border-radius: 4px; }
+
+  @media (max-width: 700px) {
+    .toolbar { border-radius: 0; max-width: 100%; padding: 10px 12px; }
+    .toolbar h1 { font-size: 12.5px; width: 100%; }
+    .toolbar .hint { display: none; }
+    .toolbar button { padding: 10px 16px; font-size: 13px; }
+
+    .sheet {
+      width: 100%; min-height: auto; margin: 0 auto 10mm;
+      padding: 5mm 4mm 6mm; border-radius: 0;
+    }
+    .brand-row { margin-bottom: 3mm; }
+    .doc-title { font-size: 15px; }
+    .logo-box { width: 18mm; }
+    .logo-box img { width: 16mm; height: 16mm; }
+
+    .meta-row { font-size: 11px; flex-wrap: wrap; gap: 2mm; }
+    .customer-row input { font-size: 18px; }
+    .dog-row input { width: 32mm; }
+
+    .amount-block { padding: 3mm 4mm; }
+    .amount-block input { font-size: 22px; }
+
+    .desc-row { flex-wrap: wrap; }
+
+    .menu-picker { padding: 3mm; }
+    .picker-row { flex-wrap: wrap; }
+    .picker-row select { flex: 1 1 100%; font-size: 13px; padding: 8px 6px; }
+    .picker-row button { flex: 0 0 auto; padding: 8px 16px; font-size: 12px; }
+
+    table.items { font-size: 12px; }
+    table.items td input { font-size: 13px; padding: 4px 2px; }
+    table.items td.del span { font-size: 18px; padding: 4px; }
+
+    .discount-row { padding: 3mm; }
+    .discount-btn, .discount-clear { padding: 8px 16px; font-size: 13px; }
+
+    .subtotal-row { flex-wrap: wrap; justify-content: space-between; }
+    .footer { padding-right: 0; }
+    .issuer { text-align: left; }
+    .stamp-area { position: static; margin-top: 4mm; margin-left: auto; }
+  }
 
   @media print {
     body { background: #fff; }
@@ -284,6 +345,12 @@
       </thead>
       <tbody id="itemsBody"></tbody>
     </table>
+    <div class="discount-row no-print">
+      <span class="discount-label">💴 割引</span>
+      <button type="button" class="discount-btn" onclick="applyDiscount(0.10)">10%OFF</button>
+      <button type="button" class="discount-btn" onclick="applyDiscount(0.15)">15%OFF</button>
+      <button type="button" class="discount-clear" onclick="clearDiscount()">割引なし</button>
+    </div>
     <div class="subtotal-row">
       <span class="label">合計</span>
       <span class="value" id="subtotalDisplay">0円</span>
@@ -430,8 +497,9 @@ function addOptionRow() {
   addRow(item.name + '（目安）', item.price);
 }
 
-function makeRow(name, price) {
+function makeRow(name, price, isDiscount) {
   var tr = document.createElement('tr');
+  if (isDiscount) tr.classList.add('discount-item-row');
   tr.innerHTML =
     '<td><input type="text" class="item-name" value="' + (name || '').replace(/"/g,'&quot;') + '" placeholder="例：シャンプー＋カット"></td>' +
     '<td><input type="text" class="item-price price" value="' + (price || '') + '" placeholder="0" oninput="recalc()"></td>' +
@@ -448,6 +516,27 @@ function removeRow(el) {
   var tbody = document.getElementById('itemsBody');
   if (tbody.rows.length <= 1) { return; }
   el.closest('tr').remove();
+  recalc();
+}
+
+function clearDiscount() {
+  document.querySelectorAll('#itemsBody tr.discount-item-row').forEach(function(tr) { tr.remove(); });
+  recalc();
+}
+
+function applyDiscount(rate) {
+  // 既存の割引行を除いた品目の合計から割引額を計算
+  clearDiscount();
+  var prices = document.querySelectorAll('.item-price');
+  var sum = 0;
+  prices.forEach(function(p) {
+    var v = parseFloat((p.value || '0').replace(/[^0-9.\-]/g, ''));
+    if (!isNaN(v)) sum += v;
+  });
+  if (sum <= 0) { recalc(); return; }
+  var discountAmount = -Math.round(sum * rate);
+  var label = Math.round(rate * 100) + '%割引';
+  document.getElementById('itemsBody').appendChild(makeRow(label, discountAmount, true));
   recalc();
 }
 
