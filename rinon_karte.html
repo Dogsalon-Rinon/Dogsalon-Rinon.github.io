@@ -443,10 +443,19 @@ function buildCustomers() {
   })();
 
   // 表示順：①今日の予約(時間順) ②未来の予約(近い日付順) ③過去のみ(最終来店が新しい順)
+  function dateOnlyStr(dt) {
+    var d = new Date(dt);
+    if (isNaN(d)) return '';
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth()+1)).slice(-2);
+    var day = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + day;
+  }
   function category(c) {
-    var d = c.lastVisit.date;
-    if (d === todayStr) return 0;
-    if (d > todayStr) return 1;
+    var ds = dateOnlyStr(c.lastVisit.date);
+    if (!ds) return 2; // 日付不明は過去扱い（末尾に）
+    if (ds === todayStr) return 0;
+    if (ds > todayStr) return 1;
     return 2;
   }
   customers.sort(function(a, b) {
