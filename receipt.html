@@ -73,10 +73,6 @@
     border: none; border-bottom: 2px dotted #bcdcef; font-family: inherit; font-size: 12px;
     text-align: center; background: transparent; color: #4a4038;
   }
-  .no-field { font-size: 11px; color: #a9927f; }
-  .no-field input {
-    border: none; border-bottom: 2px dotted #e4d6c5; width: 24mm; font-size: 11px; background: transparent;
-  }
 
   .customer-row {
     display: flex; align-items: baseline; margin-bottom: 1mm;
@@ -270,7 +266,6 @@
       <span class="hint">品目は「＋行を追加」で増やせます／印刷はB5指定</span>
       <button class="secondary" onclick="addRow()">＋ 行を追加</button>
       <button onclick="window.print()">🖨️ 印刷する</button>
-      <span onclick="resetReceiptNumber()" style="font-size:10.5px; color:#eaf5ff; text-decoration:underline; cursor:pointer; opacity:0.85;">番号リセット</span>
     </div>
   </div>
 
@@ -292,7 +287,6 @@
         <input type="text" id="m" style="width:7mm;" value=""> 月
         <input type="text" id="d" style="width:7mm;" value=""> 日
       </div>
-      <div class="no-field">No. <input type="text" id="no" value="" readonly></div>
     </div>
 
     <div class="customer-row">
@@ -555,44 +549,6 @@ function recalc() {
   var taxAmount = sum - taxExcl;
   document.getElementById('taxExclDisplay').textContent = taxExcl.toLocaleString('ja-JP') + '円';
   document.getElementById('taxAmountDisplay').textContent = taxAmount.toLocaleString('ja-JP') + '円';
-}
-
-// 通し番号の自動採番（Google Apps Script の共有カウンターを使用。
-// 複数パソコン間で番号が揃うようにネット経由で採番する）
-var RECEIPT_COUNTER_URL = 'https://script.google.com/macros/s/AKfycbys5Mc961jeEXrSq1UJXz-K207AZVgAOWxaGCqvblspmi7PWHW6inPGZNNN8ye7rA33ZA/exec';
-
-async function autoAssignNumber() {
-  var noInput = document.getElementById('no');
-  try {
-    var res = await fetch(RECEIPT_COUNTER_URL + '?action=next');
-    var data = await res.json();
-    if (data && typeof data.number !== 'undefined') {
-      noInput.value = String(data.number).padStart(4, '0');
-      // オフライン時の保険用に最新値をローカルにも控えておく
-      localStorage.setItem('rinon_receipt_no_counter', String(data.number));
-      return;
-    }
-    throw new Error('invalid response');
-  } catch (err) {
-    // ネットにつながらない場合はブラウザ内カウンターにフォールバック
-    var current = parseInt(localStorage.getItem('rinon_receipt_no_counter') || '0', 10);
-    var next = current + 1;
-    localStorage.setItem('rinon_receipt_no_counter', String(next));
-    noInput.value = String(next).padStart(4, '0') + '※';
-    noInput.title = 'ネットに接続できなかったため、この端末内だけの仮番号です（※印）。後で確認・修正してください。';
-  }
-}
-autoAssignNumber();
-
-async function resetReceiptNumber() {
-  if (!confirm('採番カウンターをリセットしますか？\n次回発行時に No.0001 から再スタートします。')) return;
-  try {
-    await fetch(RECEIPT_COUNTER_URL + '?action=reset');
-    localStorage.setItem('rinon_receipt_no_counter', '0');
-    alert('リセットしました。');
-  } catch (err) {
-    alert('リセットに失敗しました。ネット接続を確認してください。');
-  }
 }
 
 populateMenuSelects();
