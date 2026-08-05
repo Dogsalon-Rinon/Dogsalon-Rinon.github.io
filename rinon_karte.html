@@ -198,17 +198,8 @@ const FIRST_SHEET_NAME = 'フォームの回答1';
 const REPEAT_SHEET_NAME = 'フォームの回答1';
 
 let customers = []; // 顧客単位（飼い主名+犬名でグループ化）
-let memos = {};
 let firstDataRaw = null;
 let repeatDataRaw = null;
-
-function loadMemos() {
-  try { memos = JSON.parse(localStorage.getItem('rinon_memos') || '{}'); } catch(e) { memos = {}; }
-}
-function saveMemo(key, val) {
-  memos[key] = val;
-  localStorage.setItem('rinon_memos', JSON.stringify(memos));
-}
 
 // ── 写真機能（Googleドライブ保存） ──
 function driveThumbUrl(fileId, size) {
@@ -260,11 +251,14 @@ function uploadProfilePhoto(idx, inputEl) {
   if (box) box.style.opacity = '0.5';
 
   resizeImageFile(file, 1000, 0.8).then(function(base64) {
-    return fetch(target.url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'uploadPhoto', secret: DELETE_SECRET, target: 'profile', row: target.row, image: base64, mimeType: 'image/jpeg' })
-    });
+    var params = new URLSearchParams();
+    params.set('action', 'uploadPhoto');
+    params.set('secret', DELETE_SECRET);
+    params.set('target', 'profile');
+    params.set('row', target.row);
+    params.set('image', base64);
+    params.set('mimeType', 'image/jpeg');
+    return fetch(target.url, { method: 'POST', body: params });
   }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) { alert('アップロードに失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (box) box.style.opacity = '1'; return; }
     c.dogPhotoId = res.fileId;
@@ -285,11 +279,13 @@ function deleteProfilePhoto(idx) {
   var box = document.getElementById('dog-photo-box-' + idx);
   if (box) box.style.opacity = '0.5';
 
-  fetch(target.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'deletePhoto', secret: DELETE_SECRET, target: 'profile', row: target.row, fileId: c.dogPhotoId })
-  }).then(function(r) { return r.json(); }).then(function(res) {
+  var params = new URLSearchParams();
+  params.set('action', 'deletePhoto');
+  params.set('secret', DELETE_SECRET);
+  params.set('target', 'profile');
+  params.set('row', target.row);
+  params.set('fileId', c.dogPhotoId);
+  fetch(target.url, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) { alert('削除に失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (box) box.style.opacity = '1'; return; }
     c.dogPhotoId = '';
     c.profile['犬の写真'] = '';
@@ -310,11 +306,14 @@ function uploadVisitPhoto(uid, inputEl) {
   if (container) container.style.opacity = '0.5';
 
   resizeImageFile(file, 1200, 0.8).then(function(base64) {
-    return fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'uploadPhoto', secret: DELETE_SECRET, target: 'visit', row: info.rowNum, image: base64, mimeType: 'image/jpeg' })
-    });
+    var params = new URLSearchParams();
+    params.set('action', 'uploadPhoto');
+    params.set('secret', DELETE_SECRET);
+    params.set('target', 'visit');
+    params.set('row', info.rowNum);
+    params.set('image', base64);
+    params.set('mimeType', 'image/jpeg');
+    return fetch(apiUrl, { method: 'POST', body: params });
   }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) { alert('アップロードに失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (container) container.style.opacity = '1'; return; }
     if (!info.visitObj.photos) info.visitObj.photos = [];
@@ -334,11 +333,13 @@ function deleteVisitPhoto(uid, fileId) {
   var container = document.getElementById('visit-photos-' + uid);
   if (container) container.style.opacity = '0.5';
 
-  fetch(apiUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'deletePhoto', secret: DELETE_SECRET, target: 'visit', row: info.rowNum, fileId: fileId })
-  }).then(function(r) { return r.json(); }).then(function(res) {
+  var params = new URLSearchParams();
+  params.set('action', 'deletePhoto');
+  params.set('secret', DELETE_SECRET);
+  params.set('target', 'visit');
+  params.set('row', info.rowNum);
+  params.set('fileId', fileId);
+  fetch(apiUrl, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) { alert('削除に失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (container) container.style.opacity = '1'; return; }
     info.visitObj.photos = (info.visitObj.photos || []).filter(function(id) { return id !== fileId; });
     showKarte(info.customerIdx);
@@ -544,7 +545,8 @@ function buildCustomers() {
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
       rowNum: r['__rowNum'],
-      photos: (r['施術写真'] || '').toString().split(',').filter(Boolean)
+      photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
+      memo: r['施術メモ'] || ''
     });
   });
 
@@ -572,7 +574,8 @@ function buildCustomers() {
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
       rowNum: r['__rowNum'],
-      photos: (r['施術写真'] || '').toString().split(',').filter(Boolean)
+      photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
+      memo: r['施術メモ'] || ''
     });
   });
 
@@ -700,7 +703,7 @@ function showKarte(idx, silent) {
     var typeLabel = isFirst ? '初回' : 'リピート';
     var typeClass = isFirst ? 'first-type' : 'repeat-type';
     var memoKey = v.key;
-    var memo = memos[memoKey] || '';
+    var memo = v.memo || '';
     var uid = idx + '_' + vi;
     var email = p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '';
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
@@ -717,7 +720,7 @@ function showKarte(idx, silent) {
       '<div class="visit-detail">希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
       (v.lastTrim ? '<div class="visit-detail">前回からの期間：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
-      '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' + memo + '</textarea>' +
+      '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + uid + '\', this)">' + memo + '</textarea>' +
       '<div class="visit-photos" id="visit-photos-' + uid + '">' +
         photosHtml +
         '<label class="visit-photo-add">📷 写真を追加<input type="file" accept="image/*" style="display:none;" onchange="uploadVisitPhoto(\'' + uid + '\', this)"></label>' +
@@ -836,10 +839,30 @@ function formatPhone(val) {
   return s;
 }
 
-function saveMemoNow(key, el) {
-  saveMemo(key, el.value);
-  el.style.borderColor = '#2EA87E';
-  setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
+function saveMemoNow(uid, el) {
+  var info = visitLookup[uid];
+  if (!info || !info.rowNum) return;
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var val = el.value;
+
+  var params = new URLSearchParams();
+  params.set('action', 'saveMemo');
+  params.set('secret', DELETE_SECRET);
+  params.set('row', info.rowNum);
+  params.set('memo', val);
+  fetch(apiUrl, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) {
+      el.style.borderColor = '#C06060';
+      alert('メモの保存に失敗しました：' + (res && res.error ? res.error : '不明なエラー'));
+      return;
+    }
+    info.visitObj.memo = val;
+    el.style.borderColor = '#2EA87E';
+    setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
+  }).catch(function() {
+    el.style.borderColor = '#C06060';
+    alert('通信エラーが発生しました');
+  });
 }
 
 function deleteCustomer(idx) {
@@ -1035,7 +1058,7 @@ function exportExcel() {
       setCell(currentRow, 2, v.menu || '', visitCellStyle());
       setCell(currentRow, 3, v.datetime1 || '', visitCellStyle());
       setCell(currentRow, 4, v.datetime2 || '', visitCellStyle());
-      setCell(currentRow, 5, memos[v.key] || '', memoValueStyle());
+      setCell(currentRow, 5, v.memo || '', memoValueStyle());
       rowHeights[currentRow] = 24;
       currentRow++;
     });
@@ -1057,7 +1080,6 @@ function exportExcel() {
   XLSX.writeFile(wb, 'Rinon_カルテ_' + new Date().toISOString().slice(0,10) + '.xlsx', { cellStyles: true });
 }
 
-loadMemos();
 loadHidden();
 loadData();
 </script>
