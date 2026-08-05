@@ -51,9 +51,23 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .welcome p { font-size: 13px; line-height: 1.8; }
 
 .karte-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+.karte-header-main { display: flex; align-items: center; gap: 14px; }
 .karte-title { font-size: 20px; font-weight: 700; color: #0C447C; }
 .karte-title span { color: #5DBAEC; }
 .karte-date { font-size: 12px; color: #7AAAC0; margin-top: 4px; }
+
+.dog-photo-box { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+.dog-photo-img { width: 72px; height: 72px; border-radius: 14px; object-fit: cover; cursor: pointer; border: 2px solid #E0F0FB; display: block; }
+.dog-photo-placeholder { width: 72px; height: 72px; border-radius: 14px; background: #E8F4FC; display: flex; align-items: center; justify-content: center; font-size: 28px; border: 2px dashed #B3D9F5; }
+.dog-photo-actions { display: flex; gap: 4px; margin-top: 4px; justify-content: center; }
+.dog-photo-upload { font-size: 10px; background: #1A6FA8; color: white; border-radius: 10px; padding: 3px 8px; cursor: pointer; font-weight: 600; }
+.dog-photo-delete { font-size: 10px; background: #FFE8E8; color: #C06060; border-radius: 10px; padding: 3px 8px; cursor: pointer; font-weight: 600; }
+
+.visit-photos { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.visit-photo-thumb { position: relative; width: 64px; height: 64px; }
+.visit-photo-thumb img { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; cursor: pointer; border: 1.5px solid #E0F0FB; display: block; }
+.visit-photo-del { position: absolute; top: -6px; right: -6px; background: #C06060; color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; font-weight: 700; }
+.visit-photo-add { width: 64px; height: 64px; border-radius: 8px; border: 1.5px dashed #B3D9F5; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #1A6FA8; text-align: center; cursor: pointer; line-height: 1.3; padding: 2px; }
 
 .section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; border: 1px solid #E0F0FB; }
 .section-title { font-size: 12px; font-weight: 700; color: #1A6FA8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #E8F4FC; display:flex; justify-content:space-between; align-items:center;}
@@ -194,6 +208,144 @@ function loadMemos() {
 function saveMemo(key, val) {
   memos[key] = val;
   localStorage.setItem('rinon_memos', JSON.stringify(memos));
+}
+
+// ── 写真機能（Googleドライブ保存） ──
+function driveThumbUrl(fileId, size) {
+  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w' + (size || 200);
+}
+function driveViewUrl(fileId) {
+  return 'https://drive.google.com/file/d/' + fileId + '/view';
+}
+
+// 顧客の「プロフィール更新先」（初回シートの行か、初回データが無ければリピートシートの最古の行）を判定
+function profileTarget(c) {
+  if (c.firstRowNum) return { url: FIRST_API_URL, row: c.firstRowNum };
+  var v = c.visits.find(function(v) { return v.type === 'first'; }) || c.visits[0];
+  if (!v) return null;
+  return { url: v.type === 'first' ? FIRST_API_URL : REPEAT_API_URL, row: v.rowNum };
+}
+
+// 画像をリサイズ・圧縮してbase64(dataURLの本体部分)を返す
+function resizeImageFile(file, maxSize, quality) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = function() { reject(new Error('読み込みに失敗しました')); };
+    reader.onload = function() {
+      var img = new Image();
+      img.onerror = function() { reject(new Error('画像の読み込みに失敗しました')); };
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        var scale = Math.min(1, maxSize / Math.max(w, h));
+        var cw = Math.round(w * scale), ch = Math.round(h * scale);
+        var canvas = document.createElement('canvas');
+        canvas.width = cw; canvas.height = ch;
+        canvas.getContext('2d').drawImage(img, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL('image/jpeg', quality || 0.8);
+        resolve(dataUrl.split(',')[1]);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function uploadProfilePhoto(idx, inputEl) {
+  var file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  var c = customers[idx];
+  var target = profileTarget(c);
+  if (!target) { alert('この顧客の登録情報が見つからないため、写真を保存できません'); return; }
+  var box = document.getElementById('dog-photo-box-' + idx);
+  if (box) box.style.opacity = '0.5';
+
+  resizeImageFile(file, 1000, 0.8).then(function(base64) {
+    return fetch(target.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'uploadPhoto', secret: DELETE_SECRET, target: 'profile', row: target.row, image: base64, mimeType: 'image/jpeg' })
+    });
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) { alert('アップロードに失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (box) box.style.opacity = '1'; return; }
+    c.dogPhotoId = res.fileId;
+    c.profile['犬の写真'] = res.fileId;
+    showKarte(idx);
+  }).catch(function() {
+    alert('通信エラーが発生しました');
+    if (box) box.style.opacity = '1';
+  });
+}
+
+function deleteProfilePhoto(idx) {
+  var c = customers[idx];
+  if (!c.dogPhotoId) return;
+  if (!confirm('この写真を削除しますか？')) return;
+  var target = profileTarget(c);
+  if (!target) return;
+  var box = document.getElementById('dog-photo-box-' + idx);
+  if (box) box.style.opacity = '0.5';
+
+  fetch(target.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'deletePhoto', secret: DELETE_SECRET, target: 'profile', row: target.row, fileId: c.dogPhotoId })
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) { alert('削除に失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (box) box.style.opacity = '1'; return; }
+    c.dogPhotoId = '';
+    c.profile['犬の写真'] = '';
+    showKarte(idx);
+  }).catch(function() {
+    alert('通信エラーが発生しました');
+    if (box) box.style.opacity = '1';
+  });
+}
+
+function uploadVisitPhoto(uid, inputEl) {
+  var file = inputEl.files && inputEl.files[0];
+  if (!file) return;
+  var info = visitLookup[uid];
+  if (!info || !info.rowNum) { alert('この来店の行情報が見つからないため、写真を保存できません'); return; }
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var container = document.getElementById('visit-photos-' + uid);
+  if (container) container.style.opacity = '0.5';
+
+  resizeImageFile(file, 1200, 0.8).then(function(base64) {
+    return fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'uploadPhoto', secret: DELETE_SECRET, target: 'visit', row: info.rowNum, image: base64, mimeType: 'image/jpeg' })
+    });
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) { alert('アップロードに失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (container) container.style.opacity = '1'; return; }
+    if (!info.visitObj.photos) info.visitObj.photos = [];
+    info.visitObj.photos.push(res.fileId);
+    showKarte(info.customerIdx);
+  }).catch(function() {
+    alert('通信エラーが発生しました');
+    if (container) container.style.opacity = '1';
+  });
+}
+
+function deleteVisitPhoto(uid, fileId) {
+  if (!confirm('この写真を削除しますか？')) return;
+  var info = visitLookup[uid];
+  if (!info || !info.rowNum) return;
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var container = document.getElementById('visit-photos-' + uid);
+  if (container) container.style.opacity = '0.5';
+
+  fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'deletePhoto', secret: DELETE_SECRET, target: 'visit', row: info.rowNum, fileId: fileId })
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) { alert('削除に失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (container) container.style.opacity = '1'; return; }
+    info.visitObj.photos = (info.visitObj.photos || []).filter(function(id) { return id !== fileId; });
+    showKarte(info.customerIdx);
+  }).catch(function() {
+    alert('通信エラーが発生しました');
+    if (container) container.style.opacity = '1';
+  });
 }
 
 function saveAddressToSheet(rowNum, val, el) {
@@ -391,7 +543,8 @@ function buildCustomers() {
       datetime2: r['希望日時②'] || '',
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
-      rowNum: r['__rowNum']
+      rowNum: r['__rowNum'],
+      photos: (r['施術写真'] || '').toString().split(',').filter(Boolean)
     });
   });
 
@@ -401,10 +554,10 @@ function buildCustomers() {
     var dog = r['ワンちゃんのお名前'];
     var key = customerKey(owner, dog);
     if (!map[key]) {
-      // 初回データが見つからない場合は新規顧客として作成
+      // 初回データが見つからない場合は新規顧客として作成（後で写真等のカラムも拾えるようrをそのまま保持）
       map[key] = {
         owner: owner, dog: dog,
-        profile: { '飼い主さまのお名前': owner, 'ワンちゃんのお名前': dog },
+        profile: r,
         visits: []
       };
     }
@@ -418,7 +571,8 @@ function buildCustomers() {
       lastTrim: r['前回の施術からの期間'] || '',
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
-      rowNum: r['__rowNum']
+      rowNum: r['__rowNum'],
+      photos: (r['施術写真'] || '').toString().split(',').filter(Boolean)
     });
   });
 
@@ -427,6 +581,7 @@ function buildCustomers() {
     c.visits.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
     c.visitCount = c.visits.length;
     c.lastVisit = c.visits[c.visits.length - 1];
+    c.dogPhotoId = (c.profile['犬の写真'] || '').toString().trim();
     return c;
   });
 
@@ -523,12 +678,12 @@ function backToList() {
   window.scrollTo(0, 0);
 }
 
-function showKarte(idx) {
+function showKarte(idx, silent) {
   document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
   var card = document.getElementById('card-' + idx);
   if (card) card.classList.add('active');
 
-  if (window.innerWidth <= 768) {
+  if (!silent && window.innerWidth <= 768) {
     document.querySelector('.main').classList.add('sidebar-collapsed');
     window.scrollTo(0, 0);
   }
@@ -549,7 +704,13 @@ function showKarte(idx) {
     var uid = idx + '_' + vi;
     var email = p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '';
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
-                          rowNum: v.rowNum, type: v.type, email: email };
+                          rowNum: v.rowNum, type: v.type, email: email, visitObj: v, customerIdx: idx };
+    var photosHtml = (v.photos || []).map(function(fid) {
+      return '<div class="visit-photo-thumb">' +
+        '<img src="' + driveThumbUrl(fid, 150) + '" onclick="window.open(\'' + driveViewUrl(fid) + '\',\'_blank\')">' +
+        '<span class="visit-photo-del" onclick="deleteVisitPhoto(\'' + uid + '\', \'' + fid + '\')">×</span>' +
+      '</div>';
+    }).join('');
     return '<div class="visit-item' + (isFirst ? ' first' : '') + '">' +
       '<div class="visit-header"><span class="visit-date">' + formatDateFull(v.date) + '</span><span class="visit-type ' + typeClass + '">' + typeLabel + '</span></div>' +
       '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '</div>' +
@@ -557,6 +718,10 @@ function showKarte(idx) {
       (v.lastTrim ? '<div class="visit-detail">前回からの期間：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' + memo + '</textarea>' +
+      '<div class="visit-photos" id="visit-photos-' + uid + '">' +
+        photosHtml +
+        '<label class="visit-photo-add">📷 写真を追加<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="uploadVisitPhoto(\'' + uid + '\', this)"></label>' +
+      '</div>' +
       '<div class="visit-actions">' +
         '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
         (email
@@ -569,9 +734,22 @@ function showKarte(idx) {
   document.getElementById('content').innerHTML =
     '<button class="btn btn-light btn-sm back-to-list" onclick="backToList()">← 顧客一覧に戻る</button>' +
     '<div class="karte-header">' +
-      '<div>' +
-        '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span></div>' +
-        '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
+      '<div class="karte-header-main">' +
+        '<div class="dog-photo-box" id="dog-photo-box-' + idx + '">' +
+          (c.dogPhotoId
+            ? '<img src="' + driveThumbUrl(c.dogPhotoId, 200) + '" class="dog-photo-img" onclick="window.open(\'' + driveViewUrl(c.dogPhotoId) + '\',\'_blank\')">'
+            : '<div class="dog-photo-placeholder">🐶</div>') +
+          '<div class="dog-photo-actions">' +
+            '<label class="dog-photo-upload">' + (c.dogPhotoId ? '変更' : '＋写真') +
+              '<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="uploadProfilePhoto(' + idx + ', this)">' +
+            '</label>' +
+            (c.dogPhotoId ? '<span class="dog-photo-delete" onclick="deleteProfilePhoto(' + idx + ')">削除</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span></div>' +
+          '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
+        '</div>' +
       '</div>' +
       '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteCustomer(' + idx + ')">🗑 このカルテを削除</button>' +
     '</div>' +
