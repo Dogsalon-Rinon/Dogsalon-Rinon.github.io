@@ -297,31 +297,39 @@ function deleteProfilePhoto(idx) {
 }
 
 function uploadVisitPhoto(uid, inputEl) {
-  var file = inputEl.files && inputEl.files[0];
-  if (!file) return;
+  var files = inputEl.files ? Array.prototype.slice.call(inputEl.files) : [];
+  if (files.length === 0) return;
   var info = visitLookup[uid];
   if (!info || !info.rowNum) { alert('この来店の行情報が見つからないため、写真を保存できません'); return; }
   var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
   var container = document.getElementById('visit-photos-' + uid);
   if (container) container.style.opacity = '0.5';
 
-  resizeImageFile(file, 1200, 0.8).then(function(base64) {
-    var params = new URLSearchParams();
-    params.set('action', 'uploadPhoto');
-    params.set('secret', DELETE_SECRET);
-    params.set('target', 'visit');
-    params.set('row', info.rowNum);
-    params.set('image', base64);
-    params.set('mimeType', 'image/jpeg');
-    return fetch(apiUrl, { method: 'POST', body: params });
-  }).then(function(r) { return r.json(); }).then(function(res) {
-    if (!res || !res.success) { alert('アップロードに失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (container) container.style.opacity = '1'; return; }
-    if (!info.visitObj.photos) info.visitObj.photos = [];
-    info.visitObj.photos.push(res.fileId);
+  var failCount = 0;
+
+  function uploadOne(file) {
+    return resizeImageFile(file, 1200, 0.8).then(function(base64) {
+      var params = new URLSearchParams();
+      params.set('action', 'uploadPhoto');
+      params.set('secret', DELETE_SECRET);
+      params.set('target', 'visit');
+      params.set('row', info.rowNum);
+      params.set('image', base64);
+      params.set('mimeType', 'image/jpeg');
+      return fetch(apiUrl, { method: 'POST', body: params });
+    }).then(function(r) { return r.json(); }).then(function(res) {
+      if (!res || !res.success) { failCount++; return; }
+      if (!info.visitObj.photos) info.visitObj.photos = [];
+      info.visitObj.photos.push(res.fileId);
+    }).catch(function() { failCount++; });
+  }
+
+  // 1枚ずつ順番にアップロード（同時送信すると行の書き込みが競合するため）
+  files.reduce(function(chain, file) {
+    return chain.then(function() { return uploadOne(file); });
+  }, Promise.resolve()).then(function() {
+    if (failCount > 0) alert(files.length + '枚中 ' + failCount + '枚のアップロードに失敗しました');
     showKarte(info.customerIdx);
-  }).catch(function() {
-    alert('通信エラーが発生しました');
-    if (container) container.style.opacity = '1';
   });
 }
 
@@ -723,7 +731,7 @@ function showKarte(idx, silent) {
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + uid + '\', this)">' + memo + '</textarea>' +
       '<div class="visit-photos" id="visit-photos-' + uid + '">' +
         photosHtml +
-        '<label class="visit-photo-add">📷 写真を追加<input type="file" accept="image/*" style="display:none;" onchange="uploadVisitPhoto(\'' + uid + '\', this)"></label>' +
+        '<label class="visit-photo-add">📷 写真を追加<input type="file" accept="image/*" multiple style="display:none;" onchange="uploadVisitPhoto(\'' + uid + '\', this)"></label>' +
       '</div>' +
       '<div class="visit-actions">' +
         '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
