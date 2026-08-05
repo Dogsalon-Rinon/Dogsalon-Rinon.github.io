@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>診断ツール - Dog Salon Rinon</title>
+<style>
+  body { font-family: sans-serif; background:#E8F4FC; margin:0; padding:20px; color:#0C447C; }
+  .box { max-width:640px; margin:0 auto; background:white; border-radius:16px; padding:24px; }
+  button { display:block; width:100%; padding:14px; margin-top:12px; background:#1A6FA8; color:white; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; }
+  pre { background:#F4FAFF; border-radius:10px; padding:12px; font-size:12px; white-space:pre-wrap; word-break:break-all; margin-top:12px; }
+  h2 { font-size:14px; margin:20px 0 4px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1 style="font-size:18px;">🔍 書き込み診断ツール</h1>
+  <p>2行目のデータに、テスト用の文字を書き込んで、実際に反映されるか確認します。</p>
+  <button onclick="runTest()">診断を実行する</button>
+  <div id="result"></div>
+</div>
+<script>
+const FIRST_SHEET_ID = '19vWELviHaLORivnobZ88UVwa1StIOrEbWYQRFdV5Aiw';
+const FIRST_GID = '1818317443';
+const FIRST_API_URL = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeho6g5YatScnQnXY8LlO3N6AHhJlYYaXTtSn2wrSKilFmWOWZIg/exec';
+const DELETE_SECRET = 'rinon2026';
+const TEST_VALUE = 'テスト書き込み_' + Date.now();
+
+function sheetUrl() {
+  return `https://docs.google.com/spreadsheets/d/${FIRST_SHEET_ID}/export?format=csv&gid=${FIRST_GID}&_=` + Date.now();
+}
+
+function log(msg) {
+  document.getElementById('result').innerHTML += '<h2></h2><pre>' + msg + '</pre>';
+}
+
+async function runTest() {
+  document.getElementById('result').innerHTML = '';
+  log('① テスト値「' + TEST_VALUE + '」を2行目の「施術メモ」列に書き込みます...');
+
+  var params = new URLSearchParams();
+  params.set('action', 'saveMemo');
+  params.set('secret', DELETE_SECRET);
+  params.set('row', '2');
+  params.set('memo', TEST_VALUE);
+
+  try {
+    var res = await fetch(FIRST_API_URL, { method: 'POST', body: params });
+    var text = await res.text();
+    log('② サーバーからの生の返答：\n' + text);
+
+    await new Promise(function(r) { setTimeout(r, 2000); });
+
+    log('③ スプレッドシートを読み直しています...');
+    var csvRes = await fetch(sheetUrl(), { cache: 'no-store' });
+    var csvText = await csvRes.text();
+    var lines = csvText.split('\n');
+    var headerLine = lines[0];
+    var row2Line = lines[1];
+
+    log('④ ヘッダー行（1行目）そのまま：\n' + headerLine);
+    log('⑤ 2行目そのまま：\n' + row2Line);
+
+    if (headerLine.indexOf('施術メモ') === -1) {
+      log('⚠️ 結論：「施術メモ」という列見出し自体がスプレッドシートに存在しません。');
+    } else if (row2Line.indexOf(TEST_VALUE) === -1) {
+      log('⚠️ 結論：列は存在しますが、2行目にテスト値が反映されていません。');
+    } else {
+      log('✅ 結論：正常に書き込めています。表示側の問題です。');
+    }
+  } catch (e) {
+    log('❌ エラーが発生しました：' + e.message);
+  }
+}
+</script>
+</body>
+</html>
