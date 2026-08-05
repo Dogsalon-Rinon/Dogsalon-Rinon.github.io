@@ -720,7 +720,7 @@ function showKarte(idx, silent) {
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + memoKey.replace(/'/g, "\\'") + '\', this)">' + memo + '</textarea>' +
       '<div class="visit-photos" id="visit-photos-' + uid + '">' +
         photosHtml +
-        '<label class="visit-photo-add">📷 写真を追加<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="uploadVisitPhoto(\'' + uid + '\', this)"></label>' +
+        '<label class="visit-photo-add">📷 写真を追加<input type="file" accept="image/*" style="display:none;" onchange="uploadVisitPhoto(\'' + uid + '\', this)"></label>' +
       '</div>' +
       '<div class="visit-actions">' +
         '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
@@ -741,7 +741,7 @@ function showKarte(idx, silent) {
             : '<div class="dog-photo-placeholder">🐶</div>') +
           '<div class="dog-photo-actions">' +
             '<label class="dog-photo-upload">' + (c.dogPhotoId ? '変更' : '＋写真') +
-              '<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="uploadProfilePhoto(' + idx + ', this)">' +
+              '<input type="file" accept="image/*" style="display:none;" onchange="uploadProfilePhoto(' + idx + ', this)">' +
             '</label>' +
             (c.dogPhotoId ? '<span class="dog-photo-delete" onclick="deleteProfilePhoto(' + idx + ')">削除</span>' : '') +
           '</div>' +
