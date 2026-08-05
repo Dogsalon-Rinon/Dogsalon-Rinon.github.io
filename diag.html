@@ -61,6 +61,11 @@ async function runTest() {
     log('④ ヘッダー行（1行目）そのまま：\n' + headerLine);
     log('⑤ 2行目そのまま：\n' + row2Line);
 
+    log('⑥ Apps Scriptに直接問い合わせ中（キャッシュなし）...');
+    var debugRes = await fetch(FIRST_API_URL + '?action=debugCheck&row=2');
+    var debugJson = await debugRes.json();
+    log('⑦ Apps Scriptが直接見ているシートの中身：\n' + JSON.stringify(debugJson, null, 2));
+
     if (headerLine.indexOf('施術メモ') === -1) {
       log('⚠️ 結論：「施術メモ」という列見出し自体がスプレッドシートに存在しません。');
     } else if (row2Line.indexOf(TEST_VALUE) === -1) {
