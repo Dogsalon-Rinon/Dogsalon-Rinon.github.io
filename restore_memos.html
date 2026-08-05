@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>施術メモ復元ツール - Dog Salon Rinon</title>
+<style>
+  body {
+    font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    background: #E8F4FC; margin: 0; padding: 20px; color: #0C447C;
+  }
+  .box {
+    max-width: 560px; margin: 0 auto; background: white; border-radius: 16px;
+    padding: 28px 24px; box-shadow: 0 2px 12px rgba(12,68,124,0.1);
+  }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p { font-size: 14px; color: #1A6FA8; line-height: 1.7; }
+  button {
+    display: block; width: 100%; padding: 16px; margin-top: 16px;
+    background: #1A6FA8; color: white; border: none; border-radius: 12px;
+    font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  button:disabled { opacity: 0.5; }
+  .log {
+    margin-top: 16px; background: #F4FAFF; border-radius: 10px; padding: 12px 14px;
+    font-size: 13px; white-space: pre-wrap; max-height: 300px; overflow-y: auto;
+    display: none; line-height: 1.8;
+  }
+  .item { background: #F4FAFF; border-radius: 10px; padding: 10px 14px; margin-top: 8px; font-size: 13px; }
+  .item b { color: #0C447C; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>🐾 施術メモ復元ツール</h1>
+    <p>この端末のブラウザに残っている、以前入力した施術メモをスプレッドシートに書き戻します。<br>下のボタンを押すだけでOKです。</p>
+    <div id="status"><p id="statusText">確認中...</p></div>
+    <div id="preview"></div>
+    <button id="mainBtn" onclick="run()" disabled>復元する</button>
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+const FIRST_SHEET_ID = '19vWELviHaLORivnobZ88UVwa1StIOrEbWYQRFdV5Aiw';
+const REPEAT_SHEET_ID = '1MhHHNizbxfwcIf1-ABSqkmn8wCWFwtzAv6FwFJYxEMU';
+const FIRST_GID = '1818317443';
+const REPEAT_GID = '2045705147';
+const FIRST_API_URL  = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeho6g5YatScnQnXY8LlO3N6AHhJlYYaXTtSn2wrSKilFmWOWZIg/exec';
+const REPEAT_API_URL = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1T_TfAJsY3Gzo2xlLg686tHRSaszZ0K4Fk4mIti1vRToUbw/exec';
+const DELETE_SECRET  = 'rinon2026';
+
+function sheetUrl(id, gid) {
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}&_=` + Date.now();
+}
+function fetchCsv(url) {
+  return fetch(url, { cache: 'no-store' }).then(function(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.text();
+  }).then(parseCsv);
+}
+function parseCsv(text) {
+  var rows = [], row = [], field = '', inQuotes = false;
+  for (var i = 0; i < text.length; i++) {
+    var c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else { inQuotes = false; } }
+      else { field += c; }
+    } else {
+      if (c === '"') { inQuotes = true; }
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else { field += c; }
+    }
+  }
+  if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+  if (rows.length === 0) return [];
+  var headers = rows[0].map(function(h) { return h.trim(); });
+  return rows.slice(1).map(function(r, i) {
+    var obj = {};
+    headers.forEach(function(h, j) { obj[h] = (r[j] || '').trim(); });
+    obj['__rowNum'] = i + 2;
+    return obj;
+  }).filter(function(r) { return r['飼い主さまのお名前'] || r['飼い主様のお名前']; });
+}
+function customerKey(owner, dog) {
+  return (owner || '').trim() + '___' + (dog || '').trim();
+}
+
+var targets = [];
+
+function init() {
+  var old = {};
+  try { old = JSON.parse(localStorage.getItem('rinon_memos') || '{}'); } catch (e) {}
+  var oldKeys = Object.keys(old);
+
+  if (oldKeys.length === 0) {
+    document.getElementById('statusText').textContent =
+      'この端末には保存されている過去のメモが見つかりませんでした。別のパソコン・ブラウザで入力していた場合は、そちらでこのページを開いてください。';
+    return;
+  }
+
+  document.getElementById('statusText').textContent = 'スプレッドシートと照合中...';
+
+  Promise.all([
+    fetchCsv(sheetUrl(FIRST_SHEET_ID, FIRST_GID)),
+    fetchCsv(sheetUrl(REPEAT_SHEET_ID, REPEAT_GID))
+  ]).then(function(results) {
+    var firstData = results[0], repeatData = results[1];
+    var found = [];
+
+    firstData.forEach(function(r) {
+      var key = customerKey(r['飼い主さまのお名前'], r['ワンちゃんのお名前']);
+      var vKey = key + '_' + r['タイムスタンプ'];
+      if (old[vKey]) {
+        found.push({ rowNum: r['__rowNum'], type: 'first', memo: old[vKey],
+          label: (r['飼い主さまのお名前']||'') + ' / ' + (r['ワンちゃんのお名前']||'') + '（初回・' + (r['タイムスタンプ']||'') + '）' });
+      }
+    });
+    repeatData.forEach(function(r) {
+      var owner = r['飼い主さまのお名前'] || r['飼い主様のお名前'];
+      var key = customerKey(owner, r['ワンちゃんのお名前']);
+      var vKey = key + '_' + r['タイムスタンプ'];
+      if (old[vKey]) {
+        found.push({ rowNum: r['__rowNum'], type: 'repeat', memo: old[vKey],
+          label: (owner||'') + ' / ' + (r['ワンちゃんのお名前']||'') + '（リピート・' + (r['タイムスタンプ']||'') + '）' });
+      }
+    });
+
+    targets = found;
+
+    if (found.length === 0) {
+      document.getElementById('statusText').textContent =
+        '保存されていたメモ(' + oldKeys.length + '件)が見つかりましたが、現在のスプレッドシートの来店データと一致するものがありませんでした。';
+      return;
+    }
+
+    document.getElementById('statusText').textContent = '以下の ' + found.length + ' 件のメモが見つかりました。内容を確認して「復元する」を押してください。';
+    var previewHtml = found.map(function(t) {
+      return '<div class="item"><b>' + t.label + '</b><br>' + t.memo.replace(/</g,'&lt;') + '</div>';
+    }).join('');
+    document.getElementById('preview').innerHTML = previewHtml;
+    document.getElementById('mainBtn').disabled = false;
+  }).catch(function(e) {
+    document.getElementById('statusText').textContent = 'スプレッドシートの読み込みに失敗しました：' + e.message;
+  });
+}
+
+function run() {
+  document.getElementById('mainBtn').disabled = true;
+  document.getElementById('mainBtn').textContent = '復元中...';
+  var logEl = document.getElementById('log');
+  logEl.style.display = 'block';
+  var done = 0, fail = 0;
+
+  function next(i) {
+    if (i >= targets.length) {
+      logEl.textContent += '\n\n完了：成功 ' + done + '件 / 失敗 ' + fail + '件';
+      document.getElementById('mainBtn').textContent = '完了しました';
+      return;
+    }
+    var t = targets[i];
+    var apiUrl = t.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+    var params = new URLSearchParams();
+    params.set('action', 'saveMemo');
+    params.set('secret', DELETE_SECRET);
+    params.set('row', t.rowNum);
+    params.set('memo', t.memo);
+    fetch(apiUrl, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
+      if (res && res.success) { done++; logEl.textContent += '✅ ' + t.label + '\n'; }
+      else { fail++; logEl.textContent += '❌ ' + t.label + '（' + (res && res.error ? res.error : '失敗') + '）\n'; }
+      next(i + 1);
+    }).catch(function() {
+      fail++;
+      logEl.textContent += '❌ ' + t.label + '（通信エラー）\n';
+      next(i + 1);
+    });
+  }
+  next(0);
+}
+
+init();
+</script>
+</body>
+</html>
