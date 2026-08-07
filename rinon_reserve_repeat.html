@@ -28,12 +28,18 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 .section-head-icon { width: 24px; height: 24px; border-radius: 8px; background: #E8F6FE; display: flex; align-items: center; justify-content: center; }
 
 .form-group { margin-bottom: 18px; }
+.form-group.field-error input,
+.form-group.field-error select,
+.form-group.field-error textarea { border-color: #E05B5B !important; background: #FFF4F4; }
+.form-group.field-error .form-label { color: #E05B5B; }
+.form-group.field-error .form-label::after { content: "← 未入力です"; font-size: 11px; font-weight: 700; color: #E05B5B; margin-left: 4px; }
 .form-label { font-size: 12px; font-weight: 600; color: #185FA5; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; letter-spacing: 0.04em; }
 .required { background: #5DBAEC; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.06em; }
 .optional { background: #E8F6FE; color: #7AAAC0; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 4px; letter-spacing: 0.06em; }
 
 input[type="text"],
 input[type="tel"],
+input[type="email"],
 input[type="date"],
 select,
 textarea {
@@ -275,6 +281,7 @@ function doVerify() {
 
       <div class="form-group">
         <div class="form-label">ご希望時間 <span class="required">必須</span></div>
+        <p style="font-size:11px; color:#7AAAC0; margin:-4px 0 10px; line-height:1.7;">※選んだメニューの所要時間によって、ご案内できる時間帯が変わります。営業時間や他のご予約の状況により、表示されない時間帯がございます。</p>
         <div id="selectedTimeDisplay" style="display:none; background:#E8F6FE; border:1.5px solid #5DBAEC; border-radius:12px; padding:12px 16px; margin-bottom:12px; text-align:center;">
           <div style="font-size:11px; color:#7AAAC0; margin-bottom:4px;">選択中の時間</div>
           <div id="selectedTimeText" style="font-size:22px; font-weight:700; color:#1A6FA8;"></div>
@@ -452,12 +459,27 @@ function submitRepeat() {
   const f = document.getElementById('repeatForm');
   const get = id => { const el = f.querySelector('[name="' + id + '"]'); return el ? el.value : ''; };
 
-  const required = ['owner_name','dog_name','breed','weight','menu','reserve_date'];
+  const required = ['owner_name','dog_name','breed','weight','menu','reserve_date','email'];
+
+  document.querySelectorAll('.form-group.field-error').forEach(function(g) { g.classList.remove('field-error'); });
+
+  let firstErrorGroup = null;
+  let errorCount = 0;
   for (const id of required) {
     if (!get(id)) {
-      alert('未入力の必須項目があります。すべての必須項目を入力してください。');
-      return;
+      const el = f.querySelector('[name="' + id + '"]');
+      const group = el ? el.closest('.form-group') : null;
+      if (group) {
+        group.classList.add('field-error');
+        if (!firstErrorGroup) firstErrorGroup = group;
+      }
+      errorCount++;
     }
+  }
+  if (errorCount > 0) {
+    alert('未入力の必須項目があります。赤くなっている項目をご確認ください。');
+    if (firstErrorGroup) firstErrorGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
   }
   if (!selectedTime) {
     alert('ご希望の時間を選択してください。');
