@@ -172,6 +172,17 @@
     border-radius: 999px; padding: 6px 16px; cursor: pointer; font-family: inherit; font-weight: 700;
   }
   .discount-btn:hover { transform: translateY(-1px); }
+  .discount-custom {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #fff; border: 1.5px solid #d6e8f5; border-radius: 999px;
+    padding: 3px 4px 3px 10px;
+  }
+  .discount-custom input {
+    width: 54px; border: none; outline: none; font-size: 12px;
+    font-family: inherit; color: #4a90c4; text-align: right; background: transparent;
+  }
+  .discount-custom input::placeholder { color: #b9cbdb; font-size: 11px; }
+  .discount-unit { font-size: 11px; color: #7a95a8; white-space: nowrap; }
   .discount-clear {
     font-size: 11px; background: #fff; color: #a9927f; border: 1.5px solid #e4d6c5;
     border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: inherit; font-weight: 700;
@@ -240,6 +251,8 @@
 
     .discount-row { padding: 3mm; }
     .discount-btn, .discount-clear { padding: 8px 16px; font-size: 13px; }
+    .discount-custom { padding: 6px 6px 6px 12px; }
+    .discount-custom input { width: 44px; font-size: 13px; }
 
     .subtotal-row { flex-wrap: wrap; justify-content: space-between; }
     .footer { padding-right: 0; }
@@ -343,6 +356,16 @@
       <span class="discount-label">💴 割引</span>
       <button type="button" class="discount-btn" onclick="applyDiscount(0.10)">10%OFF</button>
       <button type="button" class="discount-btn" onclick="applyDiscount(0.15)">15%OFF</button>
+      <span class="discount-custom">
+        <input type="number" id="customPercent" placeholder="任意" min="0" max="100" step="1">
+        <span class="discount-unit">%</span>
+        <button type="button" class="discount-btn" onclick="applyCustomPercent()">OFF</button>
+      </span>
+      <span class="discount-custom">
+        <input type="number" id="customAmount" placeholder="金額を直接入力" min="0" step="1">
+        <span class="discount-unit">円引き</span>
+        <button type="button" class="discount-btn" onclick="applyCustomAmount()">適用</button>
+      </span>
       <button type="button" class="discount-clear" onclick="clearDiscount()">割引なし</button>
     </div>
     <div class="subtotal-row">
@@ -518,20 +541,47 @@ function clearDiscount() {
   recalc();
 }
 
-function applyDiscount(rate) {
-  // 既存の割引行を除いた品目の合計から割引額を計算
-  clearDiscount();
+function currentItemsSum() {
   var prices = document.querySelectorAll('.item-price');
   var sum = 0;
   prices.forEach(function(p) {
     var v = parseFloat((p.value || '0').replace(/[^0-9.\-]/g, ''));
     if (!isNaN(v)) sum += v;
   });
-  if (sum <= 0) { recalc(); return; }
-  var discountAmount = -Math.round(sum * rate);
-  var label = Math.round(rate * 100) + '%割引';
+  return sum;
+}
+
+function addDiscountRow(label, discountAmount) {
+  clearDiscount();
   document.getElementById('itemsBody').appendChild(makeRow(label, discountAmount, true));
   recalc();
+}
+
+function applyDiscount(rate) {
+  // 既存の割引行を除いた品目の合計から割引額を計算
+  var sum = currentItemsSum();
+  if (sum <= 0) { clearDiscount(); return; }
+  var discountAmount = -Math.round(sum * rate);
+  var label = Math.round(rate * 100) + '%割引';
+  addDiscountRow(label, discountAmount);
+}
+
+function applyCustomPercent() {
+  var input = document.getElementById('customPercent');
+  var rate = parseFloat(input.value);
+  if (isNaN(rate) || rate <= 0) { alert('割引率を入力してください（例：8）'); return; }
+  if (rate > 100) rate = 100;
+  var sum = currentItemsSum();
+  if (sum <= 0) { clearDiscount(); return; }
+  var discountAmount = -Math.round(sum * (rate / 100));
+  addDiscountRow(rate + '%割引', discountAmount);
+}
+
+function applyCustomAmount() {
+  var input = document.getElementById('customAmount');
+  var amount = parseFloat(input.value);
+  if (isNaN(amount) || amount <= 0) { alert('割引金額を入力してください（例：500）'); return; }
+  addDiscountRow('割引', -Math.round(amount));
 }
 
 function recalc() {
