@@ -268,6 +268,11 @@
     table.items td.del { display: none; }
     table.items th:last-child, table.items td:last-child.del { display:none; }
     .sheet::before, .sheet::after { opacity: 0.05; }
+
+    /* 画面幅に関わらず印刷は常に元のレイアウトに固定 */
+    .footer { padding-right: 20mm; text-align: left; }
+    .issuer { text-align: right; }
+    .stamp-area { position: absolute; top: -2mm; right: 0; margin: 0; }
   }
 </style>
 </head>
