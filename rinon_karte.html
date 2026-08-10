@@ -87,6 +87,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 
 .tag { display: inline-block; background: #E8F4FC; color: #1A6FA8; border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
 .tag-red { background: #FFE8E8; color: #C06060; }
+.tag-green { background: #E8F8EF; color: #2EA87E; }
 
 /* 来店履歴タイムライン */
 .visit-item { border-left: 3px solid #B3D9F5; padding: 10px 16px; margin-bottom: 4px; position: relative; }
@@ -155,6 +156,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
         <div class="stat"><div class="stat-num" id="totalVisits">-</div><div class="stat-label">来店総数</div></div>
       </div>
       <button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px;" onclick="openPhoneReserve()">📞 電話予約を入力</button>
+      <button class="btn btn-light btn-sm" style="width:100%; margin-top:8px; color:#C06060; border-color:#F0C8C8;" onclick="openBlockSlot()">🚫 この日時を予約不可にする</button>
     </div>
     <div class="customer-list" id="customerList">
       <div class="loading"><div class="spinner"></div>データを読み込み中...</div>
@@ -355,6 +357,14 @@ function deleteVisitPhoto(uid, fileId) {
     alert('通信エラーが発生しました');
     if (container) container.style.opacity = '1';
   });
+}
+
+function formatDaysSince(days) {
+  if (days === null || days === undefined || isNaN(days) || days < 0) return '';
+  if (days < 30) return days + '日';
+  var months = Math.floor(days / 30);
+  var remDays = days % 30;
+  return months + 'ヶ月' + (remDays > 0 ? remDays + '日' : '');
 }
 
 function calcAgeText(birthdayStr) {
@@ -568,7 +578,10 @@ function buildCustomers() {
       key: key + '_' + r['タイムスタンプ'],
       rowNum: r['__rowNum'],
       photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
-      memo: r['施術メモ'] || ''
+      memo: r['施術メモ'] || '',
+      approvalMailSent: r['承認メール送信済み'] || '',
+      pickupMailSent: r['お迎え案内送信済み'] || '',
+      isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1
     });
   });
 
@@ -597,13 +610,23 @@ function buildCustomers() {
       key: key + '_' + r['タイムスタンプ'],
       rowNum: r['__rowNum'],
       photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
-      memo: r['施術メモ'] || ''
+      memo: r['施術メモ'] || '',
+      approvalMailSent: r['承認メール送信済み'] || '',
+      pickupMailSent: r['お迎え案内送信済み'] || '',
+      isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1
     });
   });
 
   // 来店履歴を日付順に並べる
   customers = Object.values(map).map(function(c) {
     c.visits.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+    c.visits.forEach(function(v, i) {
+      if (i === 0) { v.daysSincePrev = null; return; }
+      var prev = new Date(c.visits[i - 1].date);
+      var cur = new Date(v.date);
+      if (isNaN(prev.getTime()) || isNaN(cur.getTime())) { v.daysSincePrev = null; return; }
+      v.daysSincePrev = Math.round((cur - prev) / (1000 * 60 * 60 * 24));
+    });
     c.visitCount = c.visits.length;
     c.lastVisit = c.visits[c.visits.length - 1];
     c.dogPhotoId = (c.profile['犬の写真'] || '').toString().trim();
@@ -717,6 +740,7 @@ function showKarte(idx, silent) {
   var p = c.profile;
   var medical = p['病歴・現在の治療（選択肢）必須 '] || p['病歴・現在の治療'] || '';
   var medicalTag = medical && medical !== 'なし' ? '<span class="tag tag-red">' + medical + '</span>' : '<span class="tag">なし</span>';
+  var email = p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '';
 
   visitLookup = {};
   var breedForReceipt = p['犬種'] || '';
@@ -727,7 +751,6 @@ function showKarte(idx, silent) {
     var memoKey = v.key;
     var memo = v.memo || '';
     var uid = idx + '_' + vi;
-    var email = p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '';
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
                           rowNum: v.rowNum, type: v.type, email: email, visitObj: v, customerIdx: idx };
     var photosHtml = (v.photos || []).map(function(fid) {
@@ -736,12 +759,24 @@ function showKarte(idx, silent) {
         '<span class="visit-photo-del" onclick="deleteVisitPhoto(\'' + uid + '\', \'' + fid + '\')">×</span>' +
       '</div>';
     }).join('');
+    var mailBadges =
+      (v.isPhoneBooking
+        ? '<span class="tag" style="background:#EEF2F5; color:#8a8a8a;">📞 電話予約（承認メール対象外）</span>'
+        : (v.approvalMailSent
+            ? '<span class="tag tag-green">✅ 承認メール送信済み（' + v.approvalMailSent + '）</span>'
+            : '<span class="tag" style="background:#FFF4E5; color:#B4780A;">⚠️ 承認メール未送信</span>')
+      ) +
+      (v.pickupMailSent
+        ? '<span class="tag tag-green" style="margin-left:6px;">✅ お迎えメール送信済み</span>'
+        : '<span class="tag" style="background:#FFF4E5; color:#B4780A; margin-left:6px;">⚠️ お迎えメール未送信</span>');
     return '<div class="visit-item' + (isFirst ? ' first' : '') + '">' +
       '<div class="visit-header"><span class="visit-date">' + formatDateFull(v.date) + '</span><span class="visit-type ' + typeClass + '">' + typeLabel + '</span></div>' +
       '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '</div>' +
       '<div class="visit-detail">希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
-      (v.lastTrim ? '<div class="visit-detail">前回からの期間：' + v.lastTrim + '</div>' : '') +
+      (v.daysSincePrev !== null && v.daysSincePrev !== undefined ? '<div class="visit-detail">前回の施術から：' + formatDaysSince(v.daysSincePrev) + '</div>' : '') +
+      (v.lastTrim ? '<div class="visit-detail">前回からの期間（お客様申告）：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
+      '<div class="visit-detail" style="margin-top:6px;">' + mailBadges + '</div>' +
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + uid + '\', this)">' + memo + '</textarea>' +
       '<div class="visit-photos" id="visit-photos-' + uid + '">' +
         photosHtml +
@@ -791,6 +826,11 @@ function showKarte(idx, silent) {
         '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (p['毛の色'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性格</div><div class="info-value">' + (p['家でのふだんの性格'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">病歴・治療</div><div class="info-value">' + medicalTag + '</div></div>' +
+        '<div class="info-item"><div class="info-label">メールアドレス</div><div class="info-value">' +
+          (email
+            ? '<span class="tag tag-green">✅ 登録あり</span> <span style="font-size:11px; color:#7AAAC0;">' + email + '</span>'
+            : '<span class="tag" style="background:#FFE8E8; color:#C06060;">❌ 未登録</span>') +
+        '</div></div>' +
         '<div class="info-item" style="grid-column:1/-1;"><div class="info-label">住所（手入力・全端末で共有）</div>' +
           (c.firstRowNum
             ? '<input type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="住所を入力..." value="' + (p['住所'] || '').replace(/"/g, '&quot;') + '" onchange="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)">'
@@ -1424,6 +1464,111 @@ function submitPhoneReserve() {
       err.style.display = 'block';
     });
 }
+
+function openBlockSlot() {
+  document.getElementById('bs-date').value = '';
+  document.getElementById('bs-start').value = '';
+  document.getElementById('bs-end').value = '';
+  document.getElementById('bs-note').value = '';
+  document.getElementById('bs-allday').checked = false;
+  toggleBlockAllDay();
+  document.getElementById('bs-error').style.display = 'none';
+  document.getElementById('blockSlotOverlay').style.display = 'flex';
+}
+
+function closeBlockSlot() {
+  document.getElementById('blockSlotOverlay').style.display = 'none';
+}
+
+function toggleBlockAllDay() {
+  var allday = document.getElementById('bs-allday').checked;
+  document.getElementById('bs-time-group').style.display = allday ? 'none' : 'block';
+}
+
+function submitBlockSlot() {
+  var date    = document.getElementById('bs-date').value;
+  var allday  = document.getElementById('bs-allday').checked;
+  var start   = document.getElementById('bs-start').value;
+  var end     = document.getElementById('bs-end').value;
+  var note    = document.getElementById('bs-note').value.trim();
+  var err     = document.getElementById('bs-error');
+
+  if (!date) {
+    err.textContent = '日付を入力してください';
+    err.style.display = 'block';
+    return;
+  }
+  if (!allday && (!start || !end)) {
+    err.textContent = '開始・終了時間を入力してください（終日の場合はチェックを入れてください）';
+    err.style.display = 'block';
+    return;
+  }
+
+  var params = new URLSearchParams();
+  params.set('action', 'blockSlot');
+  params.set('secret', DELETE_SECRET);
+  params.set('date', date);
+  params.set('allDay', allday ? '1' : '');
+  params.set('startTime', start);
+  params.set('endTime', end);
+  params.set('note', note);
+
+  fetch(FIRST_API_URL, { method: 'POST', body: params })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res.success) {
+        alert('✅ この日時を予約不可に設定しました。');
+        closeBlockSlot();
+      } else {
+        err.textContent = 'エラー：' + (res.error || '設定に失敗しました');
+        err.style.display = 'block';
+      }
+    })
+    .catch(function() {
+      err.textContent = '通信エラーが発生しました';
+      err.style.display = 'block';
+    });
+}
 </script>
+
+<div id="blockSlotOverlay" style="display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:white; border-radius:16px; padding:24px; max-width:400px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="font-size:16px; font-weight:700; color:#C06060;">🚫 予約不可にする</div>
+      <button onclick="closeBlockSlot()" style="background:none; border:none; font-size:20px; color:#7AAAC0; cursor:pointer; line-height:1;">×</button>
+    </div>
+    <p style="font-size:11px; color:#7AAAC0; margin-bottom:16px; line-height:1.7;">指定した日時をGoogleカレンダーに登録し、オンライン予約でその時間帯を選べないようにします。私用や急な休みなどにお使いください。</p>
+
+    <div style="margin-bottom:12px;">
+      <div class="info-label">日付 <span style="color:#C06060;">必須</span></div>
+      <input id="bs-date" type="date" class="memo-box" style="min-height:auto; padding:8px 12px;">
+    </div>
+
+    <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+      <input type="checkbox" id="bs-allday" onchange="toggleBlockAllDay()" style="width:16px; height:16px;">
+      <label for="bs-allday" style="font-size:13px; color:#0C447C;">終日（お休み）にする</label>
+    </div>
+
+    <div id="bs-time-group" style="display:flex; gap:10px; margin-bottom:12px;">
+      <div style="flex:1;">
+        <div class="info-label">開始時間</div>
+        <input id="bs-start" type="time" class="memo-box" style="min-height:auto; padding:8px 12px;">
+      </div>
+      <div style="flex:1;">
+        <div class="info-label">終了時間</div>
+        <input id="bs-end" type="time" class="memo-box" style="min-height:auto; padding:8px 12px;">
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div class="info-label">メモ（任意）</div>
+      <input id="bs-note" type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="例：私用、通院など">
+    </div>
+
+    <div id="bs-error" style="display:none; background:#FFF0F0; color:#C06060; font-size:12px; padding:8px 12px; border-radius:8px; margin-bottom:12px;"></div>
+
+    <button class="btn" style="width:100%; background:#C06060; color:white;" onclick="submitBlockSlot()">この日時を予約不可にする</button>
+  </div>
+</div>
 </body>
 </html>
