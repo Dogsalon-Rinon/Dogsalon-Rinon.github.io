@@ -28,6 +28,15 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 .section-head-icon { width: 24px; height: 24px; border-radius: 8px; background: #E8F6FE; display: flex; align-items: center; justify-content: center; }
 
 .form-group { margin-bottom: 18px; }
+.menu-checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+.menu-checkbox {
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
+  border: 0.5px solid #C8E8F8; border-radius: 10px; background: #F8FCFF;
+  font-size: 13px; color: #0C447C; cursor: pointer; transition: border-color 0.2s, background 0.2s;
+}
+.menu-checkbox input[type="checkbox"] { margin-top: 2px; width: 16px; height: 16px; accent-color: #5DBAEC; flex-shrink: 0; cursor: pointer; }
+.menu-checkbox:has(input:checked) { border-color: #5DBAEC; background: #E8F6FE; }
+.menu-checkbox-hint { font-size: 11px; color: #7AAAC0; margin-top: 6px; }
 .form-group.field-error input,
 .form-group.field-error select,
 .form-group.field-error textarea { border-color: #E05B5B !important; background: #FFF4F4; }
@@ -262,16 +271,17 @@ function doVerify() {
 
       <div class="form-group">
         <div class="form-label">ご希望のメニュー <span class="required">必須</span></div>
-        <select name="menu" id="menuSelect" required>
-          <option value="">選択してください</option>
-          <option>シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）</option>
-          <option>シャンプーコース（シャンプー・ブロー・ブラッシング）</option>
-          <option>爪切りのみ</option>
-          <option>耳掃除のみ</option>
-          <option>肛門腺絞りのみ</option>
-          <option>部分カットのみ</option>
-          <option>ご相談したい</option>
-        </select>
+        <div class="menu-checkbox-group" id="menuCheckboxGroup">
+          <label class="menu-checkbox"><input type="checkbox" value="シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）" onchange="updateMenuValue()">シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）</label>
+          <label class="menu-checkbox"><input type="checkbox" value="シャンプーコース（シャンプー・ブロー・ブラッシング）" onchange="updateMenuValue()">シャンプーコース（シャンプー・ブロー・ブラッシング）</label>
+          <label class="menu-checkbox"><input type="checkbox" value="爪切りのみ" onchange="updateMenuValue()">爪切りのみ</label>
+          <label class="menu-checkbox"><input type="checkbox" value="耳掃除のみ" onchange="updateMenuValue()">耳掃除のみ</label>
+          <label class="menu-checkbox"><input type="checkbox" value="肛門腺絞りのみ" onchange="updateMenuValue()">肛門腺絞りのみ</label>
+          <label class="menu-checkbox"><input type="checkbox" value="部分カットのみ" onchange="updateMenuValue()">部分カットのみ</label>
+          <label class="menu-checkbox"><input type="checkbox" value="ご相談したい" onchange="updateMenuValue()">ご相談したい</label>
+        </div>
+        <div class="menu-checkbox-hint">複数選択できます</div>
+        <input type="hidden" name="menu" id="menuSelect">
       </div>
 
       <div class="form-group">
@@ -358,6 +368,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1
   document.getElementById('reserveDate').max = maxY + '-' + maxM + '-' + maxD;
 })();
 
+function updateMenuValue() {
+  var checked = Array.from(document.querySelectorAll('#menuCheckboxGroup input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
+  document.getElementById('menuSelect').value = checked.join('、');
+  updateTimeSlots();
+}
+
 // ===== 空き時間取得 =====
 let selectedTime = '';
 
@@ -426,7 +442,6 @@ document.getElementById('breedSelect').addEventListener('change', function() {
     if (mixInput) mixInput.value = '';
   }
 });
-document.getElementById('menuSelect').addEventListener('change', updateTimeSlots);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
 // URLパラメータから日付・時間を自動入力

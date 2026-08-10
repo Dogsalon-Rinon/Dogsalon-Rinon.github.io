@@ -357,6 +357,20 @@ function deleteVisitPhoto(uid, fileId) {
   });
 }
 
+function calcAgeText(birthdayStr) {
+  if (!birthdayStr) return '';
+  var m = String(birthdayStr).match(/(\d+)年(\d+)月(\d+)日/);
+  if (!m) return '';
+  var by = parseInt(m[1], 10), bm = parseInt(m[2], 10), bd = parseInt(m[3], 10);
+  var today = new Date();
+  var years = today.getFullYear() - by;
+  var months = (today.getMonth() + 1) - bm;
+  if (today.getDate() < bd) months -= 1;
+  if (months < 0) { years -= 1; months += 12; }
+  if (years < 0 || isNaN(years)) return '';
+  return years + '歳' + months + 'ヶ月';
+}
+
 function saveAddressToSheet(rowNum, val, el) {
   fetch(FIRST_API_URL + '?action=saveAddress&row=' + rowNum + '&secret=' + DELETE_SECRET + '&value=' + encodeURIComponent(val))
     .then(function(res){ return res.json(); })
@@ -773,7 +787,7 @@ function showKarte(idx, silent) {
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
-        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '　（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (p['毛の色'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性格</div><div class="info-value">' + (p['家でのふだんの性格'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">病歴・治療</div><div class="info-value">' + medicalTag + '</div></div>' +
@@ -1021,7 +1035,7 @@ function exportExcel() {
     var pairs = [
       ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', formatPhone(p['電話番号'])],
       ['ワンちゃん名', c.dog, '犬種', p['犬種'] || ''],
-      ['性別', p['性別'] || '', '生年月日', p['ワンちゃんの生年月日'] || p['生年月日'] || ''],
+      ['性別', p['性別'] || '', '生年月日', (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '')],
       ['毛の色', p['毛の色'] || '', '性格', p['家でのふだんの性格'] || ''],
       ['病歴・治療', medical, '', '']
     ];
