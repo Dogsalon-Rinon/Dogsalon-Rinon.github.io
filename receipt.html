@@ -137,9 +137,19 @@
     flex: 1; font-size: 11.5px; font-family: inherit; padding: 1.5mm 2mm;
     border: 1.5px solid #cfe6f5; border-radius: 8px; background: #fff; color: #4a4038;
   }
+  .picker-row input[type="text"],
+  .picker-row input[type="number"] {
+    flex: 1; font-size: 11.5px; font-family: inherit; padding: 1.5mm 2mm;
+    border: 1.5px solid #cfe6f5; border-radius: 8px; background: #fff; color: #4a4038;
+  }
   .picker-row button {
     font-size: 11px; background: #4a90c4; color: #fff; border: none;
     border-radius: 999px; padding: 4px 12px; cursor: pointer; font-family: inherit; font-weight: 700;
+    white-space: nowrap;
+  }
+  .quick-add-btn {
+    font-size: 11px; background: #fff; color: #4a90c4; border: 1.5px solid #4a90c4 !important;
+    border-radius: 999px; padding: 4px 14px; cursor: pointer; font-family: inherit; font-weight: 700;
     white-space: nowrap;
   }
   table.items {
@@ -243,7 +253,10 @@
     .menu-picker { padding: 3mm; }
     .picker-row { flex-wrap: wrap; }
     .picker-row select { flex: 1 1 100%; font-size: 13px; padding: 8px 6px; }
+    .picker-row input[type="text"],
+    .picker-row input[type="number"] { flex: 1 1 100%; font-size: 13px; padding: 8px 6px; }
     .picker-row button { flex: 0 0 auto; padding: 8px 16px; font-size: 12px; }
+    .quick-add-btn { padding: 8px 16px; font-size: 12px; }
 
     table.items { font-size: 12px; }
     table.items td input { font-size: 13px; padding: 4px 2px; }
@@ -349,6 +362,14 @@
         <select id="optionSelect"></select>
         <button type="button" onclick="addOptionRow()">＋追加</button>
       </div>
+      <div class="picker-row">
+        <button type="button" class="quick-add-btn" onclick="addRow('毛玉代', 550)">＋毛玉代（¥550）</button>
+      </div>
+      <div class="picker-row">
+        <input type="text" id="customItemName" placeholder="項目名（例：〇〇代）">
+        <input type="number" id="customItemPrice" placeholder="金額" min="0" step="1">
+        <button type="button" onclick="addCustomRow()">＋追加</button>
+      </div>
     </div>
 
     <table class="items" id="itemsTable">
@@ -397,32 +418,30 @@
 var BREED_MENU = {
   "ミニピン":            { shampoo: 4500, cut: null, special: null },
   "チワワ(スムース)":     { shampoo: 4500, cut: null, special: null },
-  "チワワ(ロング)":       { shampoo: 5000, cut: 6100, special: 6600 },
+  "チワワ(ロング)":       { shampoo: 5000, cut: 6600, special: null },
   "ダックス(スムース)":   { shampoo: 5000, cut: null, special: null },
-  "ダックス(ロング)":     { shampoo: 5500, cut: 6600, special: 7100 },
-  "パピヨン":             { shampoo: 5500, cut: null, special: 7100 },
+  "ダックス(ロング)":     { shampoo: 5500, cut: 7100, special: null },
+  "パピヨン":             { shampoo: 5500, cut: 7100, special: null },
   "パグ":                 { shampoo: 5500, cut: null, special: null },
   "ジャックラッセル":     { shampoo: 5000, cut: null, special: null },
   "ボストンテリア":       { shampoo: 5000, cut: null, special: null },
   "フレンチブル":         { shampoo: 5500, cut: null, special: null },
-  "ヨーキー":             { shampoo: 5500, cut: 7000, special: 7500 },
-  "マルチーズ":           { shampoo: 5500, cut: 7000, special: 7500 },
-  "ポメラニアン":         { shampoo: 5500, cut: 6600, special: 7500 },
-  "シーズー":             { shampoo: 5500, cut: 7000, special: 7500 },
-  "ペキニーズ":           { shampoo: 5500, cut: 7000, special: 7500 },
-  "トイプードル":         { shampoo: 6000, cut: 7500, special: 8000 },
-  "Mシュナウザー":        { shampoo: 6500, cut: 8000, special: 8500 },
-  "ビション":             { shampoo: 7000, cut: 8500, special: 9000 },
-  "コーギー":             { shampoo: 6600, cut: null, special: 8600 },
+  "ヨーキー":             { shampoo: 5500, cut: 7500, special: null },
+  "マルチーズ":           { shampoo: 5500, cut: 7500, special: null },
+  "ポメラニアン":         { shampoo: 5500, cut: 7500, special: null },
+  "シーズー":             { shampoo: 5500, cut: 7500, special: null },
+  "ペキニーズ":           { shampoo: 5500, cut: 7500, special: null },
+  "トイプードル":         { shampoo: 6000, cut: 8000, special: null },
+  "Mシュナウザー":        { shampoo: 6500, cut: 8500, special: null },
+  "ビション":             { shampoo: 7000, cut: 9000, special: null },
+  "コーギー":             { shampoo: 6600, cut: 8600, special: null },
   "柴犬(6kg未満)":        { shampoo: 6800, cut: null, special: null },
   "柴犬(6kg~)":           { shampoo: 7300, cut: null, special: null },
-  "柴犬(6kg未満)":        { shampoo: 6800, cut: null, special: null },
-  "柴犬(6kg~)":           { shampoo: 7300, cut: null, special: null },
-  "キャバリア":           { shampoo: 7000, cut: null, special: 9000 },
-  "シェルティ":           { shampoo: 7000, cut: 8500, special: 9000 },
+  "キャバリア":           { shampoo: 7000, cut: 9000, special: null },
+  "シェルティ":           { shampoo: 7000, cut: 9000, special: null },
   "Aコッカー":            { shampoo: 7500, cut: 9500, special: null }
 };
-var COURSE_LABEL = { shampoo: "シャンプーコース", cut: "カットコース", special: "スペシャルコース" };
+var COURSE_LABEL = { shampoo: "シャンプーコース", cut: "シャンプーカットコース", special: "スペシャルコース" };
 
 var SINGLE_MENU = [
   { name: "爪切り(やすりがけ含む)",       small: 550,  medium: 660 },
@@ -430,11 +449,8 @@ var SINGLE_MENU = [
   { name: "足裏バリカン",                 small: 550,  medium: 660 },
   { name: "足回りカット(前足・後足)",     small: 550,  medium: 660 },
   { name: "お腹バリカン(おへそ下まで)",   small: 385,  medium: 495 },
-  { name: "お尻カット",                   small: 550,  medium: 660 },
-  { name: "顔カット",                     small: 1100, medium: 1320 },
   { name: "肛門腺絞り",                   small: 550,  medium: 660 },
-  { name: "耳毛抜き",                     small: 385,  medium: 495 },
-  { name: "足先バリカン",                 small: 550,  medium: 660 }
+  { name: "耳毛抜き",                     small: 385,  medium: 495 }
 ];
 
 var OPTION_MENU = [
@@ -443,7 +459,7 @@ var OPTION_MENU = [
   { name: "デザインカット(ワンポイント)",       price: 550 },
   { name: "デザインカット(おぱんつetc)", price: 1100 },
   { name: "オールシザー",                       price: 1100 },
-  { name: "部分カット",                         price: 550 },
+  { name: "部分カット(1ヵ所~)",                 price: 550 },
   { name: "お顔カット",                         price: 1100 },
   { name: "足先バリカン",                       price: 550 },
   { name: "足ハサミカット",                     price: 550 }
@@ -517,6 +533,18 @@ function addOptionRow() {
   var item = OPTION_MENU[idx];
   if (!item) return;
   addRow(item.name + '（目安）', item.price);
+}
+
+function addCustomRow() {
+  var nameInput = document.getElementById('customItemName');
+  var priceInput = document.getElementById('customItemPrice');
+  var name = nameInput.value.trim();
+  var price = parseFloat(priceInput.value);
+  if (!name) { alert('項目名を入力してください'); return; }
+  if (isNaN(price) || price < 0) { alert('金額を入力してください'); return; }
+  addRow(name, price);
+  nameInput.value = '';
+  priceInput.value = '';
 }
 
 function makeRow(name, price, isDiscount) {
