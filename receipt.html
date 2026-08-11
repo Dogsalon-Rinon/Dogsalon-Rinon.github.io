@@ -506,7 +506,7 @@ function addBreedRow() {
   var course = document.getElementById('courseSelect').value;
   var menu = BREED_MENU[breed];
   if (!menu || menu[course] === undefined || menu[course] === null) return;
-  var label = breed + '　' + COURSE_LABEL[course] + '（目安）';
+  var label = breed + '　' + COURSE_LABEL[course];
   addRow(label, menu[course]);
 }
 
@@ -524,7 +524,7 @@ function addOptionRow() {
   var idx = parseInt(document.getElementById('optionSelect').value, 10);
   var item = OPTION_MENU[idx];
   if (!item) return;
-  addRow(item.name + '（目安）', item.price);
+  addRow(item.name, item.price);
 }
 
 function addCustomRow() {
@@ -690,7 +690,7 @@ function detectCourse(menuText) {
     document.getElementById('breedSelect').value = breedKey;
     updateCourseOptions();
     document.getElementById('courseSelect').value = course;
-    addRow(breedKey + '　' + COURSE_LABEL[course] + '（目安）', BREED_MENU[breedKey][course]);
+    addRow(breedKey + '　' + COURSE_LABEL[course], BREED_MENU[breedKey][course]);
   } else if (amount) {
     // 旧パラメータ形式（金額指定あり）との互換
     addRow(menu || '', amount);
