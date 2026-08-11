@@ -404,7 +404,8 @@ function issueReceipt(uid) {
     dog: info.dog || '',
     breed: info.breed || '',
     menu: info.menu || '',
-    date: info.date || ''
+    date: info.date || '',
+    gender: info.gender || ''
   });
   window.open('receipt.html?' + params.toString(), '_blank');
 }
@@ -574,6 +575,7 @@ function buildCustomers() {
       menu: r['メニュー'] || '',
       datetime1: r['希望日時①'] || '',
       datetime2: r['希望日時②'] || '',
+      lastTrim: r['前回の施術からの期間'] || '',
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
       rowNum: r['__rowNum'],
@@ -752,7 +754,7 @@ function showKarte(idx, silent) {
     var memo = v.memo || '';
     var uid = idx + '_' + vi;
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
-                          rowNum: v.rowNum, type: v.type, email: email, visitObj: v, customerIdx: idx };
+                          rowNum: v.rowNum, type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
     var photosHtml = (v.photos || []).map(function(fid) {
       return '<div class="visit-photo-thumb">' +
         '<img src="' + driveThumbUrl(fid, 150) + '" onclick="window.open(\'' + driveViewUrl(fid) + '\',\'_blank\')">' +
@@ -820,7 +822,8 @@ function showKarte(idx, silent) {
         '<div class="info-item"><div class="info-label">飼い主名</div><div class="info-value">' + (p['飼い主さまのお名前'] || c.owner) + '</div></div>' +
         '<div class="info-item"><div class="info-label">電話番号</div><div class="info-value">' + formatPhone(p['電話番号']) + '</div></div>' +
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
-        '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + (p['ミックス詳細'] ? '（' + p['ミックス詳細'] + '）' : '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">体重</div><div class="info-value">' + (p['体重'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '　（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (p['毛の色'] || '') + '</div></div>' +
@@ -1075,9 +1078,9 @@ function exportExcel() {
     var pairs = [
       ['飼い主名', p['飼い主さまのお名前'] || c.owner, '電話番号', formatPhone(p['電話番号'])],
       ['ワンちゃん名', c.dog, '犬種', p['犬種'] || ''],
-      ['性別', p['性別'] || '', '生年月日', (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '')],
-      ['毛の色', p['毛の色'] || '', '性格', p['家でのふだんの性格'] || ''],
-      ['病歴・治療', medical, '', '']
+      ['体重', p['体重'] || '', '性別', p['性別'] || ''],
+      ['生年月日', (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : ''), '毛の色', p['毛の色'] || ''],
+      ['性格', p['家でのふだんの性格'] || '', '病歴・治療', medical]
     ];
 
     pairs.forEach(function(pair) {

@@ -655,11 +655,17 @@ function detectCourse(menuText) {
   var dog = params.get('dog');
   var breed = params.get('breed');
   var menu = params.get('menu');
+  var gender = params.get('gender');
   var amount = params.get('amount'); // 旧バージョンとの互換用（あれば使う）
   var dateStr = params.get('date');
 
   if (owner) document.getElementById('owner').value = owner;
-  if (dog) document.getElementById('dog').value = dog;
+  if (dog) {
+    var honorific = '';
+    if (gender && gender.indexOf('オス') !== -1) honorific = 'くん';
+    else if (gender && gender.indexOf('メス') !== -1) honorific = 'ちゃん';
+    document.getElementById('dog').value = dog + honorific;
+  }
   if (menu) document.getElementById('desc').value = (menu + '代として');
 
   if (dateStr) {
