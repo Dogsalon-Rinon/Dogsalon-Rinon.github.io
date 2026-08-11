@@ -1652,10 +1652,11 @@ function openReschedule(uid) {
   var info = visitLookup[uid];
   if (!info || !info.rowNum) { alert('この来店の行情報が見つかりません'); return; }
   rsUid = uid;
-  document.getElementById('rs-current').textContent = '現在の予約：' + (info.date || '') + ' ' + (info.time || '') + '〜' + (info.endTime ? formatTimeOnly(info.endTime) : '');
+  var endTimeStr = info.endTime ? formatTimeOnly(info.endTime) : '';
+  document.getElementById('rs-current').textContent = '現在の予約：' + (info.date || '') + ' ' + (info.time || '') + (endTimeStr ? '〜' + endTimeStr : '（終了時間は未登録です）');
   document.getElementById('rs-date').value = toDateInputValue(info.date);
   document.getElementById('rs-start').value = info.time || '';
-  document.getElementById('rs-end').value = info.endTime ? formatTimeOnly(info.endTime) : '';
+  document.getElementById('rs-end').value = endTimeStr;
   document.getElementById('rs-notify').checked = !!info.email;
   document.getElementById('rs-message').value = '';
   document.getElementById('rs-error').style.display = 'none';
@@ -1676,6 +1677,7 @@ function toDateInputValue(d) {
 function formatTimeOnly(d) {
   var dt = new Date(d);
   if (isNaN(dt.getTime())) return '';
+  if (dt.getFullYear() < 2000) return ''; // 終了時間が未登録のスプレッドシート上のプレースホルダー値
   return ('0'+dt.getHours()).slice(-2) + ':' + ('0'+dt.getMinutes()).slice(-2);
 }
 
