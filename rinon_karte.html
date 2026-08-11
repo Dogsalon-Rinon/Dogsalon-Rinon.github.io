@@ -581,6 +581,7 @@ function buildCustomers() {
       rowNum: r['__rowNum'],
       photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
       memo: r['施術メモ'] || '',
+      endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1
@@ -613,6 +614,7 @@ function buildCustomers() {
       rowNum: r['__rowNum'],
       photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
       memo: r['施術メモ'] || '',
+      endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1
@@ -754,6 +756,7 @@ function showKarte(idx, silent) {
     var memo = v.memo || '';
     var uid = idx + '_' + vi;
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
+                          time: v.time || '', endTime: v.endTime || '',
                           rowNum: v.rowNum, type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
     var photosHtml = (v.photos || []).map(function(fid) {
       return '<div class="visit-photo-thumb">' +
@@ -789,6 +792,8 @@ function showKarte(idx, silent) {
         (email
           ? '<button class="btn btn-green btn-sm" onclick="notifyComplete(\'' + uid + '\')">✅ お迎え通知</button>'
           : '<button class="btn btn-light btn-sm" disabled title="メール未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
+        '<button class="btn btn-light btn-sm" onclick="openReschedule(\'' + uid + '\')">📅 日時を変更</button>' +
+        '<button class="btn btn-light btn-sm" style="color:#C06060; border-color:#F0C8C8;" onclick="openCancelVisit(\'' + uid + '\')">❌ キャンセル</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -1573,5 +1578,202 @@ function submitBlockSlot() {
     <button class="btn" style="width:100%; background:#C06060; color:white;" onclick="submitBlockSlot()">この日時を予約不可にする</button>
   </div>
 </div>
+
+<div id="rescheduleOverlay" style="display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:white; border-radius:16px; padding:24px; max-width:400px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="font-size:16px; font-weight:700; color:#0C447C;">📅 日時を変更する</div>
+      <button onclick="closeReschedule()" style="background:none; border:none; font-size:20px; color:#7AAAC0; cursor:pointer; line-height:1;">×</button>
+    </div>
+    <p id="rs-current" style="font-size:12px; color:#7AAAC0; margin-bottom:16px;"></p>
+
+    <div style="margin-bottom:12px;">
+      <div class="info-label">新しい日付 <span style="color:#C06060;">必須</span></div>
+      <input id="rs-date" type="date" class="memo-box" style="min-height:auto; padding:8px 12px;">
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <div style="flex:1;">
+        <div class="info-label">開始時間 <span style="color:#C06060;">必須</span></div>
+        <input id="rs-start" type="time" class="memo-box" style="min-height:auto; padding:8px 12px;">
+      </div>
+      <div style="flex:1;">
+        <div class="info-label">終了時間 <span style="color:#C06060;">必須</span></div>
+        <input id="rs-end" type="time" class="memo-box" style="min-height:auto; padding:8px 12px;">
+      </div>
+    </div>
+
+    <div style="margin-bottom:8px;">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#0C447C; cursor:pointer;">
+        <input type="checkbox" id="rs-notify" checked style="width:16px; height:16px;">
+        お客様にメールで変更をお知らせする
+      </label>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div class="info-label">サロンからの一言（任意）</div>
+      <textarea id="rs-message" class="memo-box" style="min-height:60px;" placeholder="例：お日にちのご変更ありがとうございます。"></textarea>
+    </div>
+
+    <div id="rs-error" style="display:none; background:#FFF0F0; color:#C06060; font-size:12px; padding:8px 12px; border-radius:8px; margin-bottom:12px;"></div>
+
+    <button class="btn btn-primary" style="width:100%;" onclick="submitReschedule()">この内容で変更する</button>
+  </div>
+</div>
+
+<div id="cancelVisitOverlay" style="display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:white; border-radius:16px; padding:24px; max-width:400px; width:100%; max-height:90vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <div style="font-size:16px; font-weight:700; color:#C06060;">❌ 予約をキャンセルする</div>
+      <button onclick="closeCancelVisit()" style="background:none; border:none; font-size:20px; color:#7AAAC0; cursor:pointer; line-height:1;">×</button>
+    </div>
+    <p id="cv-current" style="font-size:12px; color:#7AAAC0; margin-bottom:16px;"></p>
+    <p style="font-size:12px; color:#C06060; margin-bottom:16px;">この操作は元に戻せません。Googleカレンダーの予定も削除されます。</p>
+
+    <div style="margin-bottom:8px;">
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#0C447C; cursor:pointer;">
+        <input type="checkbox" id="cv-notify" checked style="width:16px; height:16px;">
+        お客様にメールでキャンセルをお知らせする
+      </label>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div class="info-label">サロンからの一言（任意）</div>
+      <textarea id="cv-message" class="memo-box" style="min-height:60px;" placeholder="例：またのご利用を心よりお待ちしております。"></textarea>
+    </div>
+
+    <div id="cv-error" style="display:none; background:#FFF0F0; color:#C06060; font-size:12px; padding:8px 12px; border-radius:8px; margin-bottom:12px;"></div>
+
+    <button class="btn" style="width:100%; background:#C06060; color:white;" onclick="submitCancelVisit()">このご予約をキャンセルする</button>
+  </div>
+</div>
+
+<script>
+var rsUid = null, cvUid = null;
+
+function openReschedule(uid) {
+  var info = visitLookup[uid];
+  if (!info || !info.rowNum) { alert('この来店の行情報が見つかりません'); return; }
+  rsUid = uid;
+  document.getElementById('rs-current').textContent = '現在の予約：' + (info.date || '') + ' ' + (info.time || '') + '〜' + (info.endTime ? formatTimeOnly(info.endTime) : '');
+  document.getElementById('rs-date').value = toDateInputValue(info.date);
+  document.getElementById('rs-start').value = info.time || '';
+  document.getElementById('rs-end').value = info.endTime ? formatTimeOnly(info.endTime) : '';
+  document.getElementById('rs-notify').checked = !!info.email;
+  document.getElementById('rs-message').value = '';
+  document.getElementById('rs-error').style.display = 'none';
+  document.getElementById('rescheduleOverlay').style.display = 'flex';
+}
+
+function closeReschedule() {
+  document.getElementById('rescheduleOverlay').style.display = 'none';
+  rsUid = null;
+}
+
+function toDateInputValue(d) {
+  var dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  var y = dt.getFullYear(), m = ('0'+(dt.getMonth()+1)).slice(-2), day = ('0'+dt.getDate()).slice(-2);
+  return y + '-' + m + '-' + day;
+}
+function formatTimeOnly(d) {
+  var dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  return ('0'+dt.getHours()).slice(-2) + ':' + ('0'+dt.getMinutes()).slice(-2);
+}
+
+function submitReschedule() {
+  var info = visitLookup[rsUid];
+  if (!info) return;
+  var date = document.getElementById('rs-date').value;
+  var start = document.getElementById('rs-start').value;
+  var end = document.getElementById('rs-end').value;
+  var notify = document.getElementById('rs-notify').checked;
+  var message = document.getElementById('rs-message').value.trim();
+  var err = document.getElementById('rs-error');
+
+  if (!date || !start || !end) {
+    err.textContent = '日付・開始時間・終了時間を入力してください';
+    err.style.display = 'block';
+    return;
+  }
+
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var params = new URLSearchParams();
+  params.set('action', 'rescheduleVisit');
+  params.set('secret', DELETE_SECRET);
+  params.set('row', info.rowNum);
+  params.set('date', date);
+  params.set('startTime', start);
+  params.set('endTime', end);
+  params.set('message', notify ? message : '');
+  if (!notify) params.set('skipEmail', '1');
+
+  fetch(apiUrl, { method: 'POST', body: params })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res || !res.success) {
+        err.textContent = 'エラー：' + (res && res.error ? res.error : '変更に失敗しました');
+        err.style.display = 'block';
+        return;
+      }
+      alert('✅ 日時を変更しました' + (res.emailSent ? '（お客様にメールを送信しました）' : ''));
+      closeReschedule();
+      loadData();
+    })
+    .catch(function() {
+      err.textContent = '通信エラーが発生しました';
+      err.style.display = 'block';
+    });
+}
+
+function openCancelVisit(uid) {
+  var info = visitLookup[uid];
+  if (!info || !info.rowNum) { alert('この来店の行情報が見つかりません'); return; }
+  cvUid = uid;
+  document.getElementById('cv-current').textContent = '対象の予約：' + (info.date || '') + ' ' + (info.time || '') + '〜';
+  document.getElementById('cv-notify').checked = !!info.email;
+  document.getElementById('cv-message').value = '';
+  document.getElementById('cv-error').style.display = 'none';
+  document.getElementById('cancelVisitOverlay').style.display = 'flex';
+}
+
+function closeCancelVisit() {
+  document.getElementById('cancelVisitOverlay').style.display = 'none';
+  cvUid = null;
+}
+
+function submitCancelVisit() {
+  var info = visitLookup[cvUid];
+  if (!info) return;
+  if (!confirm('本当にこのご予約をキャンセルしますか？この操作は元に戻せません。')) return;
+
+  var notify = document.getElementById('cv-notify').checked;
+  var message = document.getElementById('cv-message').value.trim();
+  var err = document.getElementById('cv-error');
+
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var params = new URLSearchParams();
+  params.set('action', 'cancelVisit');
+  params.set('secret', DELETE_SECRET);
+  params.set('row', info.rowNum);
+  params.set('message', notify ? message : '');
+  if (!notify) params.set('skipEmail', '1');
+
+  fetch(apiUrl, { method: 'POST', body: params })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res || !res.success) {
+        err.textContent = 'エラー：' + (res && res.error ? res.error : 'キャンセルに失敗しました');
+        err.style.display = 'block';
+        return;
+      }
+      alert('✅ キャンセルしました' + (res.emailSent ? '（お客様にメールを送信しました）' : ''));
+      closeCancelVisit();
+      loadData();
+    })
+    .catch(function() {
+      err.textContent = '通信エラーが発生しました';
+      err.style.display = 'block';
+    });
+}
+</script>
 </body>
 </html>
