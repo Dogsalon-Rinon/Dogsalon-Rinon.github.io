@@ -66,6 +66,11 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 
 .divider { height: 0.5px; background: #E8F6FE; margin: 24px 0; }
 
+.price-estimate { background: #EEF8FF; border: 0.5px solid #B3D9F5; border-radius: 16px; padding: 16px 20px; margin-top: 8px; margin-bottom: 12px; text-align: center; }
+.price-estimate .price-label { font-size: 11px; color: #7AAAC0; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 4px; }
+.price-estimate .price-value { font-size: 24px; font-weight: 700; color: #1A6FA8; font-family: 'Quicksand', sans-serif; }
+.price-estimate .price-value.small { font-size: 15px; }
+.price-estimate .price-note { font-size: 10.5px; color: #7AAAC0; margin-top: 6px; line-height: 1.6; }
 .submit-btn { display: block; width: 100%; background: #1A6FA8; color: white; font-size: 14px; font-weight: 600; padding: 16px; border-radius: 30px; border: none; cursor: pointer; font-family: 'Quicksand', sans-serif; letter-spacing: 0.1em; transition: opacity 0.2s; margin-top: 8px; }
 .submit-btn:hover { opacity: 0.88; }
 .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -404,6 +409,12 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         <p class="terms-hint" id="termsHint">※「利用規約」を開いてご確認いただくと選択できるようになります</p>
       </div>
 
+      <div class="price-estimate" id="priceEstimate">
+        <div class="price-label">料金目安（税込）</div>
+        <div class="price-value" id="priceValue">犬種とメニューを選択してください</div>
+        <div class="price-note">毛玉・もつれ・毛量や、ワンちゃんの状態によって<br>料金が変わる場合がございます。詳しい金額は当日ご確認ください。</div>
+      </div>
+
       <button type="button" class="submit-btn" id="submitBtn" onclick="submitReserve()">この内容で予約する</button>
       <p class="note">送信後、サロンにて内容を確認させていただきます。<br>確認のご連絡が必要な場合はお電話いたします。</p>
     </div>
@@ -462,10 +473,111 @@ function updateMenuValue() {
   var checked = Array.from(document.querySelectorAll('#menuCheckboxGroup input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
   document.getElementById('menuSelect').value = checked.join('、');
   updateTimeSlots();
+  updatePriceEstimate();
+}
+
+// ===== 料金目安の計算 =====
+var PRICE_BREED_MAP = {
+  "チワワ（スムース）":         { shampoo: 4500, cut: null },
+  "チワワ（ロング）":           { shampoo: 5000, cut: 6600 },
+  "ポメラニアン":               { shampoo: 5500, cut: 7500 },
+  "トイプードル":               { shampoo: 6000, cut: 8000 },
+  "マルチーズ":                 { shampoo: 5500, cut: 7500 },
+  "シーズー":                   { shampoo: 5500, cut: 7500 },
+  "ミニチュアダックス（ロング）": { shampoo: 5500, cut: 7100 },
+  "ヨークシャーテリア":         { shampoo: 5500, cut: 7500 },
+  "パピヨン":                   { shampoo: 5500, cut: 7100 },
+  "ミニチュアピンシャー":       { shampoo: 4500, cut: null },
+  "フレンチブルドッグ":         { shampoo: 5500, cut: null },
+  "ミニチュアシュナウザー":     { shampoo: 6500, cut: 8500 },
+  "ペキニーズ":                 { shampoo: 5500, cut: 7500 },
+  "パグ":                       { shampoo: 5500, cut: null },
+  "ボストンテリア":             { shampoo: 5000, cut: null },
+  "ジャックラッセルテリア":     { shampoo: 5000, cut: null },
+  "ビションフリーゼ":           { shampoo: 7000, cut: 9000 },
+  "コーギー":                   { shampoo: 6600, cut: 8600 },
+  "キャバリア":                 { shampoo: 7000, cut: 9000 },
+  "シェルティー":               { shampoo: 7000, cut: 9000 }
+};
+var PRICE_SINGLE_MAP = {
+  "爪切りのみ":     { small: 550, medium: 660 },
+  "耳掃除のみ":     { small: 550, medium: 660 },
+  "肛門腺絞りのみ": { small: 550, medium: 660 },
+  "部分カットのみ": { small: 550, medium: 660 }
+};
+
+function getPriceSizeTier() {
+  var w = document.querySelector('[name="weight"]').value;
+  var num = parseInt(w, 10);
+  if (isNaN(num)) return null;
+  return num >= 6 ? 'medium' : 'small';
+}
+
+function updatePriceEstimate() {
+  var breed = document.getElementById('breedSelect').value;
+  var checked = Array.from(document.querySelectorAll('#menuCheckboxGroup input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
+  var valueEl = document.getElementById('priceValue');
+
+  if (!breed || checked.length === 0) {
+    valueEl.className = 'price-value small';
+    valueEl.textContent = '犬種とメニューを選択してください';
+    return;
+  }
+
+  if (checked.indexOf('ご相談したい') !== -1) {
+    valueEl.className = 'price-value small';
+    valueEl.textContent = '当日ご相談（料金未定）';
+    return;
+  }
+
+  // 柴犬は体重で料金が変わる
+  var breedData = null;
+  if (breed === '柴犬') {
+    var tier = getPriceSizeTier();
+    if (tier === 'medium') breedData = { shampoo: 7300, cut: null };
+    else if (tier === 'small') breedData = { shampoo: 6800, cut: null };
+  } else {
+    breedData = PRICE_BREED_MAP[breed] || null;
+  }
+
+  if (!breedData) {
+    valueEl.className = 'price-value small';
+    valueEl.textContent = '当日ご相談（犬種・体格により算出）';
+    return;
+  }
+
+  var total = 0;
+  var hasCourse = false;
+  var unknownItem = false;
+
+  if (checked.indexOf('シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）') !== -1) {
+    if (breedData.cut === null) { unknownItem = true; }
+    else { total += breedData.cut; hasCourse = true; }
+  } else if (checked.indexOf('シャンプーコース（シャンプー・ブロー・ブラッシング）') !== -1) {
+    total += breedData.shampoo; hasCourse = true;
+  }
+
+  var sizeTier = getPriceSizeTier() || 'small';
+  checked.forEach(function(m) {
+    if (PRICE_SINGLE_MAP[m]) {
+      total += PRICE_SINGLE_MAP[m][sizeTier];
+      hasCourse = true;
+    }
+  });
+
+  if (!hasCourse || unknownItem) {
+    valueEl.className = 'price-value small';
+    valueEl.textContent = '当日ご相談（料金未定）';
+    return;
+  }
+
+  valueEl.className = 'price-value';
+  valueEl.textContent = '¥' + total.toLocaleString('ja-JP') + '〜';
 }
 
 // ===== 空き時間取得 =====
 let selectedTime = '';
+
 
 function updateTimeSlots() {
   selectedTime = '';
@@ -522,6 +634,7 @@ function selectTime(btn) {
 }
 
 document.getElementById('breedSelect').addEventListener('change', updateTimeSlots);
+document.getElementById('breedSelect').addEventListener('change', updatePriceEstimate);
 document.getElementById('breedSelect').addEventListener('change', function() {
   var mixGroup = document.getElementById('mixDetailGroup');
   if (this.value === 'ミックス') {
@@ -532,6 +645,7 @@ document.getElementById('breedSelect').addEventListener('change', function() {
     if (mixInput) mixInput.value = '';
   }
 });
+document.querySelector('[name="weight"]').addEventListener('change', updatePriceEstimate);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
 // URLパラメータから日付・時間を自動入力
