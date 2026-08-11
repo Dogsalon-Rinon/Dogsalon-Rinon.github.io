@@ -99,6 +99,9 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .visit-type { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight:700; }
 .visit-type.first-type { background:#E8F4FC; color:#1A6FA8; }
 .visit-type.repeat-type { background:#F0F8E8; color:#5A9050; }
+.visit-status-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:10px; margin-bottom:6px; }
+.visit-status-badge.cancelled { background:#FFF0F0; color:#C06060; }
+.visit-status-badge.rescheduled { background:#FFF8E8; color:#B8860B; }
 .visit-detail { font-size: 12px; color: #1A6FA8; }
 .visit-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
 .visit-memo { font-size: 11px; color: #7AAAC0; margin-top: 4px; font-style: italic; }
@@ -584,7 +587,8 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
-      isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1
+      isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
+      status: r['カレンダー登録状況'] || ''
     });
   });
 
@@ -617,7 +621,8 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
-      isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1
+      isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
+      status: r['カレンダー登録状況'] || ''
     });
   });
 
@@ -776,6 +781,11 @@ function showKarte(idx, silent) {
         : '<span class="tag" style="background:#FFF4E5; color:#B4780A; margin-left:6px;">⚠️ お迎えメール未送信</span>');
     return '<div class="visit-item' + (isFirst ? ' first' : '') + '">' +
       '<div class="visit-header"><span class="visit-date">' + formatDateFull(v.date) + '</span><span class="visit-type ' + typeClass + '">' + typeLabel + '</span></div>' +
+      (String(v.status || '').indexOf('❌') !== -1
+        ? '<span class="visit-status-badge cancelled">❌ キャンセル済み</span><br>'
+        : (String(v.status || '').indexOf('日時変更済み') !== -1
+            ? '<span class="visit-status-badge rescheduled">📅 ' + v.status.replace(/^✅\s*/, '') + '</span><br>'
+            : '')) +
       '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '</div>' +
       '<div class="visit-detail">希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
       (v.daysSincePrev !== null && v.daysSincePrev !== undefined ? '<div class="visit-detail">前回の施術から：' + formatDaysSince(v.daysSincePrev) + '</div>' : '') +
