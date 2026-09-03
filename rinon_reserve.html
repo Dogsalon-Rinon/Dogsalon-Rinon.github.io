@@ -118,6 +118,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
 .modal-box li { font-size:12px; color:#3A6A88; line-height:1.9; }
 .modal-close { display:block; width:100%; margin-top:20px; background:#1A6FA8; color:white; border:none; border-radius:24px; padding:12px; font-size:13px; font-weight:600; cursor:pointer; font-family:'Quicksand',sans-serif; }
 </style>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.24.0/sdk.js"></script>
 </head>
 <body>
 <div id="pc-warning" style="display:none; position:fixed; inset:0; background:rgba(245,251,255,0.97); z-index:9999; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;">
@@ -149,6 +150,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
   </div>
 
   <form id="reserveForm" onsubmit="return false;">
+    <input type="hidden" name="line_user_id" id="lineUserId" value="">
     <div class="form-card">
 
       <!-- 飼い主情報 -->
@@ -382,9 +384,9 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         <textarea name="request" placeholder="気になることがあればご記入ください"></textarea>
       </div>
       <div class="form-card form-group">
-        <div class="form-label">メールアドレス <span class="required">必須</span></div>
-        <p style="font-size:11px; color:#7AAAC0; margin-bottom:8px;">予約確認・お断りのメールをお送りします</p>
-        <input type="email" name="email" placeholder="例：rinon@example.com" required>
+        <div class="form-label">メールアドレス <span class="required" id="emailRequiredMark">必須</span></div>
+        <p style="font-size:11px; color:#7AAAC0; margin-bottom:8px;" id="emailHint">予約確認・お断りのメールをお送りします</p>
+        <input type="email" name="email" id="emailInput" placeholder="例：rinon@example.com" required>
         <div style="background:#FFF8E8; border:1px solid #F5D76E; border-radius:8px; padding:10px 12px; margin-top:10px; font-size:11px; color:#7A6020; line-height:1.9;">
           ⚠️ <strong>メールが届かない場合のご確認</strong><br>
           キャリアメール（docomo / au / SoftBank等）をご使用の方は、パソコンからのメールがブロックされている場合があります。<br>
@@ -698,7 +700,9 @@ function submitReserve() {
   const f = document.getElementById('reserveForm');
   const get = id => { const el = f.querySelector('[name="' + id + '"]'); return el ? el.value : ''; };
 
-  const required = ['owner_name','phone','email','dog_name','breed','weight','color','birthday_year','birthday_month','birthday_day','gender','personality','medical','last_trim','menu','reserve_date'];
+  const isLineUser = !!document.getElementById('lineUserId').value;
+  const required = ['owner_name','phone','email','dog_name','breed','weight','color','birthday_year','birthday_month','birthday_day','gender','personality','medical','last_trim','menu','reserve_date']
+    .filter(id => !(isLineUser && id === 'email'));
 
   document.querySelectorAll('.form-group.field-error').forEach(function(g) { g.classList.remove('field-error'); });
 
@@ -754,6 +758,7 @@ function submitReserve() {
   params.set('last_trim', get('last_trim'));
   params.set('request', get('request'));
   params.set('email', get('email'));
+  params.set('line_user_id', get('line_user_id'));
 
   fetch(API_URL + '?' + params.toString())
     .then(function(r) { return r.json(); })
@@ -835,6 +840,29 @@ function hideTermsModal() { document.getElementById('termsModal').classList.remo
     <button type="button" class="modal-close" onclick="hideTermsModal()">閉じる</button>
   </div>
 </div>
+<script>
+// ===== LIFF初期化（LINE内で開いた場合のみ動作） =====
+(function() {
+  if (typeof liff === 'undefined') return;
+  liff.init({ liffId: '2011410926-1gNhYAai' }).then(function() {
+    if (!liff.isLoggedIn()) return; // LINE以外のブラウザからのアクセス時は何もしない
+    liff.getProfile().then(function(profile) {
+      document.getElementById('lineUserId').value = profile.userId;
+      // LINE経由の予約はメールアドレスを任意にする
+      var emailInput = document.getElementById('emailInput');
+      var emailMark = document.getElementById('emailRequiredMark');
+      var emailHint = document.getElementById('emailHint');
+      if (emailInput) emailInput.required = false;
+      if (emailMark) { emailMark.textContent = '任意'; emailMark.className = 'optional'; }
+      if (emailHint) emailHint.textContent = 'LINEで通知をお送りするため、メールアドレスは未入力でも大丈夫です';
+    }).catch(function(err) {
+      console.error('LIFF profile error:', err);
+    });
+  }).catch(function(err) {
+    console.error('LIFF init error:', err);
+  });
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
