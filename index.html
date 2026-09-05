@@ -43,8 +43,7 @@
   "servesCuisine": "Dog Grooming",
   "hasMap": "https://maps.google.com/?q=鹿児島市東谷山2丁目10-7",
   "sameAs": [
-    "https://www.instagram.com/dogsalon_rinon_kagoshima",
-    "https://www.tiktok.com/@dogsalon.rinon"
+    "https://www.instagram.com/dogsalon_rinon_kagoshima"
   ],
   "knowsAbout": ["トリミング","シャンプー","カット","爪切り","耳掃除","小型犬","中型犬","トイプードル","シーズー","チワワ","ダックスフンド"]
 }
@@ -63,6 +62,17 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 .nav-links { display: flex; gap: 28px; }
 .nav-links a { font-size: 12px; color: #5A9ABB; text-decoration: none; letter-spacing: 0.08em; font-weight: 500; }
 .nav-links a:hover { color: #1A6FA8; }
+.line-reserve-section { background: #EAFBF0; border: 0.5px solid #B8EBCB; border-radius: 24px; padding: 36px 28px; margin-bottom: 24px; text-align: center; }
+.line-reserve-section h3 { font-family: 'Zen Maru Gothic', sans-serif; font-size: 17px; font-weight: 700; color: #0C447C; margin-bottom: 10px; }
+.line-reserve-section p { font-size: 13px; color: #4A7A6A; line-height: 1.8; margin-bottom: 20px; }
+.line-btn-main {
+  display: inline-flex; align-items: center; gap: 12px; padding: 14px 32px; border-radius: 40px;
+  text-decoration: none; background: #06C755; box-shadow: 0 6px 18px rgba(6,199,85,0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; font-family: 'Zen Maru Gothic', sans-serif;
+}
+.line-btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(6,199,85,0.4); }
+.line-btn-main-label { font-size: 15px; font-weight: 700; color: white; white-space: nowrap; }
+
 .nav-reserve { background: #5DBAEC; color: white; font-size: 11px; font-weight: 600; padding: 9px 22px; border-radius: 20px; letter-spacing: 0.1em; text-decoration: none; }
 .hamburger { position: fixed; top: 16px; right: 16px; z-index: 10001; display: flex; flex-direction: column; gap: 5px; cursor: pointer; padding: 8px; background: white; border: 1px solid #B3D9F5; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .hamburger span { display: block; width: 22px; height: 2px; background: #1A6FA8; border-radius: 2px; }
@@ -143,7 +153,6 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 .gallery-text p { font-size: 12px; color: #5A8FAA; line-height: 1.8; margin-bottom: 22px; }
 .sns-btn-row { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .sns-btn { display: inline-flex; align-items: center; gap: 10px; padding: 13px 28px; border-radius: 30px; font-size: 13px; font-weight: 600; font-family: 'Quicksand', sans-serif; letter-spacing: 0.08em; text-decoration: none; }
-.sns-btn-tiktok { background: #0C447C; color: white; border: none; }
 .sns-btn-main { display: inline-flex; align-items: center; gap: 14px; padding: 14px 30px; border-radius: 40px; text-decoration: none; background: linear-gradient(135deg, #FEDA75 0%, #FA7E1E 25%, #D62976 50%, #962FBF 75%, #4F5BD5 100%); box-shadow: 0 6px 18px rgba(214,41,118,0.28); transition: transform 0.15s ease, box-shadow 0.15s ease; }
 .sns-btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(214,41,118,0.35); }
 .sns-btn-main-icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 13px; background: rgba(255,255,255,0.22); flex-shrink: 0; }
@@ -452,13 +461,18 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
               <span class="sns-btn-main-handle">@dogsalon_rinon_kagoshima</span>
             </span>
           </a>
-          <a class="sns-btn sns-btn-tiktok" href="https://www.tiktok.com/@dogsalon.rinon" target="_blank">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            TikTokも見る
-          </a>
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="line-reserve-section">
+    <h3>📱 LINEからも簡単にご予約いただけます！</h3>
+    <p>友だち追加するだけで、LINEの中から24時間いつでも予約OK。<br class="gallery-br-mobile">ご予約の確定・変更・お迎え時間のお知らせもLINEに届きます🐾</p>
+    <a class="line-btn-main" href="https://liff.line.me/2011410926-1gNhYAai" target="_blank">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.5 2 2 5.6 2 10c0 3.9 3.5 7.2 8.3 7.9-.1.4-.6 2.1-.7 2.4 0 0-.1.5.2.6.3.2.6 0 .6 0 .3-.1 3-2 4.2-2.8C19.4 17.2 22 13.9 22 10c0-4.4-4.5-8-10-8Z" fill="white"/></svg>
+      <span class="line-btn-main-label">LINEで友だち追加して予約する</span>
+    </a>
   </div>
 
   <div id="reserve-section"></div>
