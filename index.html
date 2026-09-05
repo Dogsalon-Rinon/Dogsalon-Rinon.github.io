@@ -66,9 +66,10 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 .line-reserve-section h3 { font-family: 'Zen Maru Gothic', sans-serif; font-size: 17px; font-weight: 700; color: #0C447C; margin-bottom: 10px; }
 .line-reserve-section p { font-size: 13px; color: #4A7A6A; line-height: 1.8; margin-bottom: 20px; }
 .line-btn-main {
-  display: inline-flex; align-items: center; gap: 12px; padding: 14px 32px; border-radius: 40px;
+  display: flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 32px; border-radius: 40px;
   text-decoration: none; background: #06C755; box-shadow: 0 6px 18px rgba(6,199,85,0.3);
   transition: transform 0.15s ease, box-shadow 0.15s ease; font-family: 'Zen Maru Gothic', sans-serif;
+  width: fit-content; max-width: 100%; margin: 0 auto;
 }
 .line-btn-main:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(6,199,85,0.4); }
 .line-btn-main-label { font-size: 15px; font-weight: 700; color: white; white-space: nowrap; }
@@ -178,6 +179,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 .bottom-nav-item.reserve-item { color: #1A6FA8; font-weight: 700; }
 
 @media (max-width: 600px) {
+  .line-btn-main { width: 100%; padding: 14px 16px; }
+  .line-btn-main-label { white-space: normal; text-align: center; font-size: 14px; }
   .w-campaign-badge { font-size: 19px; padding: 12px 24px; }
   .nav-logo-main { font-size: 64px; }
   .nav-logo-sub { font-size: 40px; }
@@ -774,6 +777,11 @@ document.addEventListener('DOMContentLoaded', function() {
   document.querySelectorAll('a[href="rinon_reserve_repeat.html"]').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       showPCQR(e, 'https://dogsalon-rinon.github.io/rinon_reserve_repeat.html', 'スマートフォンで読み取って<br>リピーター予約フォームを開いてください🐾');
+    });
+  });
+  document.querySelectorAll('.line-btn-main').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      showPCQR(e, btn.getAttribute('href'), 'スマートフォンのLINEアプリで読み取って<br>友だち追加・ご予約をしてください🐾');
     });
   });
 });
