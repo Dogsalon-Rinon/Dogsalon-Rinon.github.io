@@ -144,9 +144,29 @@ function doVerify() {
     .then(function(res) {
       if (res.verified) {
         document.getElementById('verify-overlay').style.display = 'none';
-        document.getElementById('owner_name').value = owner;
-        document.getElementById('dog_name').value = dog;
+        document.querySelector('[name="owner_name"]').value = owner;
+        document.querySelector('[name="dog_name"]').value = dog;
         document.getElementById('phone_hidden').value = phone;
+
+        var profile = res.profile || {};
+        if (profile.breed) {
+          var breedSelect = document.getElementById('breedSelect');
+          if ([...breedSelect.options].some(function(o) { return o.value === profile.breed; })) {
+            breedSelect.value = profile.breed;
+            breedSelect.dispatchEvent(new Event('change'));
+          }
+        }
+        if (profile.weight) {
+          var weightSelect = document.querySelector('[name="weight"]');
+          if (weightSelect && [...weightSelect.options].some(function(o) { return o.value === profile.weight; })) {
+            weightSelect.value = profile.weight;
+            weightSelect.dispatchEvent(new Event('change'));
+          }
+        }
+        if (profile.mix_detail) {
+          var mixInput = document.querySelector('[name="mix_detail"]');
+          if (mixInput) mixInput.value = profile.mix_detail;
+        }
       } else {
         err.textContent = 'ご登録が見つかりませんでした。お名前をご確認いただくか、初めての方は初回予約フォームをご利用ください。';
         err.style.display = 'block';
