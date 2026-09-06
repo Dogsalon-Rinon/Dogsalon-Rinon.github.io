@@ -758,10 +758,24 @@ if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
 <script>
 // ===== LIFF初期化（LINE内で開いた場合のみ動作） =====
 (function() {
-  if (typeof liff === 'undefined') return;
+  function showDebug(text, color) {
+    var el = document.getElementById('liffDebugBanner');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'liffDebugBanner';
+      el.style.cssText = 'position:fixed; top:0; left:0; right:0; z-index:99999; padding:10px; font-size:12px; font-family:sans-serif; text-align:center; word-break:break-all;';
+      document.body.prepend(el);
+    }
+    el.style.background = color || '#FFF3CD';
+    el.textContent = text;
+  }
+  showDebug('【デバッグ】LIFF読み込み開始');
+  if (typeof liff === 'undefined') { showDebug('【デバッグ】liffが読み込めていません', '#FFCDD2'); return; }
   liff.init({ liffId: '2011410926-tgWgT6B0' }).then(function() {
+    showDebug('【デバッグ】liff.init成功 / isLoggedIn=' + liff.isLoggedIn());
     if (!liff.isLoggedIn()) return; // LINE以外のブラウザからのアクセス時は何もしない
     liff.getProfile().then(function(profile) {
+      showDebug('【デバッグ】UserID取得成功：' + profile.userId, '#C8E6C9');
       document.getElementById('lineUserId').value = profile.userId;
       // LINE経由の予約はメールアドレスを任意にする
       var emailInput = document.getElementById('emailInput');
@@ -771,9 +785,11 @@ if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
       if (emailMark) { emailMark.textContent = '任意'; emailMark.className = 'optional'; }
       if (emailHint) emailHint.textContent = 'LINEで通知をお送りするため、メールアドレスは未入力でも大丈夫です';
     }).catch(function(err) {
+      showDebug('【デバッグ】UserID取得エラー：' + String(err), '#FFCDD2');
       console.error('LIFF profile error:', err);
     });
   }).catch(function(err) {
+    showDebug('【デバッグ】liff.initエラー：' + String(err), '#FFCDD2');
     console.error('LIFF init error:', err);
   });
 })();
