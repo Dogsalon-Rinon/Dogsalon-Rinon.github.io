@@ -611,6 +611,9 @@ function submitRepeat() {
   const f = document.getElementById('repeatForm');
   const get = id => { const el = f.querySelector('[name="' + id + '"]'); return el ? el.value : ''; };
 
+  var debugEl = document.getElementById('liffDebugBanner');
+  if (debugEl) debugEl.textContent = '【デバッグ】送信直前のline_user_id：「' + get('line_user_id') + '」';
+
   const isLineUser = !!document.getElementById('lineUserId').value;
   const required = ['owner_name','dog_name','breed','weight','menu','reserve_date','email']
     .filter(id => !(isLineUser && id === 'email'));
