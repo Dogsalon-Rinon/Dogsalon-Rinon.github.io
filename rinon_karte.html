@@ -548,8 +548,21 @@ function tryRender() {
   renderList(customers);
 }
 
-function customerKey(owner, dog) {
-  return (owner || '').trim() + '___' + (dog || '').trim();
+function normalizePhoneForKey(val) {
+  if (!val) return '';
+  var digits = String(val).trim().replace(/[^\d]/g, '');
+  if (digits.charAt(0) !== '0' && (digits.length === 9 || digits.length === 10)) {
+    digits = '0' + digits;
+  }
+  return digits;
+}
+
+function customerKey(owner, dog, phone) {
+  var dogPart = (dog || '').trim();
+  var phoneDigits = normalizePhoneForKey(phone);
+  // 電話番号は表記ゆれが起きにくいので、あれば電話番号＋犬の名前を優先。無ければ飼い主名＋犬の名前にフォールバック
+  if (phoneDigits) return 'p_' + phoneDigits + '___' + dogPart;
+  return (owner || '').trim() + '___' + dogPart;
 }
 
 function buildCustomers() {
@@ -557,12 +570,13 @@ function buildCustomers() {
 
   // 初回データから顧客を作成
   firstDataRaw.forEach(function(r) {
-    var owner = r['飼い主さまのお名前'];
+    var owner = r['飼い主さまのお名前'] || r['飼い主様のお名前'];
     var dog = r['ワンちゃんのお名前'];
-    var key = customerKey(owner, dog);
+    var phone = r['電話番号'];
+    var key = customerKey(owner, dog, phone);
     if (!map[key]) {
       map[key] = {
-        owner: owner, dog: dog,
+        owner: owner, dog: dog, phone: phone,
         profile: r,
         firstRowNum: r['__rowNum'],
         visits: []
@@ -570,6 +584,7 @@ function buildCustomers() {
     } else {
       map[key].profile = r; // 最新の初回情報で更新
       map[key].firstRowNum = r['__rowNum'];
+      map[key].phone = phone || map[key].phone;
     }
     map[key].visits.push({
       type: 'first',
@@ -596,14 +611,17 @@ function buildCustomers() {
   repeatDataRaw.forEach(function(r) {
     var owner = r['飼い主さまのお名前'] || r['飼い主様のお名前'];
     var dog = r['ワンちゃんのお名前'];
-    var key = customerKey(owner, dog);
+    var phone = r['電話番号'];
+    var key = customerKey(owner, dog, phone);
     if (!map[key]) {
       // 初回データが見つからない場合は新規顧客として作成（後で写真等のカラムも拾えるようrをそのまま保持）
       map[key] = {
-        owner: owner, dog: dog,
+        owner: owner, dog: dog, phone: phone,
         profile: r,
         visits: []
       };
+    } else {
+      map[key].phone = phone || map[key].phone;
     }
     map[key].visits.push({
       type: 'repeat',
@@ -643,7 +661,7 @@ function buildCustomers() {
   });
 
   // 削除（非表示）にした顧客を除外
-  customers = customers.filter(function(c) { return !hidden[customerKey(c.owner, c.dog)]; });
+  customers = customers.filter(function(c) { return !hidden[customerKey(c.owner, c.dog, c.phone)]; });
 
   // 今日の日付
   var todayStr = (function() {
@@ -967,7 +985,7 @@ function deleteCustomer(idx) {
   });
 
   Promise.all(promises).then(function() {
-    hideCustomerKey(customerKey(c.owner, c.dog));
+    hideCustomerKey(customerKey(c.owner, c.dog, c.phone));
     buildCustomers();
     renderList(customers);
     document.querySelector('.main').classList.remove('sidebar-collapsed');
