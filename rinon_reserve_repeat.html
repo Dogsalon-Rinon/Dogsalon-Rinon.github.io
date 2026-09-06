@@ -146,6 +146,7 @@ function doVerify() {
         document.getElementById('verify-overlay').style.display = 'none';
         document.getElementById('owner_name').value = owner;
         document.getElementById('dog_name').value = dog;
+        document.getElementById('phone_hidden').value = phone;
       } else {
         err.textContent = 'ご登録が見つかりませんでした。お名前をご確認いただくか、初めての方は初回予約フォームをご利用ください。';
         err.style.display = 'block';
@@ -188,6 +189,7 @@ function doVerify() {
 
   <form id="repeatForm" onsubmit="return false;">
     <input type="hidden" name="line_user_id" id="lineUserId" value="">
+    <input type="hidden" name="phone" id="phone_hidden" value="">
     <div class="form-card">
 
       <div class="section-head">
@@ -638,6 +640,7 @@ function submitRepeat() {
   params.set('time', selectedTime);
   params.set('request', get('request'));
   params.set('email', get('email'));
+  params.set('phone', get('phone'));
   params.set('line_user_id', get('line_user_id'));
 
   fetch(API_URL + '?' + params.toString())
