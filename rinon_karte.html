@@ -147,6 +147,10 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
     <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
     <button class="btn btn-light" onclick="openAvailabilityShare()">🐾 空き状況を画像でシェア</button>
     <button class="btn btn-green" onclick="exportExcel()">📊 Excelエクスポート</button>
+    <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#0C447C; background:#F5FBFF; border:1px solid #B3D9F5; border-radius:20px; padding:6px 12px; cursor:pointer;">
+      <input type="checkbox" id="pickupNotifyToggle" onchange="togglePickupNotify(this.checked)" style="cursor:pointer;">
+      🔔 終了30分前のお迎え案内を自動送信
+    </label>
   </div>
 </div>
 
@@ -438,6 +442,24 @@ function notifyComplete(uid) {
     .catch(function(){ alert('送信に失敗しました（通信エラー）'); });
 }
 
+function toggleVisitPickupNotify(uid, enabled) {
+  var info = visitLookup[uid];
+  if (!info) return;
+  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
+  var body = new URLSearchParams({
+    action: 'setVisitPickupNotify',
+    row: info.rowNum,
+    secret: DELETE_SECRET,
+    enabled: enabled ? '1' : '0'
+  });
+  fetch(apiUrl, { method: 'POST', body: body })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if (!data || !data.success) alert('設定の変更に失敗しました');
+    })
+    .catch(function(){ alert('設定の変更に失敗しました（通信エラー）'); });
+}
+
 let hidden = {}; // 削除（非表示）にした顧客のキー一覧
 function loadHidden() {
   try { hidden = JSON.parse(localStorage.getItem('rinon_hidden') || '{}'); } catch(e) { hidden = {}; }
@@ -460,6 +482,35 @@ const DELETE_SECRET  = 'rinon2026';
 function sheetUrl(id, gid) {
   return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}&_=` + Date.now();
 }
+
+// ===== お迎え案内通知（終了30分前）のオン/オフ =====
+function loadPickupNotifySetting() {
+  fetch(REPEAT_API_URL + '?action=getPickupNotifySetting')
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      var box = document.getElementById('pickupNotifyToggle');
+      if (box) box.checked = !!data.enabled;
+    })
+    .catch(function () {});
+}
+
+function togglePickupNotify(enabled) {
+  var box = document.getElementById('pickupNotifyToggle');
+  if (box) box.disabled = true;
+  var params = new URLSearchParams({ action: 'setPickupNotifySetting', secret: DELETE_SECRET, enabled: enabled ? '1' : '0' });
+  // 初回・リピーター両方のシート側で使えるよう、両方のスクリプトに設定する
+  Promise.all([
+    fetch(FIRST_API_URL + '?' + params.toString()),
+    fetch(REPEAT_API_URL + '?' + params.toString())
+  ]).then(function () {
+    if (box) box.disabled = false;
+  }).catch(function () {
+    alert('設定の変更に失敗しました。もう一度お試しください。');
+    if (box) { box.checked = !enabled; box.disabled = false; }
+  });
+}
+
+loadPickupNotifySetting();
 
 function loadData() {
   document.getElementById('customerList').innerHTML = '<div class="loading"><div class="spinner"></div>データを読み込み中...</div>';
@@ -603,6 +654,7 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
+      pickupNotifyOff: String(r['お迎え案内自動送信'] || '') === 'OFF',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
       status: r['カレンダー登録状況'] || ''
     });
@@ -640,6 +692,7 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
+      pickupNotifyOff: String(r['お迎え案内自動送信'] || '') === 'OFF',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
       status: r['カレンダー登録状況'] || ''
     });
@@ -824,6 +877,10 @@ function showKarte(idx, silent) {
           : '<button class="btn btn-light btn-sm" disabled title="メール未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
         '<button class="btn btn-light btn-sm" onclick="openReschedule(\'' + uid + '\')">📅 日時を変更</button>' +
         '<button class="btn btn-light btn-sm" style="color:#C06060; border-color:#F0C8C8;" onclick="openCancelVisit(\'' + uid + '\')">❌ キャンセル</button>' +
+        '<label style="display:flex; align-items:center; gap:5px; font-size:11px; color:#0C447C; background:#F5FBFF; border:1px solid #DCEBF5; border-radius:16px; padding:5px 10px; cursor:pointer;">' +
+          '<input type="checkbox" style="cursor:pointer;" ' + (v.pickupNotifyOff ? '' : 'checked') + ' onchange="toggleVisitPickupNotify(\'' + uid + '\', this.checked)">' +
+          '🔔 この回のお迎え案内' +
+        '</label>' +
       '</div>' +
     '</div>';
   }).join('');
