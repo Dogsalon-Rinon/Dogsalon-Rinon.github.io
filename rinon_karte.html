@@ -484,6 +484,7 @@ function sheetUrl(id, gid) {
 }
 
 // ===== お迎え案内通知（終了30分前）のオン/オフ =====
+// 個別チェックは常に操作できる。全体トグルを切り替えた瞬間だけ、全部の個別設定を一斉に同じ状態へ揃える。
 function loadPickupNotifySetting() {
   fetch(REPEAT_API_URL + '?action=getPickupNotifySetting')
     .then(function (r) { return r.json(); })
@@ -496,17 +497,27 @@ function loadPickupNotifySetting() {
 
 function togglePickupNotify(enabled) {
   var box = document.getElementById('pickupNotifyToggle');
-  if (box) box.disabled = true;
+  if (box) box.style.pointerEvents = 'none';
+
   var params = new URLSearchParams({ action: 'setPickupNotifySetting', secret: DELETE_SECRET, enabled: enabled ? '1' : '0' });
-  // 初回・リピーター両方のシート側で使えるよう、両方のスクリプトに設定する
+  var paramsAll = new URLSearchParams({ action: 'setAllVisitsPickupNotify', secret: DELETE_SECRET, enabled: enabled ? '1' : '0' });
+
+  // ①全体設定 ②全件の個別設定、両方を初回・リピーター両方のスクリプトに反映する
   Promise.all([
     fetch(FIRST_API_URL + '?' + params.toString()),
-    fetch(REPEAT_API_URL + '?' + params.toString())
+    fetch(REPEAT_API_URL + '?' + params.toString()),
+    fetch(FIRST_API_URL, { method: 'POST', body: paramsAll }),
+    fetch(REPEAT_API_URL, { method: 'POST', body: paramsAll })
   ]).then(function () {
-    if (box) box.disabled = false;
+    if (box) box.style.pointerEvents = '';
+    // 画面上のデータ・表示も一斉に揃える（個別に触れる状態は維持）
+    customers.forEach(function (c) {
+      c.visits.forEach(function (v) { v.pickupNotifyOff = !enabled; });
+    });
+    document.querySelectorAll('.visit-pickup-toggle').forEach(function (el) { el.checked = enabled; });
   }).catch(function () {
     alert('設定の変更に失敗しました。もう一度お試しください。');
-    if (box) { box.checked = !enabled; box.disabled = false; }
+    if (box) { box.checked = !enabled; box.style.pointerEvents = ''; }
   });
 }
 
@@ -878,7 +889,7 @@ function showKarte(idx, silent) {
         '<button class="btn btn-light btn-sm" onclick="openReschedule(\'' + uid + '\')">📅 日時を変更</button>' +
         '<button class="btn btn-light btn-sm" style="color:#C06060; border-color:#F0C8C8;" onclick="openCancelVisit(\'' + uid + '\')">❌ キャンセル</button>' +
         '<label style="display:flex; align-items:center; gap:5px; font-size:11px; color:#0C447C; background:#F5FBFF; border:1px solid #DCEBF5; border-radius:16px; padding:5px 10px; cursor:pointer;">' +
-          '<input type="checkbox" style="cursor:pointer;" ' + (v.pickupNotifyOff ? '' : 'checked') + ' onchange="toggleVisitPickupNotify(\'' + uid + '\', this.checked)">' +
+          '<input type="checkbox" class="visit-pickup-toggle" style="cursor:pointer;" ' + (v.pickupNotifyOff ? '' : 'checked') + ' onchange="toggleVisitPickupNotify(\'' + uid + '\', this.checked)">' +
           '🔔 この回のお迎え案内' +
         '</label>' +
       '</div>' +
