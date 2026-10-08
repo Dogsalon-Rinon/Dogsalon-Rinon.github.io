@@ -534,6 +534,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       ① 表の中から空き（○）をタップ<br>
       ②「初めての方」「リピーターの方」を選択して予約フォームへ<br>
       <span style="font-size:13px; color:#1A6FA8; font-weight:600;">📅 毎月1日より、2ヶ月先までのご予約が可能になります</span><br>
+      <span style="font-size:12px; color:#1A6FA8;">🎄 12月分は年末のため、10月1日より12月末までご予約いただけます</span><br>
       <span style="font-size:12px; color:#5A8FAA;">⏳ 表示に時間がかかる場合がございます。しばらくお待ちください</span>
     </div>
   </div>
@@ -604,7 +605,10 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 
     function maxBookableDate() {
       // 当月+2ヶ月の月末まで予約可能
-      return new Date(today.getFullYear(), today.getMonth() + 2, 0);
+      var d = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+      // 年末繁忙期のため、10月に入ったら12月末まで予約可能
+      if (today.getMonth() === 9) d = new Date(today.getFullYear(), 12, 0);
+      return d;
     }
 
     function fetchWeek() {

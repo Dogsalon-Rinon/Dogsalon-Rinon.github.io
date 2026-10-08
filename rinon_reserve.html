@@ -471,6 +471,8 @@ document.getElementById('birthday_day').addEventListener('change', calcAge);
   // 翌月末まで（7月中なら8/31、8月中なら9/30で固定）
   var now = new Date();
   var maxDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+  // 年末繁忙期のため、10月に入ったら12月末まで予約可能
+  if (now.getMonth() === 9) maxDate = new Date(now.getFullYear(), 12, 0);
   var maxY = maxDate.getFullYear();
   var maxM = ('0' + (maxDate.getMonth()+1)).slice(-2);
   var maxD = ('0' + maxDate.getDate()).slice(-2);
@@ -674,11 +676,18 @@ document.getElementById('breedSelect').addEventListener('change', function() {
 document.querySelector('[name="weight"]').addEventListener('change', updatePriceEstimate);
 document.getElementById('reserveDate').addEventListener('change', updateTimeSlots);
 
+// 予約可能期間（今日〜当月+2ヶ月の月末）の範囲内か
+function isBookableDate(v) {
+  var el = document.getElementById('reserveDate');
+  return !!v && (!el.min || v >= el.min) && (!el.max || v <= el.max);
+}
+
 // URLパラメータから日付・時間を自動入力
 (function() {
   var params = new URLSearchParams(window.location.search);
   var pDate = params.get('date');
   var pTime = params.get('time');
+  if (pDate && !isBookableDate(pDate)) pDate = null;
   if (pDate) {
     document.getElementById('reserveDate').value = pDate;
     if (pTime) {
@@ -726,6 +735,10 @@ function submitReserve() {
   if (errorCount > 0) {
     alert('未入力の必須項目があります。赤くなっている項目をご確認ください。');
     if (firstErrorGroup) firstErrorGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  if (!isBookableDate(get('reserve_date'))) {
+    alert('ご予約は本日から、当月を含む2ヶ月先の月末までの日付をお選びください。');
     return;
   }
   if (!selectedTime) {
