@@ -145,12 +145,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
   </div>
   <div class="header-right">
     <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
-    <button class="btn btn-light" onclick="openAvailabilityShare()">🐾 空き状況を画像でシェア</button>
     <button class="btn btn-green" onclick="exportExcel()">📊 Excelエクスポート</button>
-    <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#0C447C; background:#F5FBFF; border:1px solid #B3D9F5; border-radius:20px; padding:6px 12px; cursor:pointer;">
-      <input type="checkbox" id="pickupNotifyToggle" onchange="togglePickupNotify(this.checked)" style="cursor:pointer;">
-      🔔 終了30分前のお迎え案内を自動送信
-    </label>
   </div>
 </div>
 
@@ -210,6 +205,7 @@ const REPEAT_SHEET_NAME = 'フォームの回答1';
 let customers = []; // 顧客単位（飼い主名+犬名でグループ化）
 let firstDataRaw = null;
 let repeatDataRaw = null;
+let friendDataRaw = null;
 
 // ── 写真機能（Googleドライブ保存） ──
 function driveThumbUrl(fileId, size) {
@@ -442,24 +438,6 @@ function notifyComplete(uid) {
     .catch(function(){ alert('送信に失敗しました（通信エラー）'); });
 }
 
-function toggleVisitPickupNotify(uid, enabled) {
-  var info = visitLookup[uid];
-  if (!info) return;
-  var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
-  var body = new URLSearchParams({
-    action: 'setVisitPickupNotify',
-    row: info.rowNum,
-    secret: DELETE_SECRET,
-    enabled: enabled ? '1' : '0'
-  });
-  fetch(apiUrl, { method: 'POST', body: body })
-    .then(function(res){ return res.json(); })
-    .then(function(data){
-      if (!data || !data.success) alert('設定の変更に失敗しました');
-    })
-    .catch(function(){ alert('設定の変更に失敗しました（通信エラー）'); });
-}
-
 let hidden = {}; // 削除（非表示）にした顧客のキー一覧
 function loadHidden() {
   try { hidden = JSON.parse(localStorage.getItem('rinon_hidden') || '{}'); } catch(e) { hidden = {}; }
@@ -478,55 +456,19 @@ const REPEAT_GID = '2045705147';
 const FIRST_API_URL  = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeho6g5YatScnQnXY8LlO3N6AHhJlYYaXTtSn2wrSKilFmWOWZIg/exec';
 const REPEAT_API_URL = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1T_TfAJsY3Gzo2xlLg686tHRSaszZ0K4Fk4mIti1vRToUbw/exec';
 const DELETE_SECRET  = 'rinon2026';
+// LINE友だちリスト（予約前に友だち追加した人の電話番号とLINEユーザーID）
+const FRIEND_SHEET_ID = '1-PleqUT8aXYg-absk3NOGKJdJJIOUhtdSPwqHUE7wyU';
+const FRIEND_GID      = '1842131638';
 
 function sheetUrl(id, gid) {
   return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}&_=` + Date.now();
 }
 
-// ===== お迎え案内通知（終了30分前）のオン/オフ =====
-// 個別チェックは常に操作できる。全体トグルを切り替えた瞬間だけ、全部の個別設定を一斉に同じ状態へ揃える。
-function loadPickupNotifySetting() {
-  fetch(REPEAT_API_URL + '?action=getPickupNotifySetting')
-    .then(function (r) { return r.json(); })
-    .then(function (data) {
-      var box = document.getElementById('pickupNotifyToggle');
-      if (box) box.checked = !!data.enabled;
-    })
-    .catch(function () {});
-}
-
-function togglePickupNotify(enabled) {
-  var box = document.getElementById('pickupNotifyToggle');
-  if (box) box.style.pointerEvents = 'none';
-
-  var params = new URLSearchParams({ action: 'setPickupNotifySetting', secret: DELETE_SECRET, enabled: enabled ? '1' : '0' });
-  var paramsAll = new URLSearchParams({ action: 'setAllVisitsPickupNotify', secret: DELETE_SECRET, enabled: enabled ? '1' : '0' });
-
-  // ①全体設定 ②全件の個別設定、両方を初回・リピーター両方のスクリプトに反映する
-  Promise.all([
-    fetch(FIRST_API_URL + '?' + params.toString()),
-    fetch(REPEAT_API_URL + '?' + params.toString()),
-    fetch(FIRST_API_URL, { method: 'POST', body: paramsAll }),
-    fetch(REPEAT_API_URL, { method: 'POST', body: paramsAll })
-  ]).then(function () {
-    if (box) box.style.pointerEvents = '';
-    // 画面上のデータ・表示も一斉に揃える（個別に触れる状態は維持）
-    customers.forEach(function (c) {
-      c.visits.forEach(function (v) { v.pickupNotifyOff = !enabled; });
-    });
-    document.querySelectorAll('.visit-pickup-toggle').forEach(function (el) { el.checked = enabled; });
-  }).catch(function () {
-    alert('設定の変更に失敗しました。もう一度お試しください。');
-    if (box) { box.checked = !enabled; box.style.pointerEvents = ''; }
-  });
-}
-
-loadPickupNotifySetting();
-
 function loadData() {
   document.getElementById('customerList').innerHTML = '<div class="loading"><div class="spinner"></div>データを読み込み中...</div>';
   firstDataRaw = null;
   repeatDataRaw = null;
+  friendDataRaw = null;
 
   fetchCsv(sheetUrl(FIRST_SHEET_ID, FIRST_GID)).then(function(data) {
     firstDataRaw = data;
@@ -546,6 +488,16 @@ function loadData() {
     tryRender();
   });
 
+  // LINE友だちリスト（共有設定などで読めなくてもカルテ表示は続ける）
+  fetchCsv(sheetUrl(FRIEND_SHEET_ID, FRIEND_GID), true).then(function(data) {
+    friendDataRaw = data;
+    tryRender();
+  }).catch(function(e) {
+    console.warn('friend sheet error', e);
+    friendDataRaw = [];
+    tryRender();
+  });
+
   setTimeout(function() {
     if (firstDataRaw === null || repeatDataRaw === null) {
       document.getElementById('customerList').innerHTML =
@@ -558,17 +510,17 @@ function loadData() {
   }, 10000);
 }
 
-function fetchCsv(url) {
+function fetchCsv(url, keepAll) {
   return fetch(url, { cache: 'no-store' }).then(function(res) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.text();
   }).then(function(text) {
-    return parseCsv(text);
+    return parseCsv(text, keepAll);
   });
 }
 
 // CSVパーサー（カンマ・改行・引用符対応）
-function parseCsv(text) {
+function parseCsv(text, keepAll) {
   var rows = [];
   var row = [];
   var field = '';
@@ -601,12 +553,12 @@ function parseCsv(text) {
     obj['__rowNum'] = i + 2; // 1行目がヘッダーなのでデータは2行目から
     return obj;
   }).filter(function(r) {
-    return r['飼い主さまのお名前'] || r['飼い主様のお名前'];
+    return keepAll || r['飼い主さまのお名前'] || r['飼い主様のお名前'];
   });
 }
 
 function tryRender() {
-  if (firstDataRaw === null || repeatDataRaw === null) return;
+  if (firstDataRaw === null || repeatDataRaw === null || friendDataRaw === null) return;
   buildCustomers();
   renderList(customers);
 }
@@ -649,6 +601,7 @@ function buildCustomers() {
       map[key].firstRowNum = r['__rowNum'];
       map[key].phone = phone || map[key].phone;
     }
+    if (r['LINEユーザーID']) map[key].lineRegistered = true;
     map[key].visits.push({
       type: 'first',
       date: r['希望日①'] || r['タイムスタンプ'],
@@ -665,7 +618,6 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
-      pickupNotifyOff: String(r['お迎え案内自動送信'] || '') === 'OFF',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
       status: r['カレンダー登録状況'] || ''
     });
@@ -687,6 +639,7 @@ function buildCustomers() {
     } else {
       map[key].phone = phone || map[key].phone;
     }
+    if (r['LINEユーザーID']) map[key].lineRegistered = true;
     map[key].visits.push({
       type: 'repeat',
       date: r['希望日①'] || r['タイムスタンプ'],
@@ -703,10 +656,15 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
-      pickupNotifyOff: String(r['お迎え案内自動送信'] || '') === 'OFF',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
       status: r['カレンダー登録状況'] || ''
     });
+  });
+
+  // LINE友だちリストの電話番号セット（LINEユーザーIDがあるもののみ）
+  var friendPhoneSet = {};
+  friendDataRaw.forEach(function(f) {
+    if (f['LINEユーザーID'] && f['電話番号']) friendPhoneSet[normalizePhoneForKey(f['電話番号'])] = true;
   });
 
   // 来店履歴を日付順に並べる
@@ -722,6 +680,9 @@ function buildCustomers() {
     c.visitCount = c.visits.length;
     c.lastVisit = c.visits[c.visits.length - 1];
     c.dogPhotoId = (c.profile['犬の写真'] || '').toString().trim();
+    if (!c.lineRegistered && c.phone) {
+      c.lineRegistered = !!friendPhoneSet[normalizePhoneForKey(c.phone)];
+    }
     return c;
   });
 
@@ -769,6 +730,13 @@ function buildCustomers() {
   });
 }
 
+function lineBadge(c, large) {
+  var on = !!c.lineRegistered;
+  var style = 'display:inline-block; margin-left:8px; padding:' + (large ? '3px 10px' : '1px 7px') + '; border-radius:10px; font-size:' + (large ? '12px' : '10px') + '; font-weight:700; vertical-align:middle; ' +
+    (on ? 'background:#E6F9EC; color:#06A94D; border:1px solid #9BE3B5;' : 'background:#F1F5F8; color:#8AA0AE; border:1px solid #D9E3EA;');
+  return '<span style="' + style + '">' + (on ? 'LINE登録済' : 'LINE未登録') + '</span>';
+}
+
 function renderList(data) {
   var list = document.getElementById('customerList');
   document.getElementById('totalCount').textContent = customers.length;
@@ -780,11 +748,10 @@ function renderList(data) {
     return;
   }
 
-  list.innerHTML = data.map(function(c) {
-    var i = customers.indexOf(c);
+  list.innerHTML = data.map(function(c, i) {
     var breed = c.profile['犬種'] || '';
     return '<div class="customer-card" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
-      '<div class="customer-name">' + c.owner + ' 様</div>' +
+      '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + '</div>' +
       '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span><span class="visit-badge">' + c.visitCount + '回</span></div>' +
     '</div>';
@@ -888,10 +855,6 @@ function showKarte(idx, silent) {
           : '<button class="btn btn-light btn-sm" disabled title="メール未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
         '<button class="btn btn-light btn-sm" onclick="openReschedule(\'' + uid + '\')">📅 日時を変更</button>' +
         '<button class="btn btn-light btn-sm" style="color:#C06060; border-color:#F0C8C8;" onclick="openCancelVisit(\'' + uid + '\')">❌ キャンセル</button>' +
-        '<label style="display:flex; align-items:center; gap:5px; font-size:11px; color:#0C447C; background:#F5FBFF; border:1px solid #DCEBF5; border-radius:16px; padding:5px 10px; cursor:pointer;">' +
-          '<input type="checkbox" class="visit-pickup-toggle" style="cursor:pointer;" ' + (v.pickupNotifyOff ? '' : 'checked') + ' onchange="toggleVisitPickupNotify(\'' + uid + '\', this.checked)">' +
-          '🔔 この回のお迎え案内' +
-        '</label>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -912,7 +875,7 @@ function showKarte(idx, silent) {
           '</div>' +
         '</div>' +
         '<div>' +
-          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span></div>' +
+          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '</div>' +
           '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
         '</div>' +
       '</div>' +
@@ -1874,277 +1837,6 @@ function submitCancelVisit() {
       err.style.display = 'block';
     });
 }
-</script>
-
-<script>
-  window.__RINON_CALENDAR_API_URL__ = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1T_TfAJsY3Gzo2xlLg686tHRSaszZ0K4Fk4mIti1vRToUbw/exec';
-</script>
-<script>
-/* ===== 空き状況シェア画像 生成モジュール =====
-   index.html / rinon_karte.html の両方に同じロジックを埋め込んで使う。
-   使う側は、下記2つだけ用意すればOK：
-     - window.__RINON_CALENDAR_API_URL__ … getCalendar が呼べるGAS URL
-     - <button onclick="openAvailabilityShare()">…</button>
-*/
-(function () {
-  // ----- 季節テーマ -----
-  function getSeasonTheme(monthIndex /* 0-11 */) {
-    if (monthIndex >= 2 && monthIndex <= 4) {
-      return { name: '春', emoji: '🌸', bgFrom: '#FFE7EF', bgTo: '#FFF7F2', accent: '#F2A0BC', text: '#B85C7E', openBg: '#FFF1F6', openBorder: '#F6C3D6', deco: ['🌸', '🌷', '🐝'] };
-    }
-    if (monthIndex >= 5 && monthIndex <= 7) {
-      return { name: '夏', emoji: '🌻', bgFrom: '#E3F7FF', bgTo: '#F3FFFB', accent: '#5DBAEC', text: '#1A6FA8', openBg: '#EAFBFF', openBorder: '#BFE8F8', deco: ['🌻', '🍉', '🎐'] };
-    }
-    if (monthIndex >= 8 && monthIndex <= 10) {
-      return { name: '秋', emoji: '🍁', bgFrom: '#FFEEDC', bgTo: '#FFF9EF', accent: '#E8975B', text: '#A6621F', openBg: '#FFF4E6', openBorder: '#F5D3AC', deco: ['🍁', '🌰', '🍂'] };
-    }
-    return { name: '冬', emoji: '❄️', bgFrom: '#E9F2FF', bgTo: '#F6FBFF', accent: '#7FB3E0', text: '#3D6E96', openBg: '#F0F8FF', openBorder: '#CFE4F6', deco: ['❄️', '⛄', '🧣'] };
-  }
-
-  var FULL_BG = '#FBDADA', FULL_BORDER = '#F0A8A8', FULL_TEXT = '#B33A3A';
-  var CLOSED_BG = '#E9EDF1', CLOSED_BORDER = '#D3DAE1', CLOSED_TEXT = '#8B98A6';
-
-  var SIZES = {
-    story:  { w: 1080, h: 1920, label: 'Instagramストーリー' },
-    square: { w: 1080, h: 1080, label: '投稿用（正方形）' },
-    line:   { w: 1200, h: 630,  label: 'LINE用（横長）' }
-  };
-
-  var state = { sizeKey: 'story', monthEvents: {}, year: 0, month: 0, loaded: false };
-
-  function pad2(n) { return (n < 10 ? '0' : '') + n; }
-
-  function fetchMonthEvents(year, month, cb) {
-    var url = window.__RINON_CALENDAR_API_URL__ + '?action=getCalendar&month=' + year + '-' + pad2(month + 1);
-    fetch(url).then(function (r) { return r.json(); }).then(function (data) {
-      var events = {};
-      (data.events || []).forEach(function (ev) {
-        if (!events[ev.date]) events[ev.date] = [];
-        events[ev.date].push(ev.title || '');
-      });
-      cb(events);
-    }).catch(function () { cb({}); });
-  }
-
-  function getStatus(events, dateStr) {
-    var list = events[dateStr] || [];
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].indexOf('満員') !== -1) return 'full';
-      if (list[i].indexOf('休業') !== -1 || list[i].indexOf('定休') !== -1) return 'closed';
-    }
-    return 'open';
-  }
-
-  function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function draw(canvas) {
-    var sizeInfo = SIZES[state.sizeKey];
-    canvas.width = sizeInfo.w;
-    canvas.height = sizeInfo.h;
-    var ctx = canvas.getContext('2d');
-    var W = sizeInfo.w, H = sizeInfo.h;
-    var theme = getSeasonTheme(state.month);
-
-    // 背景グラデーション
-    var grad = ctx.createLinearGradient(0, 0, W, H);
-    grad.addColorStop(0, theme.bgFrom);
-    grad.addColorStop(1, theme.bgTo);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-
-    // 装飾（角に大きめの絵文字を薄く）
-    ctx.save();
-    ctx.globalAlpha = 0.16;
-    ctx.font = Math.round(W * 0.16) + 'px sans-serif';
-    ctx.fillText(theme.deco[0], -W * 0.03, H * 0.14);
-    ctx.fillText(theme.deco[1], W * 0.72, H * 0.06);
-    ctx.font = Math.round(W * 0.12) + 'px sans-serif';
-    ctx.fillText(theme.deco[2], W * 0.02, H * 0.98);
-    ctx.restore();
-
-    var padX = W * 0.07;
-    var cardW = W - padX * 2;
-    var cardTop = H * (state.sizeKey === 'line' ? 0.10 : 0.08);
-
-    // ヘッダー：ロゴ名＋タイトル
-    ctx.textAlign = 'center';
-    ctx.fillStyle = theme.text;
-    ctx.font = '700 ' + Math.round(W * 0.045) + 'px "Zen Maru Gothic", sans-serif';
-    ctx.fillText('🐾 Dog Salon Rinon 🐾', W / 2, cardTop);
-
-    ctx.font = '700 ' + Math.round(W * 0.075) + 'px "Zen Maru Gothic", sans-serif';
-    ctx.fillText(state.year + '年' + (state.month + 1) + '月の空き状況', W / 2, cardTop + W * 0.10);
-    ctx.font = Math.round(W * 0.035) + 'px "Zen Maru Gothic", sans-serif';
-    ctx.fillText(theme.emoji + ' ご予約はお気軽にどうぞ ' + theme.emoji, W / 2, cardTop + W * 0.155);
-
-    // カレンダー本体カード
-    var calTop = cardTop + W * 0.22;
-    var calBottomMargin = H * (state.sizeKey === 'line' ? 0.16 : 0.14);
-    var calH = H - calTop - calBottomMargin;
-    var cardX = padX, cardY = calTop, cardHfull = calH;
-
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    roundRect(ctx, cardX, cardY, cardW, cardHfull, W * 0.035);
-    ctx.fill();
-
-    var innerPad = cardW * 0.045;
-    var gridX = cardX + innerPad;
-    var gridW = cardW - innerPad * 2;
-    var dowY = cardY + innerPad * 0.9;
-
-    var dows = ['日', '月', '火', '水', '木', '金', '土'];
-    var colW = gridW / 7;
-    ctx.font = '700 ' + Math.round(W * 0.028) + 'px "Zen Maru Gothic", sans-serif';
-    for (var i = 0; i < 7; i++) {
-      ctx.fillStyle = i === 0 ? '#E86A6A' : (i === 6 ? '#4C8FC0' : theme.text);
-      ctx.fillText(dows[i], gridX + colW * i + colW / 2, dowY + colW * 0.28);
-    }
-
-    // 日付グリッド
-    var firstDay = new Date(state.year, state.month, 1).getDay();
-    var lastDate = new Date(state.year, state.month + 1, 0).getDate();
-    var rows = Math.ceil((firstDay + lastDate) / 7);
-    var gridTop = dowY + colW * 0.55;
-    var gridBottom = cardY + cardHfull - innerPad * 1.6;
-    var rowH = (gridBottom - gridTop) / rows;
-    var cellSize = Math.min(colW, rowH) * 0.86;
-
-    var today = new Date();
-    var todayStr = today.getFullYear() + '-' + pad2(today.getMonth() + 1) + '-' + pad2(today.getDate());
-
-    for (var d = 1; d <= lastDate; d++) {
-      var idx = firstDay + d - 1;
-      var col = idx % 7;
-      var row = Math.floor(idx / 7);
-      var dateStr = state.year + '-' + pad2(state.month + 1) + '-' + pad2(d);
-      var isPast = dateStr < todayStr;
-      var status = isPast ? 'past' : getStatus(state.monthEvents, dateStr);
-
-      var cx = gridX + colW * col + colW / 2;
-      var cy = gridTop + rowH * row + rowH / 2;
-
-      var bg = theme.openBg, border = theme.openBorder, textColor = theme.text;
-      if (status === 'full') { bg = FULL_BG; border = FULL_BORDER; textColor = FULL_TEXT; }
-      else if (status === 'closed') { bg = CLOSED_BG; border = CLOSED_BORDER; textColor = CLOSED_TEXT; }
-      else if (status === 'past') { bg = 'transparent'; border = 'transparent'; textColor = '#D8DEE4'; }
-
-      if (status !== 'past') {
-        ctx.fillStyle = bg;
-        ctx.strokeStyle = border;
-        ctx.lineWidth = Math.max(2, W * 0.0018);
-        roundRect(ctx, cx - cellSize / 2, cy - cellSize / 2, cellSize, cellSize, cellSize * 0.28);
-        ctx.fill();
-        ctx.stroke();
-      }
-
-      ctx.fillStyle = col === 0 && status !== 'past' ? '#E86A6A' : (col === 6 && status !== 'past' ? '#4C8FC0' : textColor);
-      ctx.font = '700 ' + Math.round(cellSize * 0.46) + 'px "Zen Maru Gothic", sans-serif';
-      ctx.fillText(String(d), cx, cy + cellSize * 0.16);
-    }
-
-    // 凡例
-    var legendY = cardY + cardHfull + H * 0.045;
-    var legendItems = [
-      { c: theme.openBg, b: theme.openBorder, t: '空きあり' },
-      { c: FULL_BG, b: FULL_BORDER, t: '満員' },
-      { c: CLOSED_BG, b: CLOSED_BORDER, t: '休業' }
-    ];
-    var legendGap = W * 0.09;
-    var totalW = legendItems.length * legendGap;
-    var legendX = W / 2 - totalW / 2 + legendGap / 2;
-    ctx.font = Math.round(W * 0.024) + 'px "Zen Maru Gothic", sans-serif';
-    legendItems.forEach(function (item, i) {
-      var lx = legendX + legendGap * i;
-      var boxSize = W * 0.028;
-      ctx.fillStyle = item.c;
-      ctx.strokeStyle = item.b;
-      ctx.lineWidth = 2;
-      roundRect(ctx, lx - boxSize * 1.6, legendY - boxSize / 2, boxSize, boxSize, boxSize * 0.3);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = theme.text;
-      ctx.textAlign = 'left';
-      ctx.fillText(item.t, lx - boxSize * 0.3, legendY + boxSize * 0.35);
-      ctx.textAlign = 'center';
-    });
-
-    // フッター
-    ctx.fillStyle = theme.text;
-    ctx.font = Math.round(W * 0.026) + 'px "Zen Maru Gothic", sans-serif';
-    ctx.fillText('鹿児島市東谷山2丁目10-7　TEL: 070-8509-0326', W / 2, H - H * 0.035);
-  }
-
-  function ensureModal() {
-    if (document.getElementById('rinonShareModal')) return;
-    var wrap = document.createElement('div');
-    wrap.id = 'rinonShareModal';
-    wrap.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(12,68,124,0.55); z-index:99999; align-items:center; justify-content:center; padding:16px;';
-    wrap.innerHTML =
-      '<div style="background:#fff; border-radius:20px; padding:20px; max-width:420px; width:100%; max-height:92vh; overflow-y:auto; font-family:\'Zen Maru Gothic\',sans-serif;">' +
-      '  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">' +
-      '    <h3 style="margin:0; font-size:16px; color:#0C447C;">🐾 空き状況をシェア</h3>' +
-      '    <button id="rinonShareClose" style="border:none; background:none; font-size:20px; color:#7AAAC0; cursor:pointer;">×</button>' +
-      '  </div>' +
-      '  <div style="display:flex; gap:6px; margin-bottom:12px;">' +
-      '    <button data-size="story" class="rinonSizeBtn" style="flex:1; padding:8px 4px; font-size:11px; border-radius:20px; border:1px solid #B3D9F5; background:#E8F6FE; color:#0C447C; cursor:pointer;">ストーリー</button>' +
-      '    <button data-size="square" class="rinonSizeBtn" style="flex:1; padding:8px 4px; font-size:11px; border-radius:20px; border:1px solid #B3D9F5; background:#fff; color:#0C447C; cursor:pointer;">正方形</button>' +
-      '    <button data-size="line" class="rinonSizeBtn" style="flex:1; padding:8px 4px; font-size:11px; border-radius:20px; border:1px solid #B3D9F5; background:#fff; color:#0C447C; cursor:pointer;">LINE用</button>' +
-      '  </div>' +
-      '  <div style="text-align:center; background:#F5FBFF; border-radius:12px; padding:8px; margin-bottom:14px;">' +
-      '    <canvas id="rinonShareCanvas" style="max-width:100%; max-height:60vh; border-radius:8px;"></canvas>' +
-      '  </div>' +
-      '  <button id="rinonShareDownload" style="width:100%; padding:14px; border:none; border-radius:24px; background:#1A6FA8; color:#fff; font-size:14px; font-weight:700; cursor:pointer;">画像を保存</button>' +
-      '</div>';
-    document.body.appendChild(wrap);
-
-    wrap.querySelector('#rinonShareClose').onclick = function () { wrap.style.display = 'none'; };
-    wrap.addEventListener('click', function (e) { if (e.target === wrap) wrap.style.display = 'none'; });
-
-    Array.prototype.forEach.call(wrap.querySelectorAll('.rinonSizeBtn'), function (btn) {
-      btn.onclick = function () {
-        state.sizeKey = btn.getAttribute('data-size');
-        Array.prototype.forEach.call(wrap.querySelectorAll('.rinonSizeBtn'), function (b) {
-          b.style.background = '#fff';
-        });
-        btn.style.background = '#E8F6FE';
-        draw(document.getElementById('rinonShareCanvas'));
-      };
-    });
-
-    wrap.querySelector('#rinonShareDownload').onclick = function () {
-      var canvas = document.getElementById('rinonShareCanvas');
-      canvas.toBlob(function (blob) {
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'rinon_空き状況_' + state.year + pad2(state.month + 1) + '_' + state.sizeKey + '.png';
-        a.click();
-      });
-    };
-  }
-
-  window.openAvailabilityShare = function () {
-    ensureModal();
-    var modal = document.getElementById('rinonShareModal');
-    modal.style.display = 'flex';
-    var today = new Date();
-    state.year = today.getFullYear();
-    state.month = today.getMonth();
-    var canvas = document.getElementById('rinonShareCanvas');
-    canvas.width = 10; canvas.height = 10; // ローディング中の簡易表示
-    fetchMonthEvents(state.year, state.month, function (events) {
-      state.monthEvents = events;
-      draw(canvas);
-    });
-  };
-})();
 </script>
 </body>
 </html>

@@ -144,8 +144,9 @@ function doVerify() {
     .then(function(res) {
       if (res.verified) {
         document.getElementById('verify-overlay').style.display = 'none';
-        document.querySelector('[name="owner_name"]').value = owner;
-        document.querySelector('[name="dog_name"]').value = dog;
+        // 初回登録のお名前（括弧書きなど）に合わせて入力する
+        document.querySelector('[name="owner_name"]').value = res.owner_name || owner;
+        document.querySelector('[name="dog_name"]').value = res.dog_name || dog;
         document.getElementById('phone_hidden').value = phone;
 
         var profile = res.profile || {};
