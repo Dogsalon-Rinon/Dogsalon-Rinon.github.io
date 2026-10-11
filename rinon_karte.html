@@ -177,7 +177,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
       <input class="search-box" type="text" id="searchBox" placeholder="名前・犬種で検索..." oninput="filterCustomers()">
       <div class="sort-toggle">
         <button id="sortVisit" onclick="setSortMode('visit')">来店順</button>
-        <button id="sortKana" onclick="setSortMode('kana')">あいうえお順<br><span style="font-size:9px; font-weight:400;">（ワンちゃん名）</span></button>
+        <button id="sortKana" onclick="setSortMode('kana')">あいうえお順<br><span style="font-size:9px; font-weight:400;">（飼い主名）</span></button>
       </div>
       <div class="stats">
         <div class="stat"><div class="stat-num" id="totalCount">-</div><div class="stat-label">登録頭数</div></div>
@@ -789,20 +789,44 @@ function kanaRowOf(reading) {
   return '他';
 }
 function yomiOf(c) {
+  // ①シートの「飼い主ふりがな」②この端末で設定したよみ ③同じ飼い主さまの他のカルテのよみ ④名前そのもの
+  var sheetYomi = (c.profile && c.profile['飼い主ふりがな']) ? String(c.profile['飼い主ふりがな']).trim() : '';
+  if (sheetYomi) return sheetYomi;
   var k = customerKey(c.owner, c.dog, c.phone);
   if (yomiMap[k]) return yomiMap[k];
-  return c.dog || c.owner || '';
+  var same = customers.filter(function(o) {
+    return o !== c && o.owner === c.owner && o.profile && o.profile['飼い主ふりがな'];
+  })[0];
+  if (same) return String(same.profile['飼い主ふりがな']).trim();
+  return c.owner || '';
 }
 function setYomi(idx) {
   var c = customers[idx];
   if (!c) return;
   var k = customerKey(c.owner, c.dog, c.phone);
-  var v = prompt('このカルテの「よみ」をひらがなで入力してください。\n（あいうえお順の並びに使います。この端末にのみ保存されます）\n空にすると解除します。', yomiMap[k] || '');
+  var cur = (c.profile && c.profile['飼い主ふりがな']) || yomiMap[k] || '';
+  var v = prompt('飼い主さま「' + c.owner + '」のふりがなをひらがなで入力してください。\n（あいうえお順の並びに使います）', cur);
   if (v === null) return;
   v = v.trim();
-  if (v) yomiMap[k] = v; else delete yomiMap[k];
-  try { localStorage.setItem('rinon_yomi', JSON.stringify(yomiMap)); } catch(e) {}
-  filterCustomers();
+  if (c.firstRowNum) {
+    // 初回シートに保存（PC・スマホで共通）
+    fetch(FIRST_API_URL + '?action=saveYomi&row=' + c.firstRowNum + '&secret=' + DELETE_SECRET + '&value=' + encodeURIComponent(v))
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data && data.success) {
+          c.profile['飼い主ふりがな'] = v;
+          filterCustomers();
+        } else {
+          alert('保存に失敗しました: ' + (data && data.error ? data.error : '不明なエラー'));
+        }
+      })
+      .catch(function() { alert('保存に失敗しました（通信エラー）'); });
+  } else {
+    // 初回の記録がないカルテは、この端末にだけ保存
+    if (v) yomiMap[k] = v; else delete yomiMap[k];
+    try { localStorage.setItem('rinon_yomi', JSON.stringify(yomiMap)); } catch(e) {}
+    filterCustomers();
+  }
 }
 function setSortMode(m) {
   sortMode = (m === 'kana') ? 'kana' : 'visit';
@@ -865,7 +889,7 @@ function renderList(data) {
     if (sortMode === 'kana' && it.row !== lastRow) {
       lastRow = it.row;
       present[it.row] = true;
-      head = '<div class="kana-group" id="kg-' + KANA_ROWS.indexOf(it.row) + '">' + (it.row === 'A' ? 'ABC・数字' : it.row === '他' ? 'その他（漢字など）' : it.row + '行') + '</div>';
+      head = '<div class="kana-group" id="kg-' + KANA_ROWS.indexOf(it.row) + '">' + (it.row === 'A' ? 'ABC・数字' : it.row === '他' ? 'よみ未設定（漢字など）' : it.row + '行') + '</div>';
     }
     var breed = c.profile['犬種'] || '';
     return head + '<div class="customer-card' + (i === currentKarteIdx ? ' active' : '') + '" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
@@ -1001,7 +1025,7 @@ function showKarte(idx, silent) {
           '</div>' +
         '</div>' +
         '<div>' +
-          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '<span class="yomi-link" onclick="setYomi(' + idx + ')">よみ設定</span></div>' +
+          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '<span class="yomi-link" onclick="setYomi(' + idx + ')">ふりがな設定</span></div>' +
           '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
         '</div>' +
       '</div>' +
