@@ -37,6 +37,8 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .customer-card { padding: 12px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; border: 1.5px solid transparent; transition: all 0.15s; }
 .customer-card:hover { background: #F0F7FF; }
 .customer-card.active { background: #E8F4FC; border-color: #1A6FA8; }
+.customer-kana { font-size: 10px; color: #7AAAC0; margin-bottom: 1px; }
+.karte-kana { font-size: 11px; color: #7AAAC0; margin-bottom: 2px; }
 .customer-name { font-size: 13px; font-weight: 700; color: #0C447C; }
 .customer-dog { font-size: 12px; color: #1A6FA8; margin-top: 2px; }
 .customer-dog span { background: #E8F4FC; border-radius: 4px; padding: 1px 6px; font-size: 11px; }
@@ -788,8 +790,8 @@ function kanaRowOf(reading) {
   if (/[a-zA-Z0-9]/.test(b)) return 'A';
   return '他';
 }
-function yomiOf(c) {
-  // ①シートの「飼い主ふりがな」②この端末で設定したよみ ③同じ飼い主さまの他のカルテのよみ ④名前そのもの
+function ownerKanaText(c) {
+  // ①シートの「飼い主ふりがな」②この端末で設定したよみ ③同じ飼い主さまの他のカルテのよみ（無ければ空）
   var sheetYomi = (c.profile && c.profile['飼い主ふりがな']) ? String(c.profile['飼い主ふりがな']).trim() : '';
   if (sheetYomi) return sheetYomi;
   var k = customerKey(c.owner, c.dog, c.phone);
@@ -798,7 +800,13 @@ function yomiOf(c) {
     return o !== c && o.owner === c.owner && o.profile && o.profile['飼い主ふりがな'];
   })[0];
   if (same) return String(same.profile['飼い主ふりがな']).trim();
-  return c.owner || '';
+  return '';
+}
+function yomiOf(c) {
+  return ownerKanaText(c) || c.owner || '';
+}
+function escKana(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function setYomi(idx) {
   var c = customers[idx];
@@ -893,6 +901,7 @@ function renderList(data) {
     }
     var breed = c.profile['犬種'] || '';
     return head + '<div class="customer-card' + (i === currentKarteIdx ? ' active' : '') + '" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
+      (ownerKanaText(c) ? '<div class="customer-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
       '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + '</div>' +
       '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span><span class="visit-badge">' + c.visitCount + '回</span></div>' +
@@ -1025,6 +1034,7 @@ function showKarte(idx, silent) {
           '</div>' +
         '</div>' +
         '<div>' +
+          (ownerKanaText(c) ? '<div class="karte-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
           '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '<span class="yomi-link" onclick="setYomi(' + idx + ')">ふりがな設定</span></div>' +
           '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
         '</div>' +
