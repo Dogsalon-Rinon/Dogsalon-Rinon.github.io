@@ -106,10 +106,31 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .visit-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
 .visit-memo { font-size: 11px; color: #7AAAC0; margin-top: 4px; font-style: italic; }
 
+
+:root { --hh: 60px; }
+.sort-toggle { display: flex; gap: 6px; margin-top: 8px; }
+.sort-toggle button { flex: 1; padding: 6px 4px; border-radius: 8px; border: 1px solid #B3D9F5; background: #E8F6FE; color: #1A6FA8; font-size: 11px; cursor: pointer; line-height: 1.3; }
+.sort-toggle button.on { background: #1A6FA8; color: #fff; border-color: #1A6FA8; font-weight: 700; }
+.kana-group { background: #E8F4FC; color: #1A6FA8; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; margin: 8px 0 4px; }
+.kana-index { display: none; position: fixed; top: calc(var(--hh) + 10px); bottom: 10px; left: 290px; width: 28px; flex-direction: column; justify-content: space-around; align-items: center; background: rgba(255,255,255,0.88); border: 1px solid #D0E8F8; border-radius: 14px; padding: 4px 0; z-index: 50; }
+.kana-index a { font-size: 12px; font-weight: 700; color: #1A6FA8; cursor: pointer; padding: 2px 6px; line-height: 1.2; user-select: none; -webkit-user-select: none; }
+.kana-index a:hover { background: #E8F4FC; border-radius: 6px; }
+.kana-index a.dim { color: #C5D8E6; cursor: default; }
+.sidebar.kana-on .kana-index { display: flex; }
+.sidebar.kana-on > div:not(.kana-index) { padding-right: 34px !important; }
+.yomi-link { margin-left: 8px; font-size: 11px; font-weight: 400; color: #7AAAC0; cursor: pointer; text-decoration: underline; vertical-align: middle; }
+
+@media (min-width: 769px) {
+  /* PC：左の一覧と右のカルテをそれぞれ独立してスクロール */
+  .main { height: calc(100vh - var(--hh)); min-height: 0; }
+  .sidebar, .content { height: 100%; overflow-y: auto; }
+}
+
 .back-to-list { display: none; }
 
 @media (max-width: 768px) {
   .main { grid-template-columns: 1fr; }
+  .kana-index { left: auto; right: 3px; top: 12px; }
 
   .content { padding: 16px 12px; }
   .karte-header { flex-direction: column; align-items: stretch; }
@@ -154,6 +175,10 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
     <div class="sidebar-header">
       <h2>顧客一覧</h2>
       <input class="search-box" type="text" id="searchBox" placeholder="名前・犬種で検索..." oninput="filterCustomers()">
+      <div class="sort-toggle">
+        <button id="sortVisit" onclick="setSortMode('visit')">来店順</button>
+        <button id="sortKana" onclick="setSortMode('kana')">あいうえお順<br><span style="font-size:9px; font-weight:400;">（ワンちゃん名）</span></button>
+      </div>
       <div class="stats">
         <div class="stat"><div class="stat-num" id="totalCount">-</div><div class="stat-label">登録頭数</div></div>
         <div class="stat"><div class="stat-num" id="totalVisits">-</div><div class="stat-label">来店総数</div></div>
@@ -184,6 +209,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
         <button onclick="setCalStatus('解除')" style="flex:1; padding:6px; background:#E8F6FE; color:#0C447C; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; cursor:pointer;">解除</button>
       </div>
     </div>
+    <div class="kana-index" id="kanaIndex"></div>
   </div>
 
   <div class="content" id="content">
@@ -737,25 +763,118 @@ function lineBadge(c, large) {
   return '<span style="' + style + '">' + (on ? 'LINE登録済' : 'LINE未登録') + '</span>';
 }
 
+var currentKarteIdx = null;
+var sortMode = 'visit';
+try { sortMode = localStorage.getItem('rinon_sortmode') === 'kana' ? 'kana' : 'visit'; } catch(e) {}
+var yomiMap = {};
+try { yomiMap = JSON.parse(localStorage.getItem('rinon_yomi') || '{}'); } catch(e) { yomiMap = {}; }
+
+var KANA_ROWS = ['あ','か','さ','た','な','は','ま','や','ら','わ','A','他'];
+var KANA_ROW_MAP = {};
+[['あ','あいうえお'],['か','かきくけこ'],['さ','さしすせそ'],['た','たちつてと'],['な','なにぬねの'],
+ ['は','はひふへほ'],['ま','まみむめも'],['や','やゆよ'],['ら','らりるれろ'],['わ','わをんゐゑ']].forEach(function(r) {
+  r[1].split('').forEach(function(ch) { KANA_ROW_MAP[ch] = r[0]; });
+});
+var KANA_SMALL = {'ぁ':'あ','ぃ':'い','ぅ':'う','ぇ':'え','ぉ':'お','ゃ':'や','ゅ':'ゆ','ょ':'よ','っ':'つ','ゎ':'わ'};
+function toHira(str) {
+  return String(str || '').normalize('NFKC').replace(/[ァ-ヶ]/g, function(ch) { return String.fromCharCode(ch.charCodeAt(0) - 0x60); });
+}
+function kanaRowOf(reading) {
+  var t = toHira(reading).replace(/^[^ぁ-んa-zA-Z0-9一-鿿]+/, '');
+  if (!t) return '他';
+  var b = t.charAt(0).normalize('NFD').replace(/[゙゚]/g, '');
+  b = KANA_SMALL[b] || b;
+  if (KANA_ROW_MAP[b]) return KANA_ROW_MAP[b];
+  if (/[a-zA-Z0-9]/.test(b)) return 'A';
+  return '他';
+}
+function yomiOf(c) {
+  var k = customerKey(c.owner, c.dog, c.phone);
+  if (yomiMap[k]) return yomiMap[k];
+  return c.dog || c.owner || '';
+}
+function setYomi(idx) {
+  var c = customers[idx];
+  if (!c) return;
+  var k = customerKey(c.owner, c.dog, c.phone);
+  var v = prompt('このカルテの「よみ」をひらがなで入力してください。\n（あいうえお順の並びに使います。この端末にのみ保存されます）\n空にすると解除します。', yomiMap[k] || '');
+  if (v === null) return;
+  v = v.trim();
+  if (v) yomiMap[k] = v; else delete yomiMap[k];
+  try { localStorage.setItem('rinon_yomi', JSON.stringify(yomiMap)); } catch(e) {}
+  filterCustomers();
+}
+function setSortMode(m) {
+  sortMode = (m === 'kana') ? 'kana' : 'visit';
+  try { localStorage.setItem('rinon_sortmode', sortMode); } catch(e) {}
+  filterCustomers();
+}
+function updateSortButtons() {
+  var a = document.getElementById('sortVisit'), b = document.getElementById('sortKana');
+  if (a) a.classList.toggle('on', sortMode === 'visit');
+  if (b) b.classList.toggle('on', sortMode === 'kana');
+  var sb = document.querySelector('.sidebar');
+  if (sb) sb.classList.toggle('kana-on', sortMode === 'kana');
+}
+function jumpKana(i) {
+  var el = document.getElementById('kg-' + i);
+  if (el) el.scrollIntoView({ block: 'start' });
+}
+function renderKanaIndex(present) {
+  var box = document.getElementById('kanaIndex');
+  if (!box) return;
+  box.innerHTML = KANA_ROWS.map(function(r, i) {
+    var on = !!present[r];
+    return '<a class="' + (on ? '' : 'dim') + '"' + (on ? ' onclick="jumpKana(' + i + ')"' : '') + '>' + r + '</a>';
+  }).join('');
+}
+
 function renderList(data) {
   var list = document.getElementById('customerList');
   document.getElementById('totalCount').textContent = customers.length;
   var totalVisits = customers.reduce(function(sum, c) { return sum + c.visitCount; }, 0);
   document.getElementById('totalVisits').textContent = totalVisits;
+  updateSortButtons();
 
   if (data.length === 0) {
     list.innerHTML = '<div class="empty-list">該当する顧客が見つかりません</div>';
+    renderKanaIndex({});
     return;
   }
 
-  list.innerHTML = data.map(function(c, i) {
+  var items = data.map(function(c) {
+    return { c: c, gi: customers.indexOf(c), row: '', yomi: '' };
+  });
+  if (sortMode === 'kana') {
+    items.forEach(function(it) {
+      it.yomi = toHira(yomiOf(it.c));
+      it.row = kanaRowOf(it.yomi);
+    });
+    items.sort(function(a, b) {
+      var ra = KANA_ROWS.indexOf(a.row), rb = KANA_ROWS.indexOf(b.row);
+      if (ra !== rb) return ra - rb;
+      return a.yomi.localeCompare(b.yomi, 'ja');
+    });
+  }
+
+  var present = {};
+  var lastRow = null;
+  list.innerHTML = items.map(function(it) {
+    var c = it.c, i = it.gi;
+    var head = '';
+    if (sortMode === 'kana' && it.row !== lastRow) {
+      lastRow = it.row;
+      present[it.row] = true;
+      head = '<div class="kana-group" id="kg-' + KANA_ROWS.indexOf(it.row) + '">' + (it.row === 'A' ? 'ABC・数字' : it.row === '他' ? 'その他（漢字など）' : it.row + '行') + '</div>';
+    }
     var breed = c.profile['犬種'] || '';
-    return '<div class="customer-card" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
+    return head + '<div class="customer-card' + (i === currentKarteIdx ? ' active' : '') + '" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
       '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + '</div>' +
       '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span><span class="visit-badge">' + c.visitCount + '回</span></div>' +
     '</div>';
   }).join('');
+  renderKanaIndex(present);
 }
 
 function formatDate(d) {
@@ -790,6 +909,13 @@ function showKarte(idx, silent) {
   document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
   var card = document.getElementById('card-' + idx);
   if (card) card.classList.add('active');
+
+  // 別の顧客を選んだときは、右のカルテを先頭から表示する（PCは左右が別スクロール）
+  if (!silent && currentKarteIdx !== idx) {
+    var contentEl = document.getElementById('content');
+    if (contentEl) contentEl.scrollTop = 0;
+  }
+  currentKarteIdx = idx;
 
   if (!silent && window.innerWidth <= 768) {
     document.querySelector('.main').classList.add('sidebar-collapsed');
@@ -875,7 +1001,7 @@ function showKarte(idx, silent) {
           '</div>' +
         '</div>' +
         '<div>' +
-          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '</div>' +
+          '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '<span class="yomi-link" onclick="setYomi(' + idx + ')">よみ設定</span></div>' +
           '<div class="karte-date">来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
         '</div>' +
       '</div>' +
@@ -1019,6 +1145,7 @@ function deleteCustomer(idx) {
 
   Promise.all(promises).then(function() {
     hideCustomerKey(customerKey(c.owner, c.dog, c.phone));
+    currentKarteIdx = null;
     buildCustomers();
     renderList(customers);
     document.querySelector('.main').classList.remove('sidebar-collapsed');
@@ -1837,6 +1964,14 @@ function submitCancelVisit() {
       err.style.display = 'block';
     });
 }
+
+function setHeaderHeight() {
+  var h = document.querySelector('.header');
+  if (h) document.documentElement.style.setProperty('--hh', h.offsetHeight + 'px');
+}
+window.addEventListener('resize', setHeaderHeight);
+setHeaderHeight();
+updateSortButtons();
 </script>
 </body>
 </html>
