@@ -480,7 +480,10 @@ var OPTION_MENU = [
   { name: "部分カット(1ヵ所~)",                 price: 550 },
   { name: "お顔カット",                         price: 1100 },
   { name: "足先バリカン",                       price: 550 },
-  { name: "足ハサミカット",                     price: 550 }
+  { name: "足ハサミカット",                     price: 550 },
+  { name: "サイズ代", price: 550,  exact: true },
+  { name: "サイズ代", price: 880,  exact: true },
+  { name: "サイズ代", price: 1100, exact: true }
 ];
 
 function populateMenuSelects() {
@@ -506,7 +509,7 @@ function populateMenuSelects() {
   OPTION_MENU.forEach(function(item, i) {
     var opt = document.createElement('option');
     opt.value = i;
-    opt.textContent = item.name + '（+¥' + item.price.toLocaleString('ja-JP') + '~）';
+    opt.textContent = item.name + '（+¥' + item.price.toLocaleString('ja-JP') + (item.exact ? '' : '~') + '）';
     optionSel.appendChild(opt);
   });
 }
