@@ -204,12 +204,21 @@
   }
 
   .next-offer {
-    margin: 0 0 4mm; padding: 2.5mm 4mm; text-align: center;
-    background: #eaf5ff; border: 1.5px dashed #4a90c4; border-radius: 12px;
-    color: #3a6f9a; font-size: 12px; font-weight: 700; line-height: 1.7;
+    margin: 0 0 5mm; padding: 4mm 4mm 3mm; text-align: center;
+    background: linear-gradient(135deg,#4a90c4,#6fb3e0); border-radius: 16px;
+    color: #fff; box-shadow: 0 3px 10px rgba(74,144,196,.35);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  .next-offer .big { font-size: 14px; font-weight: 900; color: #d9822b; }
-  .next-offer .small { font-size: 9.5px; font-weight: 400; color: #8a7d70; }
+  .next-offer .ttl { font-size: 16px; font-weight: 900; letter-spacing: 1px; margin-bottom: 2.5mm; }
+  .next-offer .rows { display: flex; justify-content: center; gap: 4mm; }
+  .next-offer .box {
+    flex: 1; background: #fff; border-radius: 12px; padding: 2.5mm 2mm; color: #4a90c4;
+    font-size: 11.5px; font-weight: 700; line-height: 1.4;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .next-offer .box .pct { display: block; font-size: 30px; font-weight: 900; color: #e8742a; line-height: 1.15; }
+  .next-offer .box.b2 .pct { color: #d9822b; }
+  .next-offer .small { display: block; margin-top: 2.5mm; font-size: 10px; font-weight: 500; color: #eaf5ff; }
 
   .footer {
     position: relative; margin-top: 10mm;
@@ -402,8 +411,11 @@
     </div>
 
     <div class="next-offer">
-      🐾 次回のご予約でお得に！<br>
-      翌月の同じ日までのご予約で <span class="big">15%OFF</span>　／　翌々月の同じ日までのご予約で <span class="big">10%OFF</span><br>
+      <div class="ttl">🐾 次回のご予約でお得に！ 🐾</div>
+      <div class="rows">
+        <div class="box">翌月の同じ日までのご予約で<span class="pct">15%OFF</span></div>
+        <div class="box b2">翌々月の同じ日までのご予約で<span class="pct">10%OFF</span></div>
+      </div>
       <span class="small">※部分ケアのみのご利用は対象外です（トリミングのお客様が対象）</span>
     </div>
 
