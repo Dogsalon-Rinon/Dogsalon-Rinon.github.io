@@ -348,7 +348,7 @@
 
     <div class="desc-row">
       <span class="label">但し書き</span>
-      <input type="text" id="desc" value="トリミング代として">
+      <input type="text" id="desc" value="シャンプー">
     </div>
 
     <div class="items-title">
@@ -537,6 +537,7 @@ function addBreedRow() {
   if (!menu || menu[course] === undefined || menu[course] === null) return;
   var label = breed + '　' + COURSE_LABEL[course];
   addRow(label, menu[course]);
+  document.getElementById('desc').value = { shampoo: 'シャンプー', cut: 'シャンプーカット', special: 'スペシャルコース' }[course];
 }
 
 function addSingleRow() {
@@ -671,6 +672,15 @@ function findBreedKey(text) {
   return null;
 }
 
+function courseNameFromMenu(t) {
+  t = t || '';
+  if (t.indexOf('部分') !== -1) return '部分ケア';
+  if (t.indexOf('スペシャル') !== -1) return 'スペシャルコース';
+  if (t.indexOf('カット') !== -1) return 'シャンプーカット';
+  if (t.indexOf('シャンプー') !== -1) return 'シャンプー';
+  return t.split(/[＋+、,\/・（(]/)[0].replace(/コース|代/g, '').trim() || 'シャンプー';
+}
+
 function detectCourse(menuText) {
   if (!menuText) return 'shampoo';
   if (menuText.indexOf('スペシャル') !== -1) return 'special';
@@ -695,7 +705,7 @@ function detectCourse(menuText) {
     else if (gender && gender.indexOf('メス') !== -1) honorific = 'ちゃん';
     document.getElementById('dog').value = dog + honorific;
   }
-  if (menu) document.getElementById('desc').value = (menu + '代として');
+  if (menu) document.getElementById('desc').value = courseNameFromMenu(menu);
 
   if (dateStr) {
     var dt = new Date(dateStr);
