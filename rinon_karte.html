@@ -159,6 +159,28 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
   .welcome { padding: 40px 24px; }
 }
 
+/* ===== 今日の予定・分析 ===== */
+.today-panel { background:#fff; border:1px solid #B3D9F5; border-radius:14px; padding:12px 14px; margin-bottom:14px; text-align:left; }
+.today-panel h3 { font-size:14px; color:#0C447C; margin-bottom:8px; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.today-panel h3 small { font-weight:400; font-size:11px; color:#7AAAC0; }
+.td-item { display:flex; gap:10px; padding:9px 4px; border-top:1px solid #E8F4FC; cursor:pointer; }
+.td-item:first-of-type { border-top:none; }
+.td-time { min-width:46px; font-weight:700; color:#1A6FA8; font-size:14px; }
+.td-main { flex:1; min-width:0; font-size:13px; }
+.td-main b { font-size:14px; }
+.td-tags { margin-top:3px; display:flex; flex-wrap:wrap; gap:4px; }
+.td-tag { font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; background:#EAF4FB; color:#1A6FA8; }
+.td-tag.warn { background:#FDE8E6; color:#B42318; }
+.td-tag.memo { background:#FFF6D9; color:#8a6d1a; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.td-tag.bd { background:#FFE9F3; color:#B3306A; }
+.today-side { display:none; }
+@media (max-width:768px) { .today-side { display:block; margin:10px 10px 0; } #todayWelcome { display:none; } }
+.bd-tag { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; background:#FFE9F3; color:#B3306A; }
+.an-bar { display:flex; align-items:center; gap:8px; font-size:12px; margin:3px 0; }
+.an-bar .bg { flex:1; background:#E8F4FC; border-radius:6px; height:14px; }
+.an-bar .fg { background:#4A9FD4; height:14px; border-radius:6px; }
+.an-bar .lb { width:84px; } .an-bar .vl { width:90px; text-align:right; white-space:nowrap; }
+
 /* ===== フォロー・ワクチン ===== */
 .vac-tag { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; }
 .vac-tag.ng { background:#FFE4E4; color:#C03030; }
@@ -173,7 +195,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 @media (max-width:640px) { .fl-row { grid-template-columns:1fr auto; } .fl-row .c2, .fl-row .c3 { grid-column:1; } }
 
 /* ===== 売上明細表 ===== */
-#salesOverlay, #followOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
+#salesOverlay, #followOverlay, #analysisOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
 .sales-top { position:sticky; top:0; z-index:2; background:#0C447C; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .sales-top h2 { font-size:17px; font-weight:700; margin-right:auto; }
 .sales-month { display:flex; align-items:center; gap:8px; }
@@ -234,7 +256,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 @media print {
   body.printing-sales > *:not(#salesOverlay) { display:none !important; }
   body.printing-sales #salesOverlay { position:static !important; display:block !important; overflow:visible; background:#fff; }
-  body.printing-sales .sales-top .no-print, body.printing-sales .c-ops, body.printing-sales .sales-add { display:none !important; }
+  body.printing-sales .exp-form, body.printing-sales .sales-top .no-print, body.printing-sales .c-ops, body.printing-sales .sales-add { display:none !important; }
   body.printing-sales .sales-top { position:static; background:#fff; color:#000; padding:0 0 8px; }
   body.printing-sales .sales-month button { display:none; }
 }
@@ -281,6 +303,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
   <div class="header-right">
     <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
     <button class="btn btn-light" onclick="openSales()">💰 売上明細</button>
+    <button class="btn btn-light" onclick="openAnalysis()">📈 分析</button>
     <button class="btn btn-light" onclick="openFollow()">🔔 フォロー・期限<span id="followCount"></span></button>
     <button class="btn btn-green" onclick="exportExcel()">📊 Excelエクスポート</button>
   </div>
@@ -288,6 +311,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 
 <div class="main">
   <div class="sidebar">
+    <div id="todaySide" class="today-side"></div>
     <div class="sidebar-header">
       <h2>顧客一覧</h2>
       <input class="search-box" type="text" id="searchBox" placeholder="名前・犬種で検索..." oninput="filterCustomers()">
@@ -329,6 +353,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
   </div>
 
   <div class="content" id="content">
+    <div id="todayWelcome"></div>
     <div class="welcome">
       <div class="welcome-icon">🐾</div>
       <h2>カルテを選択してください</h2>
@@ -515,7 +540,7 @@ function formatDaysSince(days) {
 
 function calcAgeText(birthdayStr) {
   if (!birthdayStr) return '';
-  var m = String(birthdayStr).match(/(\d+)年(\d+)月(\d+)日/);
+  var m = String(birthdayStr).match(/(\d{4})[年\/\-.](\d{1,2})[月\/\-.](\d{1,2})/);
   if (!m) return '';
   var by = parseInt(m[1], 10), bm = parseInt(m[2], 10), bd = parseInt(m[3], 10);
   var today = new Date();
@@ -706,6 +731,7 @@ function tryRender() {
   renderList(customers);
   if (typeof prefetchSales === 'function') prefetchSales();
   if (typeof updateFollowCount === 'function') updateFollowCount();
+  if (typeof renderToday === 'function') renderToday();
 }
 
 function normalizePhoneForKey(val) {
@@ -1025,7 +1051,7 @@ function renderList(data) {
     var breed = c.profile['犬種'] || '';
     return head + '<div class="customer-card' + (i === currentKarteIdx ? ' active' : '') + '" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
       (ownerKanaText(c) ? '<div class="customer-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
-      '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + vacTagFor(c) + '</div>' +
+      '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + vacTagFor(c) + bdTagFor(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + '</div>' +
       '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span><span class="visit-badge">' + c.visitCount + '回</span></div>' +
       listPrevHtml(c) +
@@ -1177,7 +1203,7 @@ function showKarte(idx, silent) {
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + (p['ミックス詳細'] ? '（' + p['ミックス詳細'] + '）' : '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">体重</div><div class="info-value">' + (p['体重'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
-        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '　（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '') + '</div></div>' +
+        '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '　（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '') + bdTagFor(c, true) + '</div></div>' +
         '<div class="info-item"><div class="info-label">毛の色</div><div class="info-value">' + (p['毛の色'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性格</div><div class="info-value">' + (p['家でのふだんの性格'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">病歴・治療</div><div class="info-value">' + medicalTag + '</div></div>' +
@@ -1311,12 +1337,13 @@ function deleteCustomer(idx) {
     buildCustomers();
     renderList(customers);
     document.querySelector('.main').classList.remove('sidebar-collapsed');
-    document.getElementById('content').innerHTML =
+    document.getElementById('content').innerHTML = '<div id="todayWelcome"></div>' +
       '<div class="welcome">' +
         '<div class="welcome-icon">🐾</div>' +
         '<h2>カルテを選択してください</h2>' +
         '<p>左の顧客一覧から名前をクリックすると<br>カルテ詳細と来店履歴が表示されます</p>' +
       '</div>';
+    renderToday();
   }).catch(function(err) {
     alert('削除中にエラーが発生しました。スプレッドシートを直接確認してください。\n' + err);
   });
@@ -2190,7 +2217,7 @@ var EST_BREED_ALIAS = [
   ['シーズー', 'シーズー'], ['ペキニーズ', 'ペキニーズ'], ['パピヨン', 'パピヨン'], ['パグ', 'パグ'], ['ボストンテリア', 'ボストンテリア'],
   ['コーギー', 'コーギー']
 ];
-var salesState = { month: '', sales: null, includeEst: true, error: '', estDisc: 10 };
+var salesState = { month: '', sales: null, includeEst: true, error: '', estDisc: 10, expenses: [] };
 try { var _sd = localStorage.getItem('rinon_est_disc'); if (_sd !== null && !isNaN(parseInt(_sd, 10))) salesState.estDisc = parseInt(_sd, 10); } catch (e) {}
 function setEstDisc(v) {
   salesState.estDisc = parseInt(v, 10) || 0;
@@ -2265,7 +2292,14 @@ function fetchSalesFromServer() {
       salesState.sales = res.sales || [];
       salesState.error = '';
       writeSalesCache(salesState.sales);
+      return fetchExpenses();
     });
+}
+function fetchExpenses() {
+  return fetch(REPEAT_API_URL + '?action=getExpenses&secret=' + DELETE_SECRET, { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) { if (res && res.success) salesState.expenses = res.expenses || []; })
+    .catch(function() {});
 }
 // カルテを開いた時に、先に裏で売上を取っておく（売上明細を開く時にすぐ出すため）
 function prefetchSales() {
@@ -2367,6 +2401,8 @@ function monthReportHtml(month, rows, all, cnt) {
   // 前月
   var pp = month.split('-'), pd = new Date(parseInt(pp[0], 10), parseInt(pp[1], 10) - 2, 1);
   var pm = pd.getFullYear() + '-' + ('0' + (pd.getMonth() + 1)).slice(-2);
+  var expSum = expensesOf(month).reduce(function(t, x) { return t + x.amount; }, 0);
+  var profit = all - expSum;
   var prows = buildSalesRows(pm).filter(function(r) { return !r.unknown; });
   var pAll = prows.reduce(function(t, r) { return t + (r.total || 0); }, 0);
   var diffTxt = '';
@@ -2396,6 +2432,8 @@ function monthReportHtml(month, rows, all, cnt) {
     '<table class="sales-table"><tbody>' +
     '<tr><td>前月（' + pm.replace('-', '年') + '月）の売上</td><td class="num">' + yen(pAll) + '</td></tr>' +
     '<tr><td>前月との差</td><td class="num">' + diffTxt + '</td></tr>' +
+    '<tr><td>経費の合計</td><td class="num">' + yen(expSum) + '</td></tr>' +
+    '<tr><td><b>利益（売上 − 経費）</b></td><td class="num"><b style="color:' + (profit >= 0 ? '#1f7a4d' : '#C06060') + ';">' + (profit < 0 ? '−' : '') + yen(Math.abs(profit)) + '</b>' + (all ? '（' + Math.round(profit / all * 100) + '%）' : '') + '</td></tr>' +
     '<tr><td>来店した子の数（頭）</td><td class="num">' + dogCnt + ' 頭</td></tr>' +
     '<tr><td>来店のあった日数／1日あたり売上</td><td class="num">' + days + ' 日／' + (days ? yen(all / days) : '¥0') + '</td></tr>' +
     '<tr><td>割引した合計</td><td class="num">' + (discAll ? '−' + yen(-discAll) : '¥0') + '</td></tr>' +
@@ -2464,6 +2502,8 @@ function renderSales() {
   if (rows.length) h += '<div class="sr total"><div class="c-date tot-label">合計（税込）</div><div class="num c-amt tot-amt">' + yen(all) + '</div></div>';
   h += '</div>';
 
+  h += expenseBoxHtml(month);
+
   var catKeys = Object.keys(cats);
   if (catKeys.length) {
     h += '<div class="sales-box"><h3>メニュー別</h3><table class="sales-table"><thead><tr><th>メニュー</th><th class="num">件数</th><th class="num">金額</th><th class="num">割合</th></tr></thead><tbody>';
@@ -2531,7 +2571,8 @@ function followCandidates() {
   var out = [];
   var follows = followState.follows || [];
   (customers || []).forEach(function(c) {
-    var v = c.lastVisit;
+    var av = c.visits.filter(function(x) { return !visitCancelled(x); });
+    var v = av[av.length - 1];
     if (!v) return;
     var d = new Date(v.date);
     if (isNaN(d)) return;
@@ -2590,7 +2631,8 @@ function setFollowDays(v) {
 function renderFollow() {
   var h = '<div class="fl-tabs">' +
     '<button class="btn ' + (followState.tab === 'follow' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'follow\')">📩 次回来店フォロー</button>' +
-    '<button class="btn ' + (followState.tab === 'vac' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'vac\')">💉 ワクチン期限</button></div>';
+    '<button class="btn ' + (followState.tab === 'vac' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'vac\')">💉 ワクチン期限</button>' +
+    '<button class="btn ' + (followState.tab === 'bd' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'bd\')">🎂 誕生日</button></div>';
   if (followState.error) h += '<div style="background:#FFF0F0;color:#C06060;font-size:12px;padding:10px 14px;border-radius:10px;margin-bottom:12px;">フォロー記録を読み込めませんでした：' + salesEsc(followState.error) + '<br>リピート側のGASを最新にしてデプロイしたか確認してください。</div>';
   if (followState.tab === 'follow') {
     var list = followCandidates();
@@ -2604,7 +2646,7 @@ function renderFollow() {
     list.forEach(function(x, i) {
       var c = x.c;
       var btn;
-      if (x.done) btn = '<span style="font-size:11px;color:#1f7a4d;">✅ ' + salesEsc(String(x.done.at).slice(5, 10).replace('-', '/')) + ' ' + salesEsc(x.done.method) + '</span>';
+      if (x.done) btn = '<span style="font-size:11px;color:#1f7a4d;">✅ ' + salesEsc(String(x.done.at).slice(5, 10).replace('-', '/')) + ' ' + salesEsc(x.done.method) + '</span> <button class="btn btn-light btn-sm" style="font-size:11px;" onclick="undoFollow(' + i + ')">取り消し</button>';
       else if (c.lineUserId) btn = '<button class="btn btn-primary btn-sm" onclick="openFollowSend(' + i + ')">LINEで送る</button>';
       else btn = (c.phone ? '<a class="btn btn-light btn-sm" href="tel:' + salesEsc(normalizePhoneForKey(c.phone)) + '">📞 電話</a> ' : '') + '<button class="btn btn-light btn-sm" onclick="markFollowDone(' + i + ')">連絡済み</button>';
       h += '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + lineBadge(c) + '</div>' +
@@ -2613,6 +2655,16 @@ function renderFollow() {
     });
     h += '</div><div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※最後の来店日が過去で、先の予約が入っていない子を表示しています。送ると記録され、次の来店があるまでは「送信済み」になります。</div>';
     window._followList = list;
+  } else if (followState.tab === 'bd') {
+    var bl = [], nob = 0;
+    (customers || []).forEach(function(c, idx) { var b = birthdayInfo(c); if (!b || b.age < 0) { nob++; return; } if (b.days <= 45) bl.push({ c: c, idx: idx, b: b }); });
+    bl.sort(function(a, b) { return a.b.days - b.b.days; });
+    h += '<div class="sales-box"><h3>これから45日以内に誕生日の子　' + bl.length + '頭</h3>';
+    if (!bl.length) h += '<div style="text-align:center;color:#7AAAC0;padding:20px;">該当する子はいません</div>';
+    bl.forEach(function(x) {
+      h += '<div class="fl-row"><div><b>' + salesEsc(x.c.owner) + ' 様</b> ／ 🐾' + salesEsc(x.c.dog) + lineBadge(x.c) + '</div><div class="c2"><span class="sub">' + x.b.month + '月' + x.b.day + '日（' + x.b.age + '歳に）</span></div><div class="c3"><b>' + (x.b.days === 0 ? '今日！' : 'あと' + x.b.days + '日') + '</b></div><div><button class="btn btn-light btn-sm" onclick="closeFollow();showKarte(' + x.idx + ')">カルテ</button></div></div>';
+    });
+    h += '</div><div style="font-size:12px;color:#7AAAC0;">生年月日が未入力・読み取れない子：' + nob + '頭</div>';
   } else {
     var vl = vacCandidates();
     h += '<div class="sales-box"><h3>期限切れ・30日以内に切れる子</h3>';
@@ -2672,6 +2724,241 @@ function markFollowDone(i) {
     if (res && res.success) { (followState.follows = followState.follows || []).push({ at: new Date().toISOString().slice(0, 10), key: x.key, method: '電話等' }); renderFollow(); loadFollows(); }
     else alert('記録できませんでした：' + ((res && res.error) || '不明なエラー'));
   });
+}
+
+// ===== 共通：キャンセル判定・誕生日 =====
+function visitCancelled(v) { var st = String(v.status || ''); return st.indexOf('キャンセル') !== -1 || st.indexOf('お断り') !== -1; }
+function birthdayInfo(c) {
+  var p = c.profile || {};
+  var m = String(p['ワンちゃんの生年月日'] || p['生年月日'] || '').match(/(\d{4})[年\/\-.](\d{1,2})[月\/\-.](\d{1,2})/);
+  if (!m) return null;
+  var by = parseInt(m[1], 10), bm = parseInt(m[2], 10), bd = parseInt(m[3], 10);
+  var t = new Date(); t.setHours(0, 0, 0, 0);
+  var next = new Date(t.getFullYear(), bm - 1, bd);
+  if (next < t) next = new Date(t.getFullYear() + 1, bm - 1, bd);
+  return { days: Math.round((next - t) / 86400000), age: next.getFullYear() - by, month: bm, day: bd };
+}
+function bdTagFor(c, large) {
+  var b = birthdayInfo(c);
+  if (!b || b.age < 0) return '';
+  if (large && b.days > 14) return '<span class="bd-tag" style="background:#F1F5F8;color:#6B8799;">🎂 誕生日 ' + b.month + '月' + b.day + '日（あと' + b.days + '日で' + b.age + '歳）</span>';
+  if (b.days > 14) return '';
+  if (b.days === 0) return '<span class="bd-tag">🎂 今日が誕生日！（' + b.age + '歳）</span>';
+  return '<span class="bd-tag">🎂 あと' + b.days + '日' + (large ? '（' + b.age + '歳になります）' : '') + '</span>';
+}
+
+// ===== 今日の予定（カルテを開いて真っ先に表示）=====
+function todayPanelHtml() {
+  var today = ymd(new Date()), tom = ymd(new Date(Date.now() + 86400000));
+  var items = [], tomCnt = 0;
+  (customers || []).forEach(function(c, idx) {
+    c.visits.forEach(function(v) {
+      if (visitCancelled(v)) return;
+      var ds = ymd(v.date);
+      if (ds === tom) tomCnt++;
+      if (ds === today) items.push({ c: c, idx: idx, v: v });
+    });
+  });
+  items.sort(function(a, b) { return String(a.v.time || '99:99').localeCompare(String(b.v.time || '99:99')); });
+  var h = '<div class="today-panel"><h3><span>📅 今日の予定　' + items.length + '頭</span><small>明日 ' + tomCnt + '件</small></h3>';
+  if (!items.length) h += '<div style="color:#7AAAC0;font-size:13px;padding:6px 0;">今日の予約はありません</div>';
+  items.forEach(function(x) {
+    var c = x.c, v = x.v, tags = [];
+    var prev = (typeof prevRecordOf === 'function') ? prevRecordOf(c, v) : null;
+    if (prev && prev.body && prev.body.caution) tags.push('<span class="td-tag warn">⚠️ ' + salesEsc(prev.body.caution) + '</span>');
+    if (prev) {
+      var mm = String(prev.memo || '').trim().replace(/\s+/g, ' ') || (prev.body && prev.body.style) || '';
+      if (mm) tags.push('<span class="td-tag memo">📝 前回：' + salesEsc(mm) + '</span>');
+    }
+    var vt = vacTagFor(c); if (vt) tags.push(vt.replace('vac-tag', 'td-tag warn').replace(' ng', '').replace(' soon', ''));
+    var bt = bdTagFor(c); if (bt) tags.push(bt.replace('bd-tag', 'td-tag bd').replace(' style=""', ''));
+    if (v.type === 'first') tags.push('<span class="td-tag">初回</span>');
+    if (!c.lineRegistered) tags.push('<span class="td-tag">LINE未登録</span>');
+    h += '<div class="td-item" onclick="showKarte(' + x.idx + ')"><div class="td-time">' + salesEsc(v.time || '--:--') + '</div><div class="td-main"><b>' + salesEsc(c.dog) + '</b> <span style="color:#7AAAC0;">' + salesEsc(c.owner) + ' 様</span>' +
+      '<div style="font-size:12px;color:#1A6FA8;">' + salesEsc(shortMenu(v.menu)) + '</div>' + (tags.length ? '<div class="td-tags">' + tags.join('') + '</div>' : '') + '</div></div>';
+  });
+  return h + '</div>';
+}
+function renderToday() {
+  var h = todayPanelHtml();
+  ['todaySide', 'todayWelcome'].forEach(function(id) { var el = document.getElementById(id); if (el) el.innerHTML = h; });
+}
+
+// ===== 分析 =====
+var analysisState = { dormant: 120 };
+function openAnalysis() { document.getElementById('analysisOverlay').style.display = 'block'; renderAnalysis(); }
+function closeAnalysis() { document.getElementById('analysisOverlay').style.display = 'none'; }
+function setDormant(v) { analysisState.dormant = parseInt(v, 10) || 120; renderAnalysis(); }
+function anBars(rows, fmt) {
+  var max = Math.max.apply(null, rows.map(function(r) { return r.v; }).concat([1]));
+  return rows.map(function(r) {
+    return '<div class="an-bar"><span class="lb">' + salesEsc(r.l) + '</span><div class="bg"><div class="fg" style="width:' + Math.round(r.v / max * 100) + '%;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div></div><span class="vl">' + (fmt ? fmt(r) : r.v + '件') + '</span></div>';
+  }).join('');
+}
+function renderAnalysis() {
+  var today = ymd(new Date()), todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+  var dogs = [];
+  (customers || []).forEach(function(c, idx) {
+    var act = c.visits.filter(function(v) { return !visitCancelled(v) && ymd(v.date); });
+    var past = act.filter(function(v) { return ymd(v.date) <= today; });
+    var future = act.filter(function(v) { return ymd(v.date) > today; });
+    dogs.push({ c: c, idx: idx, past: past, future: future, canc: c.visits.filter(function(v) { return String(v.status || '').indexOf('キャンセル') !== -1; }) });
+  });
+  var visited = dogs.filter(function(d) { return d.past.length >= 1; });
+  var repeaters = visited.filter(function(d) { return d.past.length >= 2; });
+  var rate = visited.length ? Math.round(repeaters.length / visited.length * 100) : 0;
+  // 初回から90日以内の2回目
+  var elig = visited.filter(function(d) { return Math.round((todayD - new Date(d.past[0].date)) / 86400000) >= 90; });
+  var in90 = elig.filter(function(d) { return d.past.length >= 2 && Math.round((new Date(d.past[1].date) - new Date(d.past[0].date)) / 86400000) <= 90; });
+  var rate90 = elig.length ? Math.round(in90.length / elig.length * 100) : null;
+  // 来店間隔
+  var gaps = [];
+  visited.forEach(function(d) { for (var i = 1; i < d.past.length; i++) { var g = Math.round((new Date(d.past[i].date) - new Date(d.past[i - 1].date)) / 86400000); if (g > 0) gaps.push(g); } });
+  var avg = gaps.length ? Math.round(gaps.reduce(function(a, b) { return a + b; }, 0) / gaps.length) : 0;
+  var sorted = gaps.slice().sort(function(a, b) { return a - b; });
+  var med = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+  var buckets = [['〜30日', 0, 30], ['31〜45日', 31, 45], ['46〜60日', 46, 60], ['61〜90日', 61, 90], ['91日〜', 91, 99999]].map(function(b) {
+    return { l: b[0], v: gaps.filter(function(g) { return g >= b[1] && g <= b[2]; }).length };
+  });
+  // 休眠
+  var dormant = visited.filter(function(d) {
+    if (d.future.length) return false;
+    var last = d.past[d.past.length - 1];
+    return Math.round((todayD - new Date(last.date)) / 86400000) >= analysisState.dormant;
+  }).map(function(d) { var last = d.past[d.past.length - 1]; return { d: d, days: Math.round((todayD - new Date(last.date)) / 86400000), last: ymd(last.date) }; })
+    .sort(function(a, b) { return a.days - b.days; });
+  // 月別
+  var months = [];
+  for (var k = 5; k >= 0; k--) { var m = new Date(todayD.getFullYear(), todayD.getMonth() - k, 1); months.push(m.getFullYear() + '-' + ('0' + (m.getMonth() + 1)).slice(-2)); }
+  var mrows = months.map(function(mo) {
+    var vis = 0, nw = 0, canc = 0, booked = 0;
+    dogs.forEach(function(d) {
+      d.c.visits.forEach(function(v) {
+        if (ymd(v.date).slice(0, 7) !== mo) return;
+        var st = String(v.status || '');
+        if (st.indexOf('お断り') !== -1) return;
+        booked++;
+        if (st.indexOf('キャンセル') !== -1) { canc++; return; }
+        if (ymd(v.date) <= today) { vis++; if (v.type === 'first') nw++; }
+      });
+    });
+    return { mo: mo, vis: vis, nw: nw, canc: canc, booked: booked };
+  });
+  // キャンセルの多いお客様
+  var cancTop = dogs.filter(function(d) { return d.canc.length >= 2; }).sort(function(a, b) { return b.canc.length - a.canc.length; }).slice(0, 8);
+
+  var card = function(lb, vl, sub) { return '<div class="sales-card"><div class="lb">' + lb + '</div><div class="vl">' + vl + '</div><div class="sub">' + (sub || '') + '</div></div>'; };
+  var h = '<div class="sales-cards">' +
+    card('登録している子', dogs.length + ' 頭', '来店したことのある子 ' + visited.length + '頭') +
+    card('リピート率', rate + '%', '2回以上来店 ' + repeaters.length + '／' + visited.length + '頭') +
+    card('初回から90日以内に再来店', rate90 === null ? '―' : rate90 + '%', rate90 === null ? '対象の子がまだいません' : in90.length + '／' + elig.length + '頭') +
+    card('平均の来店間隔', avg ? avg + '日' : '―', '中央値 ' + (med ? med + '日' : '―')) + '</div>';
+
+  h += '<div class="sales-box"><h3>来店間隔の分布</h3>' + (gaps.length ? anBars(buckets) : '<div style="color:#7AAAC0;">2回以上来店した子がまだいません</div>') + '</div>';
+
+  h += '<div class="sales-box"><h3>月ごとの来店とキャンセル（直近6か月）</h3><table class="sales-table"><thead><tr><th>月</th><th class="num">来店</th><th class="num">うち初回</th><th class="num">キャンセル</th><th class="num">キャンセル率</th></tr></thead><tbody>' +
+    mrows.map(function(r) { return '<tr><td>' + r.mo.replace('-', '年') + '月</td><td class="num">' + r.vis + '件</td><td class="num">' + r.nw + '件</td><td class="num">' + r.canc + '件</td><td class="num">' + (r.booked ? Math.round(r.canc / r.booked * 100) + '%' : '―') + '</td></tr>'; }).join('') +
+    '</tbody></table><div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※キャンセルは予約の日付の月で数えています（お断りした予約は含みません）</div>' +
+    (cancTop.length ? '<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">キャンセルが2回以上のお客様</div>' + cancTop.map(function(d) { return '<div class="fl-row" style="grid-template-columns:1fr auto;"><div>' + salesEsc(d.c.owner) + ' 様 ／ 🐾' + salesEsc(d.c.dog) + '</div><div><b>' + d.canc.length + '回</b></div></div>'; }).join('') : '') + '</div>';
+
+  h += '<div class="sales-box"><h3>休眠のお客様　<select onchange="setDormant(this.value)" style="padding:4px 8px;border:1px solid #B3D9F5;border-radius:8px;font-size:12px;">' +
+    [90, 120, 180, 365].map(function(n) { return '<option value="' + n + '"' + (analysisState.dormant === n ? ' selected' : '') + '>' + n + '日以上来ていない</option>'; }).join('') + '</select>　<b>' + dormant.length + '頭</b></h3>' +
+    (dormant.length ? dormant.map(function(x) { var c = x.d.c;
+      return '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + lineBadge(c) + '</div><div class="c2"><span class="sub">最終来店 ' + salesEsc(x.last.replace(/-/g, '/')) + '</span></div><div class="c3"><b>' + x.days + '日</b><span class="sub">経過</span></div><div><button class="btn btn-light btn-sm" onclick="closeAnalysis();showKarte(' + x.d.idx + ')">カルテ</button></div></div>'; }).join('')
+      : '<div style="color:#7AAAC0;text-align:center;padding:14px;">該当する子はいません</div>') +
+    '<div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※先の予約が入っている子は含みません。90日以内の子は「🔔 フォロー・期限」からご案内できます。</div></div>';
+  document.getElementById('analysisContent').innerHTML = h;
+}
+
+// ===== 経費 =====
+var EXP_CATS = ['家賃', '光熱費', '通信費', '広告費', 'シャンプー剤・消耗品', '仕入れ', '備品・設備', '交通費', 'その他'];
+var EXP_FIXED = ['家賃', '光熱費', '通信費'];
+function expensesOf(month) {
+  return (salesState.expenses || []).filter(function(x) { return String(x.date || '').indexOf(month) === 0; }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+}
+function expenseBoxHtml(month) {
+  var list = expensesOf(month);
+  var total = list.reduce(function(t, x) { return t + x.amount; }, 0);
+  var byCat = {};
+  list.forEach(function(x) { byCat[x.category] = (byCat[x.category] || 0) + x.amount; });
+  var h = '<div class="sales-box"><h3>🧾 経費　<span style="font-size:11px;font-weight:400;color:#7AAAC0;">' + list.length + '件　合計 ' + yen(total) + '</span></h3>';
+  h += '<div class="exp-form" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;">' +
+    '<input type="date" id="ex-date" value="' + (month === ymd(new Date()).slice(0, 7) ? ymd(new Date()) : month + '-01') + '" style="padding:6px 8px;border:1px solid #B3D9F5;border-radius:8px;font-size:12px;">' +
+    '<select id="ex-cat" style="padding:6px 8px;border:1px solid #B3D9F5;border-radius:8px;font-size:12px;">' + EXP_CATS.map(function(c) { return '<option>' + c + '</option>'; }).join('') + '</select>' +
+    '<input type="text" id="ex-memo" placeholder="内容（任意）" style="padding:6px 8px;border:1px solid #B3D9F5;border-radius:8px;font-size:12px;width:140px;">' +
+    '<input type="number" id="ex-amt" inputmode="numeric" placeholder="金額" style="padding:6px 8px;border:1px solid #B3D9F5;border-radius:8px;font-size:12px;width:100px;" onkeydown="if(event.key===\'Enter\')submitExpense();">' +
+    '<button class="btn btn-primary btn-sm" onclick="submitExpense()">追加</button>' +
+    '<button class="btn btn-light btn-sm" onclick="copyFixedExpenses()">前月の固定費をコピー</button>' +
+    '<button class="btn btn-light btn-sm" onclick="exportMonthCsv()">CSV書き出し</button></div>';
+  if (!list.length) h += '<div style="color:#7AAAC0;font-size:12px;padding:6px 0;">この月の経費はまだありません</div>';
+  else {
+    h += '<table class="sales-table"><thead><tr><th>日付</th><th>項目</th><th>内容</th><th class="num">金額</th><th></th></tr></thead><tbody>' +
+      list.map(function(x) { return '<tr><td>' + salesEsc(x.date.replace(/-/g, '/')) + '</td><td>' + salesEsc(x.category) + '</td><td>' + salesEsc(x.memo) + '</td><td class="num">' + yen(x.amount) + '</td><td class="c-ops"><button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteExpense(\'' + salesEsc(x.id) + '\')">削除</button></td></tr>'; }).join('') +
+      '</tbody></table>';
+    h += '<div style="font-size:11px;color:#7AAAC0;margin-top:6px;">項目別：' + Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).map(function(k) { return salesEsc(k) + ' ' + yen(byCat[k]); }).join('　／　') + '</div>';
+  }
+  return h + '</div>';
+}
+function expPost(p) { p.set('secret', DELETE_SECRET); return fetch(REPEAT_API_URL, { method: 'POST', body: p }).then(function(r) { return r.json(); }); }
+function submitExpense() {
+  var date = document.getElementById('ex-date').value, cat = document.getElementById('ex-cat').value;
+  var memo = document.getElementById('ex-memo').value, amt = parseFloat(document.getElementById('ex-amt').value);
+  if (!date || isNaN(amt)) { alert('日付と金額を入れてください'); return; }
+  var p = new URLSearchParams(); p.set('action', 'saveExpense'); p.set('date', date); p.set('category', cat); p.set('memo', memo); p.set('amount', String(amt));
+  expPost(p).then(function(res) {
+    if (res && res.success) { salesToast('経費を追加しました'); fetchExpenses().then(renderSales); }
+    else alert('追加できませんでした：' + ((res && res.error) || '不明なエラー'));
+  }).catch(function() { alert('追加できませんでした（通信エラー）'); });
+}
+function deleteExpense(id) {
+  if (!confirm('この経費を削除します。よろしいですか？')) return;
+  var p = new URLSearchParams(); p.set('action', 'deleteExpense'); p.set('id', id);
+  salesGet(p).then(function(res) {
+    if (res && res.success) fetchExpenses().then(renderSales); else alert('削除できませんでした：' + ((res && res.error) || '不明なエラー'));
+  }).catch(function() { alert('削除できませんでした（通信エラー）'); });
+}
+function copyFixedExpenses() {
+  var pp = salesState.month.split('-'), pd = new Date(parseInt(pp[0], 10), parseInt(pp[1], 10) - 2, 1);
+  var pm = pd.getFullYear() + '-' + ('0' + (pd.getMonth() + 1)).slice(-2);
+  var src = expensesOf(pm).filter(function(x) { return EXP_FIXED.indexOf(x.category) !== -1; });
+  var have = expensesOf(salesState.month).filter(function(x) { return EXP_FIXED.indexOf(x.category) !== -1; });
+  if (!src.length) { alert('前月に、家賃・光熱費・通信費の経費がありません'); return; }
+  if (have.length && !confirm('この月にはすでに固定費が入っています。前月分を追加でコピーしますか？（二重になる場合があります）')) return;
+  if (!confirm('前月の固定費 ' + src.length + '件を、この月の同じ日付でコピーします。よろしいですか？')) return;
+  var ps = src.map(function(x) {
+    var day = x.date.slice(8, 10), last = new Date(parseInt(pp[0], 10), parseInt(pp[1], 10), 0).getDate();
+    var d = salesState.month + '-' + ('0' + Math.min(parseInt(day, 10) || 1, last)).slice(-2);
+    var p = new URLSearchParams(); p.set('action', 'saveExpense'); p.set('date', d); p.set('category', x.category); p.set('memo', x.memo); p.set('amount', String(x.amount));
+    return expPost(p);
+  });
+  Promise.all(ps).then(function() { salesToast('コピーしました'); fetchExpenses().then(renderSales); }).catch(function() { alert('コピーに失敗しました'); fetchExpenses().then(renderSales); });
+}
+function csvCell(v) { v = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function exportMonthCsv() {
+  var month = salesState.month;
+  var lines = [['区分', '日付', 'お客様／項目', 'ワンちゃん／内容', '税込金額', '備考']];
+  buildSalesRows(month).forEach(function(r) { if (!r.unknown) lines.push([r.kind === 'act' ? '売上' : '売上（推定）', r.date, r.owner, r.dog + ' ' + r.desc, Math.round(r.total), r.discount ? '割引 ' + Math.round(-r.discount) : '']); });
+  expensesOf(month).forEach(function(x) { lines.push(['経費', x.date, x.category, x.memo, -x.amount, '']); });
+  var csv = '﻿' + lines.map(function(l) { return l.map(csvCell).join(','); }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'rinon_' + month + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// ===== フォロー記録の取り消し =====
+function undoFollow(i) {
+  var x = (window._followList || [])[i];
+  if (!x) return;
+  if (!confirm(x.c.dog + ' の「' + (x.done && x.done.method) + '」の記録を取り消します。\n（すでに送ったLINEは取り消せません）よろしいですか？')) return;
+  var p = new URLSearchParams(); p.set('action', 'undoFollow'); p.set('secret', DELETE_SECRET); p.set('key', x.key);
+  fetch(REPEAT_API_URL, { method: 'POST', body: p }).then(function(r) { return r.json(); }).then(function(res) {
+    if (res && res.success) {
+      var arr = followState.follows || [];
+      for (var k = arr.length - 1; k >= 0; k--) { if (arr[k].key === x.key) { arr.splice(k, 1); break; } }
+      renderFollow(); loadFollows();
+    } else alert('取り消せませんでした：' + ((res && res.error) || '不明なエラー'));
+  }).catch(function() { alert('取り消せませんでした（通信エラー）'); });
 }
 
 function salesPost(params) {
@@ -3043,6 +3330,13 @@ function saveBodyNow(uid) {
 </script>
 
 <datalist id="coatList"><option value="さらさら"><option value="ふわふわ"><option value="毛玉あり"><option value="絡まりやすい"><option value="ごわつき"><option value="乾燥"><option value="抜け毛が多い"></datalist>
+<div id="analysisOverlay">
+  <div class="sales-top">
+    <h2>📈 分析</h2>
+    <button class="btn btn-primary btn-sm" onclick="closeAnalysis()">✕ 閉じる</button>
+  </div>
+  <div class="sales-body"><div id="analysisContent"></div></div>
+</div>
 <div id="followOverlay">
   <div class="sales-top">
     <h2>🔔 フォロー・期限</h2>
