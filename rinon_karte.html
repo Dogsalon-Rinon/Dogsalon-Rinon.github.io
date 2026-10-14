@@ -191,6 +191,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .fl-tabs button { flex:1; }
 .fl-modal { position:fixed; inset:0; background:rgba(12,68,124,.45); z-index:950; display:none; align-items:center; justify-content:center; padding:14px; }
 .fl-modal .box { background:#fff; border-radius:16px; padding:16px; width:100%; max-width:520px; }
+.fl-row .sub { display:block; }
 .fl-modal textarea { width:100%; min-height:220px; padding:10px; border:1px solid #B3D9F5; border-radius:10px; font-size:14px; line-height:1.6; font-family:inherit; }
 @media (max-width:640px) { .fl-row { grid-template-columns:1fr auto; } .fl-row .c2, .fl-row .c3 { grid-column:1; } }
 
@@ -606,6 +607,33 @@ function notifyComplete(uid) {
     .catch(function(){ alert('送信に失敗しました（通信エラー）'); });
 }
 
+var mergeData = [];
+try { mergeData = JSON.parse(localStorage.getItem('rinon_merges') || '[]') || []; } catch (e) { mergeData = []; }
+function fetchMerges() {
+  return fetch(REPEAT_API_URL + '?action=getMerges&secret=' + DELETE_SECRET, { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res || !res.success) return false;
+      var changed = JSON.stringify(res.merges || []) !== JSON.stringify(mergeData || []);
+      mergeData = res.merges || [];
+      try { localStorage.setItem('rinon_merges', JSON.stringify(mergeData)); } catch (e) {}
+      return changed;
+    }).catch(function() { return false; });
+}
+function rebuildAfterMerge(selectKey) {
+  currentKarteIdx = null;
+  buildCustomers();
+  renderList(customers);
+  if (typeof renderToday === 'function') renderToday();
+  if (selectKey) {
+    var idx = -1;
+    customers.forEach(function(c, i) { if (customerKey(c.owner, c.dog, c.phone) === selectKey) idx = i; });
+    if (idx >= 0) { showKarte(idx); return; }
+  }
+  document.getElementById('content').innerHTML = '<div id="todayWelcome"></div><div class="welcome"><div class="welcome-icon">🐾</div><h2>カルテを選択してください</h2></div>';
+  if (typeof renderToday === 'function') renderToday();
+}
+
 let hidden = {}; // 削除（非表示）にした顧客のキー一覧
 function loadHidden() {
   try { hidden = JSON.parse(localStorage.getItem('rinon_hidden') || '{}'); } catch(e) { hidden = {}; }
@@ -638,6 +666,10 @@ function loadData() {
   repeatDataRaw = null;
   friendDataRaw = null;
 
+  fetchMerges().then(function(changed) {
+    // 裏で取った統合の記録が、前回と違っていたら、データがそろっていれば作り直す
+    if (changed && firstDataRaw !== null && repeatDataRaw !== null && friendDataRaw !== null && currentKarteIdx === null) rebuildAfterMerge();
+  });
   fetchCsv(sheetUrl(FIRST_SHEET_ID, FIRST_GID)).then(function(data) {
     firstDataRaw = data;
     tryRender();
@@ -836,6 +868,24 @@ function buildCustomers() {
     });
   });
 
+  // 統合（同じ飼い主・同じ犬で電話番号が複数ある場合）を反映する
+  Object.keys(map).forEach(function(k) { map[k].phones = [map[k].phone]; map[k].mergedInfo = []; });
+  var mergeMap = {}, mergeIdByKey = {};
+  (mergeData || []).forEach(function(m) { mergeMap[m.merged] = m.canon; mergeIdByKey[m.merged] = m.id; });
+  var canonOf = function(k) { var g = 0; while (mergeMap[k] && g++ < 10) k = mergeMap[k]; return k; };
+  Object.keys(mergeMap).forEach(function(mk) {
+    var ck = canonOf(mk), a = map[ck], b = map[mk];
+    if (!a || !b || a === b) return;
+    a.visits = a.visits.concat(b.visits);
+    (b.phones || []).forEach(function(ph) { if (ph && a.phones.map(normalizePhoneForKey).indexOf(normalizePhoneForKey(ph)) === -1) a.phones.push(ph); });
+    a.mergedInfo.push({ key: mk, id: mergeIdByKey[mk], phone: b.phone });
+    (b.mergedInfo || []).forEach(function(x) { a.mergedInfo.push(x); });
+    if (!a.firstRowNum && b.firstRowNum) { a.profile = b.profile; a.firstRowNum = b.firstRowNum; }
+    if (b.lineRegistered) a.lineRegistered = true;
+    if (!a.lineUserId && b.lineUserId) a.lineUserId = b.lineUserId;
+    delete map[mk];
+  });
+
   // LINE友だちリストの電話番号セット（LINEユーザーIDがあるもののみ）
   var friendPhoneSet = {}, friendIdByPhone = {};
   friendDataRaw.forEach(function(f) {
@@ -856,10 +906,12 @@ function buildCustomers() {
     c.visitCount = c.visits.length;
     c.lastVisit = c.visits[c.visits.length - 1];
     c.dogPhotoId = (c.profile['犬の写真'] || '').toString().trim();
-    if (!c.lineRegistered && c.phone) {
-      c.lineRegistered = !!friendPhoneSet[normalizePhoneForKey(c.phone)];
-    }
-    if (!c.lineUserId && c.phone) c.lineUserId = friendIdByPhone[normalizePhoneForKey(c.phone)] || '';
+    (c.phones || [c.phone]).forEach(function(ph) {
+      if (!ph) return;
+      var nk = normalizePhoneForKey(ph);
+      if (!c.lineRegistered && friendPhoneSet[nk]) c.lineRegistered = true;
+      if (!c.lineUserId && friendIdByPhone[nk]) c.lineUserId = friendIdByPhone[nk];
+    });
     return c;
   });
 
@@ -1198,7 +1250,7 @@ function showKarte(idx, silent) {
       '<div class="section-title">飼い主・ワンちゃん情報</div>' +
       '<div class="info-grid">' +
         '<div class="info-item"><div class="info-label">飼い主名</div><div class="info-value">' + (p['飼い主さまのお名前'] || c.owner) + '</div></div>' +
-        '<div class="info-item"><div class="info-label">電話番号</div><div class="info-value">' + formatPhone(p['電話番号']) + '</div></div>' +
+        '<div class="info-item"><div class="info-label">電話番号' + (c.phones && c.phones.length > 1 ? '（' + c.phones.length + '件）' : '') + '</div><div class="info-value">' + phonesHtml(c, idx) + '</div></div>' +
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + (p['ミックス詳細'] ? '（' + p['ミックス詳細'] + '）' : '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">体重</div><div class="info-value">' + (p['体重'] || '') + '</div></div>' +
@@ -2632,7 +2684,8 @@ function renderFollow() {
   var h = '<div class="fl-tabs">' +
     '<button class="btn ' + (followState.tab === 'follow' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'follow\')">📩 次回来店フォロー</button>' +
     '<button class="btn ' + (followState.tab === 'vac' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'vac\')">💉 ワクチン期限</button>' +
-    '<button class="btn ' + (followState.tab === 'bd' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'bd\')">🎂 誕生日</button></div>';
+    '<button class="btn ' + (followState.tab === 'bd' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'bd\')">🎂 誕生日</button>' +
+    '<button class="btn ' + (followState.tab === 'dup' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'dup\')">👥 統合</button></div>';
   if (followState.error) h += '<div style="background:#FFF0F0;color:#C06060;font-size:12px;padding:10px 14px;border-radius:10px;margin-bottom:12px;">フォロー記録を読み込めませんでした：' + salesEsc(followState.error) + '<br>リピート側のGASを最新にしてデプロイしたか確認してください。</div>';
   if (followState.tab === 'follow') {
     var list = followCandidates();
@@ -2648,13 +2701,24 @@ function renderFollow() {
       var btn;
       if (x.done) btn = '<span style="font-size:11px;color:#1f7a4d;">✅ ' + salesEsc(String(x.done.at).slice(5, 10).replace('-', '/')) + ' ' + salesEsc(x.done.method) + '</span> <button class="btn btn-light btn-sm" style="font-size:11px;" onclick="undoFollow(' + i + ')">取り消し</button>';
       else if (c.lineUserId) btn = '<button class="btn btn-primary btn-sm" onclick="openFollowSend(' + i + ')">LINEで送る</button>';
-      else btn = (c.phone ? '<a class="btn btn-light btn-sm" href="tel:' + salesEsc(normalizePhoneForKey(c.phone)) + '">📞 電話</a> ' : '') + '<button class="btn btn-light btn-sm" onclick="markFollowDone(' + i + ')">連絡済み</button>';
+      else btn = (c.phones || [c.phone]).filter(Boolean).map(function(ph, pi, arr) { return '<a class="btn btn-light btn-sm" href="tel:' + salesEsc(normalizePhoneForKey(ph)) + '">📞 ' + (arr.length > 1 ? salesEsc(formatPhone(ph)) : '電話') + '</a> '; }).join('') + '<button class="btn btn-light btn-sm" onclick="markFollowDone(' + i + ')">連絡済み</button>';
       h += '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + lineBadge(c) + '</div>' +
         '<div class="c2"><span class="sub">最終来店 ' + salesEsc(x.last.replace(/-/g, '/')) + '</span></div>' +
         '<div class="c3"><b>' + x.days + '日</b><span class="sub">経過</span></div><div>' + btn + '</div></div>';
     });
     h += '</div><div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※最後の来店日が過去で、先の予約が入っていない子を表示しています。送ると記録され、次の来店があるまでは「送信済み」になります。</div>';
     window._followList = list;
+  } else if (followState.tab === 'dup') {
+    var dg = dupGroups();
+    h += '<div class="sales-box"><h3>飼い主名と犬の名前が同じで、電話番号が違うカルテ　' + dg.length + '組</h3>';
+    if (!dg.length) h += '<div style="text-align:center;color:#7AAAC0;padding:20px;">該当するカルテはありません</div>';
+    dg.forEach(function(ids, gi) {
+      h += '<div class="fl-row" style="grid-template-columns:1fr auto;"><div><b>' + salesEsc(customers[ids[0]].owner) + ' 様</b> ／ 🐾' + salesEsc(customers[ids[0]].dog) + '<div class="sub">' +
+        ids.map(function(i) { var c = customers[i]; return (c.phones || [c.phone]).map(formatPhone).join('・') + '（来店' + c.visitCount + '回）'; }).join('　／　') + '</div></div>' +
+        '<div><button class="btn btn-primary btn-sm" onclick="mergeGroup(window._dupGroups[' + gi + '])">1つにまとめる</button></div></div>';
+    });
+    window._dupGroups = dg;
+    h += '</div><div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※電話番号は両方残ります。名前の書き方が違うカルテは、カルテの「👥 別の電話番号のカルテを統合する」から手で選んで統合できます。</div>';
   } else if (followState.tab === 'bd') {
     var bl = [], nob = 0;
     (customers || []).forEach(function(c, idx) { var b = birthdayInfo(c); if (!b || b.age < 0) { nob++; return; } if (b.days <= 45) bl.push({ c: c, idx: idx, b: b }); });
@@ -2959,6 +3023,94 @@ function undoFollow(i) {
       renderFollow(); loadFollows();
     } else alert('取り消せませんでした：' + ((res && res.error) || '不明なエラー'));
   }).catch(function() { alert('取り消せませんでした（通信エラー）'); });
+}
+
+// ===== 統合（電話番号が複数あるカルテ）=====
+function custKey(c) { return customerKey(c.owner, c.dog, c.phone); }
+function phonesHtml(c, idx) {
+  var phs = (c.phones && c.phones.length) ? c.phones : [c.phone || (c.profile && c.profile['電話番号'])];
+  var h = phs.map(function(ph, i) {
+    var info = (c.mergedInfo || []).filter(function(x) { return x.phone === ph; })[0];
+    return '<div>' + formatPhone(ph) + (info && info.id ? ' <a href="javascript:void(0)" style="font-size:10px;color:#C06060;" onclick="unmergePhone(\'' + salesEsc(info.id) + '\', ' + idx + ')">統合を解除</a>' : '') + '</div>';
+  }).join('');
+  return h + '<div style="margin-top:4px;"><a href="javascript:void(0)" style="font-size:11px;color:#1A6FA8;" onclick="openMergeDialog(' + idx + ')">👥 別の電話番号のカルテを統合する</a></div>';
+}
+function saveMergeNow(canon, merged, then) {
+  var p = new URLSearchParams(); p.set('action', 'saveMerge'); p.set('secret', DELETE_SECRET); p.set('canon', canon); p.set('merged', merged);
+  fetch(REPEAT_API_URL, { method: 'POST', body: p }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) { alert('統合できませんでした：' + ((res && res.error) || '不明なエラー')); return; }
+    fetchMerges().then(function() { rebuildAfterMerge(canon); if (then) then(); });
+  }).catch(function() { alert('統合できませんでした（通信エラー）'); });
+}
+function unmergePhone(id, idx) {
+  if (!confirm('この電話番号のカルテを、元のように別のカルテに分けます。よろしいですか？')) return;
+  var c = customers[idx]; var key = c ? custKey(c) : '';
+  var p = new URLSearchParams(); p.set('action', 'deleteMerge'); p.set('secret', DELETE_SECRET); p.set('id', id);
+  fetch(REPEAT_API_URL + '?' + p.toString(), { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) { alert('解除できませんでした：' + ((res && res.error) || '不明なエラー')); return; }
+    fetchMerges().then(function() { rebuildAfterMerge(key); });
+  }).catch(function() { alert('解除できませんでした（通信エラー）'); });
+}
+var _mergeFrom = null;
+function openMergeDialog(idx) {
+  _mergeFrom = idx;
+  var c = customers[idx];
+  document.getElementById('mgTitle').textContent = '「' + c.owner + ' 様 ／ ' + c.dog + '」に統合するカルテを選ぶ';
+  document.getElementById('mgSearch').value = c.owner || '';
+  renderMergeList();
+  document.getElementById('mgModal').style.display = 'flex';
+}
+function closeMergeDialog() { document.getElementById('mgModal').style.display = 'none'; }
+function renderMergeList() {
+  var c = customers[_mergeFrom];
+  if (!c) return;
+  var q = (document.getElementById('mgSearch').value || '').trim();
+  var list = [];
+  customers.forEach(function(o, i) {
+    if (i === _mergeFrom) return;
+    var text = (o.owner || '') + ' ' + (o.dog || '') + ' ' + (o.phones || [o.phone]).join(' ');
+    if (q && text.indexOf(q) === -1) return;
+    var same = (o.owner === c.owner ? 2 : 0) + (o.dog === c.dog ? 2 : 0);
+    list.push({ o: o, i: i, same: same });
+  });
+  list.sort(function(a, b) { return b.same - a.same; });
+  document.getElementById('mgList').innerHTML = list.slice(0, 30).map(function(x) {
+    return '<div class="fl-row" style="grid-template-columns:1fr auto;"><div><b>' + salesEsc(x.o.owner) + ' 様</b> ／ 🐾' + salesEsc(x.o.dog) +
+      '<div class="sub">' + (x.o.phones || [x.o.phone]).map(formatPhone).join(' ／ ') + '　来店' + x.o.visitCount + '回</div></div>' +
+      '<div><button class="btn btn-primary btn-sm" onclick="doMerge(' + x.i + ')">統合</button></div></div>';
+  }).join('') || '<div style="color:#7AAAC0;padding:14px;text-align:center;">該当するカルテがありません</div>';
+}
+function doMerge(otherIdx) {
+  var a = customers[_mergeFrom], b = customers[otherIdx];
+  if (!a || !b) return;
+  if (!confirm('「' + b.owner + ' 様 ／ ' + b.dog + '」を、「' + a.owner + ' 様 ／ ' + a.dog + '」のカルテにまとめます。\n電話番号は両方とも残り、来店履歴も1つになります。\nよろしいですか？')) return;
+  closeMergeDialog();
+  saveMergeNow(custKey(a), custKey(b));
+}
+function dupGroups() {
+  var g = {};
+  customers.forEach(function(c, i) {
+    var k = String(c.owner || '').replace(/[\s　]/g, '') + '|' + String(c.dog || '').replace(/[\s　]/g, '');
+    (g[k] = g[k] || []).push(i);
+  });
+  return Object.keys(g).filter(function(k) { return g[k].length > 1; }).map(function(k) { return g[k]; });
+}
+function mergeGroup(ids) {
+  var cs = ids.map(function(i) { return { c: customers[i] }; });
+  cs.sort(function(a, b) { return b.c.visitCount - a.c.visitCount; });
+  var main = cs[0].c;
+  var rest = cs.slice(1).map(function(x) { return x.c; });
+  if (!confirm('「' + main.owner + ' 様 ／ ' + main.dog + '」の電話番号 ' + (rest.length + 1) + '件を、1つのカルテにまとめます。よろしいですか？')) return;
+  var chain = Promise.resolve();
+  rest.forEach(function(o) {
+    chain = chain.then(function() {
+      var p = new URLSearchParams(); p.set('action', 'saveMerge'); p.set('secret', DELETE_SECRET); p.set('canon', custKey(main)); p.set('merged', custKey(o));
+      return fetch(REPEAT_API_URL, { method: 'POST', body: p }).then(function(r) { return r.json(); });
+    });
+  });
+  var key = custKey(main);
+  chain.then(function() { return fetchMerges(); }).then(function() { rebuildAfterMerge(key); closeFollow(); })
+    .catch(function() { alert('統合できませんでした（通信エラー）'); });
 }
 
 function salesPost(params) {
@@ -3344,6 +3496,12 @@ function saveBodyNow(uid) {
   </div>
   <div class="sales-body"><div id="followContent"></div></div>
 </div>
+<div class="fl-modal" id="mgModal"><div class="box">
+  <div style="font-weight:700;margin-bottom:8px;font-size:14px;" id="mgTitle"></div>
+  <input id="mgSearch" type="text" placeholder="名前・犬・電話番号で探す" oninput="renderMergeList()" style="width:100%;padding:8px 10px;border:1px solid #B3D9F5;border-radius:10px;font-size:14px;margin-bottom:8px;">
+  <div id="mgList" style="max-height:50vh;overflow:auto;"></div>
+  <button class="btn btn-light" style="width:100%;margin-top:10px;" onclick="closeMergeDialog()">閉じる</button>
+</div></div>
 <div class="fl-modal" id="flModal"><div class="box">
   <div style="font-weight:700;margin-bottom:8px;">LINEを送る：<span id="flTo"></span></div>
   <textarea id="flText"></textarea>
