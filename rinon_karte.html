@@ -188,7 +188,8 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .fl-row { display:grid; grid-template-columns:1.4fr 1fr 90px auto; gap:8px; align-items:center; padding:10px 4px; border-bottom:1px solid #E8F4FC; font-size:13px; }
 .fl-row .sub { font-size:11px; color:#7AAAC0; }
 .fl-tabs { display:flex; gap:8px; margin-bottom:12px; }
-.fl-tabs button { flex:1; }
+.fl-tabs { gap:6px; }
+.fl-tabs button { flex:1; white-space:nowrap; padding:9px 2px; font-size:13px; min-width:0; }
 .fl-modal { position:fixed; inset:0; background:rgba(12,68,124,.45); z-index:950; display:none; align-items:center; justify-content:center; padding:14px; }
 .fl-modal .box { background:#fff; border-radius:16px; padding:16px; width:100%; max-width:520px; }
 .fl-row .sub { display:block; }
@@ -2682,8 +2683,8 @@ function setFollowDays(v) {
 }
 function renderFollow() {
   var h = '<div class="fl-tabs">' +
-    '<button class="btn ' + (followState.tab === 'follow' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'follow\')">📩 次回来店フォロー</button>' +
-    '<button class="btn ' + (followState.tab === 'vac' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'vac\')">💉 ワクチン期限</button>' +
+    '<button class="btn ' + (followState.tab === 'follow' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'follow\')">📩 フォロー</button>' +
+    '<button class="btn ' + (followState.tab === 'vac' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'vac\')">💉 ワクチン</button>' +
     '<button class="btn ' + (followState.tab === 'bd' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'bd\')">🎂 誕生日</button>' +
     '<button class="btn ' + (followState.tab === 'dup' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'dup\')">👥 統合</button></div>';
   if (followState.error) h += '<div style="background:#FFF0F0;color:#C06060;font-size:12px;padding:10px 14px;border-radius:10px;margin-bottom:12px;">フォロー記録を読み込めませんでした：' + salesEsc(followState.error) + '<br>リピート側のGASを最新にしてデプロイしたか確認してください。</div>';
