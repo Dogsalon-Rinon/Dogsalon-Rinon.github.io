@@ -159,8 +159,21 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
   .welcome { padding: 40px 24px; }
 }
 
+/* ===== フォロー・ワクチン ===== */
+.vac-tag { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:10px; font-size:10px; font-weight:700; }
+.vac-tag.ng { background:#FFE4E4; color:#C03030; }
+.vac-tag.soon { background:#FFF0C8; color:#8a6d1a; }
+.fl-row { display:grid; grid-template-columns:1.4fr 1fr 90px auto; gap:8px; align-items:center; padding:10px 4px; border-bottom:1px solid #E8F4FC; font-size:13px; }
+.fl-row .sub { font-size:11px; color:#7AAAC0; }
+.fl-tabs { display:flex; gap:8px; margin-bottom:12px; }
+.fl-tabs button { flex:1; }
+.fl-modal { position:fixed; inset:0; background:rgba(12,68,124,.45); z-index:950; display:none; align-items:center; justify-content:center; padding:14px; }
+.fl-modal .box { background:#fff; border-radius:16px; padding:16px; width:100%; max-width:520px; }
+.fl-modal textarea { width:100%; min-height:220px; padding:10px; border:1px solid #B3D9F5; border-radius:10px; font-size:14px; line-height:1.6; font-family:inherit; }
+@media (max-width:640px) { .fl-row { grid-template-columns:1fr auto; } .fl-row .c2, .fl-row .c3 { grid-column:1; } }
+
 /* ===== 売上明細表 ===== */
-#salesOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
+#salesOverlay, #followOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
 .sales-top { position:sticky; top:0; z-index:2; background:#0C447C; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .sales-top h2 { font-size:17px; font-weight:700; margin-right:auto; }
 .sales-month { display:flex; align-items:center; gap:8px; }
@@ -268,6 +281,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
   <div class="header-right">
     <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
     <button class="btn btn-light" onclick="openSales()">💰 売上明細</button>
+    <button class="btn btn-light" onclick="openFollow()">🔔 フォロー・期限<span id="followCount"></span></button>
     <button class="btn btn-green" onclick="exportExcel()">📊 Excelエクスポート</button>
   </div>
 </div>
@@ -691,6 +705,7 @@ function tryRender() {
   buildCustomers();
   renderList(customers);
   if (typeof prefetchSales === 'function') prefetchSales();
+  if (typeof updateFollowCount === 'function') updateFollowCount();
 }
 
 function normalizePhoneForKey(val) {
@@ -732,6 +747,7 @@ function buildCustomers() {
       map[key].phone = phone || map[key].phone;
     }
     if (r['LINEユーザーID']) map[key].lineRegistered = true;
+    if (r['LINEユーザーID']) map[key].lineUserId = String(r['LINEユーザーID']).trim();
     map[key].visits.push({
       type: 'first',
       date: r['希望日①'] || r['タイムスタンプ'],
@@ -771,6 +787,7 @@ function buildCustomers() {
       map[key].phone = phone || map[key].phone;
     }
     if (r['LINEユーザーID']) map[key].lineRegistered = true;
+    if (r['LINEユーザーID']) map[key].lineUserId = String(r['LINEユーザーID']).trim();
     map[key].visits.push({
       type: 'repeat',
       date: r['希望日①'] || r['タイムスタンプ'],
@@ -794,9 +811,10 @@ function buildCustomers() {
   });
 
   // LINE友だちリストの電話番号セット（LINEユーザーIDがあるもののみ）
-  var friendPhoneSet = {};
+  var friendPhoneSet = {}, friendIdByPhone = {};
   friendDataRaw.forEach(function(f) {
     if (f['LINEユーザーID'] && f['電話番号']) friendPhoneSet[normalizePhoneForKey(f['電話番号'])] = true;
+    if (f['LINEユーザーID'] && f['電話番号']) friendIdByPhone[normalizePhoneForKey(f['電話番号'])] = String(f['LINEユーザーID']).trim();
   });
 
   // 来店履歴を日付順に並べる
@@ -815,6 +833,7 @@ function buildCustomers() {
     if (!c.lineRegistered && c.phone) {
       c.lineRegistered = !!friendPhoneSet[normalizePhoneForKey(c.phone)];
     }
+    if (!c.lineUserId && c.phone) c.lineUserId = friendIdByPhone[normalizePhoneForKey(c.phone)] || '';
     return c;
   });
 
@@ -1006,7 +1025,7 @@ function renderList(data) {
     var breed = c.profile['犬種'] || '';
     return head + '<div class="customer-card' + (i === currentKarteIdx ? ' active' : '') + '" id="card-' + i + '" onclick="showKarte(' + i + ')">' +
       (ownerKanaText(c) ? '<div class="customer-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
-      '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + '</div>' +
+      '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + vacTagFor(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + '</div>' +
       '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span><span class="visit-badge">' + c.visitCount + '回</span></div>' +
       listPrevHtml(c) +
@@ -1167,6 +1186,8 @@ function showKarte(idx, silent) {
             ? '<span class="tag tag-green">✅ 登録あり</span> <span style="font-size:11px; color:#7AAAC0;">' + email + '</span>'
             : '<span class="tag" style="background:#FFE8E8; color:#C06060;">❌ 未登録</span>') +
         '</div></div>' +
+        '<div class="info-item"><div class="info-label">狂犬病ワクチン期限' + vacTag(p['狂犬病ワクチン期限']) + '</div>' + vacInput(c, '狂犬病ワクチン期限', p['狂犬病ワクチン期限']) + '</div>' +
+        '<div class="info-item"><div class="info-label">混合ワクチン期限' + vacTag(p['混合ワクチン期限']) + '</div>' + vacInput(c, '混合ワクチン期限', p['混合ワクチン期限']) + '</div>' +
         '<div class="info-item" style="grid-column:1/-1;"><div class="info-label">住所（手入力・全端末で共有）</div>' +
           (c.firstRowNum
             ? '<input type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="住所を入力..." value="' + (p['住所'] || '').replace(/"/g, '&quot;') + '" onchange="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)">'
@@ -2335,6 +2356,55 @@ function buildSalesRows(month) {
   return rows;
 }
 
+
+// ===== 月末レポート =====
+function monthReportHtml(month, rows, all, cnt) {
+  var valid = rows.filter(function(r) { return !r.unknown; });
+  var dogs = {};
+  valid.forEach(function(r) { dogs[(r.owner || '') + '/' + (r.dog || '')] = true; });
+  var dogCnt = Object.keys(dogs).length;
+  var discAll = valid.reduce(function(t, r) { return t + (r.discount || 0); }, 0);
+  // 前月
+  var pp = month.split('-'), pd = new Date(parseInt(pp[0], 10), parseInt(pp[1], 10) - 2, 1);
+  var pm = pd.getFullYear() + '-' + ('0' + (pd.getMonth() + 1)).slice(-2);
+  var prows = buildSalesRows(pm).filter(function(r) { return !r.unknown; });
+  var pAll = prows.reduce(function(t, r) { return t + (r.total || 0); }, 0);
+  var diffTxt = '';
+  if (prows.length) {
+    var d = all - pAll, pct = pAll ? Math.round(d / pAll * 100) : 0;
+    diffTxt = '<span style="color:' + (d >= 0 ? '#1f7a4d' : '#C06060') + ';font-weight:700;">' + (d >= 0 ? '▲ +' : '▼ −') + yen(Math.abs(d)) + '（' + (d >= 0 ? '+' : '') + pct + '%）</span>';
+  } else diffTxt = '<span style="color:#7AAAC0;">前月データなし</span>';
+  // 曜日別
+  var wk = ['日','月','火','水','木','金','土'], wn = [0,0,0,0,0,0,0], wa = [0,0,0,0,0,0,0];
+  // 日別
+  var daily = {}, best = null;
+  valid.forEach(function(r) {
+    var dt = new Date(String(r.date).replace(/-/g, '/'));
+    if (isNaN(dt)) return;
+    wn[dt.getDay()]++; wa[dt.getDay()] += r.total || 0;
+    daily[r.date] = (daily[r.date] || 0) + (r.total || 0);
+  });
+  Object.keys(daily).forEach(function(k) { if (!best || daily[k] > daily[best]) best = k; });
+  var days = Object.keys(daily).length;
+  var maxW = Math.max.apply(null, wa.concat([1]));
+  var bars = wk.map(function(w, i) {
+    return '<div style="display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0;"><span style="width:18px;">' + w + '</span>' +
+      '<div style="flex:1;background:#E8F4FC;border-radius:6px;height:14px;"><div style="width:' + Math.round(wa[i] / maxW * 100) + '%;background:#4A9FD4;height:14px;border-radius:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact;"></div></div>' +
+      '<span style="width:130px;text-align:right;white-space:nowrap;">' + wn[i] + '件　' + yen(wa[i]) + '</span></div>';
+  }).join('');
+  var h = '<div class="sales-box"><h3>📊 月次レポート</h3>' +
+    '<table class="sales-table"><tbody>' +
+    '<tr><td>前月（' + pm.replace('-', '年') + '月）の売上</td><td class="num">' + yen(pAll) + '</td></tr>' +
+    '<tr><td>前月との差</td><td class="num">' + diffTxt + '</td></tr>' +
+    '<tr><td>来店した子の数（頭）</td><td class="num">' + dogCnt + ' 頭</td></tr>' +
+    '<tr><td>来店のあった日数／1日あたり売上</td><td class="num">' + days + ' 日／' + (days ? yen(all / days) : '¥0') + '</td></tr>' +
+    '<tr><td>割引した合計</td><td class="num">' + (discAll ? '−' + yen(-discAll) : '¥0') + '</td></tr>' +
+    '<tr><td>一番売れた日</td><td class="num">' + (best ? best.replace(/-/g, '/') + '　' + yen(daily[best]) : '―') + '</td></tr>' +
+    '</tbody></table>' +
+    '<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">曜日別の売上</div>' + bars + '</div>';
+  return h;
+}
+
 function renderSales() {
   var month = salesState.month;
   var p = month.split('-');
@@ -2367,6 +2437,8 @@ function renderSales() {
     '<div class="sales-card"><div class="lb">客単価</div><div class="vl">' + (cnt ? yen(all / cnt) : '¥0') + '</div><div class="sub">1件あたり</div></div>' +
     '<div class="sales-card"><div class="lb">実績のみ（領収書ベース）</div><div class="vl">' + yen(actSum) + '</div><div class="sub">割引合計 ' + (disc ? '−' + yen(-disc) : '¥0') + '</div></div>' +
   '</div>';
+
+  h += monthReportHtml(month, rows, all, cnt);
 
   h += '<div style="display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;">' +
        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" ' + (salesState.includeEst ? 'checked' : '') + ' onchange="salesState.includeEst=this.checked;renderSales();"> 推定（領収書がまだの来店）を含める</label>' +
@@ -2403,6 +2475,203 @@ function renderSales() {
   h += '<div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※「実績」は領収書を発行した時に自動で記録された金額です。「推定」は、領収書がまだの来店を、犬種とメニューから料金表どおりに計算した金額です（オプション・サイズ代は含みません。割引は上の選択どおりに全件へ一律で反映します）。税込金額の欄に金額を入れると、その金額で確定します。領収書を発行すると、実績に置き換わります。</div>';
   document.getElementById('salesContent').innerHTML = h;
   window._salesRows = rows;
+}
+
+// ===== ワクチン期限 =====
+function vacStatus(val) {
+  var v = String(val || '').trim().replace(/\//g, '-');
+  if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(v)) return null;
+  var a = v.split('-'), d = new Date(parseInt(a[0], 10), parseInt(a[1], 10) - 1, parseInt(a[2], 10));
+  var t = new Date(); t.setHours(0, 0, 0, 0);
+  var days = Math.round((d - t) / 86400000);
+  return { days: days, date: d };
+}
+function vacTag(val) {
+  var st = vacStatus(val);
+  if (!st) return '';
+  if (st.days < 0) return '<span class="vac-tag ng">期限切れ</span>';
+  if (st.days <= 30) return '<span class="vac-tag soon">あと' + st.days + '日</span>';
+  return '';
+}
+function vacTagFor(c) {
+  var p = c.profile || {};
+  var a = vacStatus(p['狂犬病ワクチン期限']), b = vacStatus(p['混合ワクチン期限']);
+  var worst = null;
+  [a, b].forEach(function(x) { if (x && (worst === null || x.days < worst.days)) worst = x; });
+  if (!worst) return '';
+  if (worst.days < 0) return '<span class="vac-tag ng">💉期限切れ</span>';
+  if (worst.days <= 30) return '<span class="vac-tag soon">💉あと' + worst.days + '日</span>';
+  return '';
+}
+function vacInput(c, field, val) {
+  if (!c.firstRowNum) return '<div class="info-value" style="color:#B0B0B0;">初回データがないため入力できません</div>';
+  var v = String(val || '').trim().replace(/\//g, '-').replace(/-(\d)(?=-|$)/g, '-0$1');
+  return '<input type="date" class="memo-box" style="min-height:auto;padding:8px 12px;" value="' + salesEsc(v) + '" onchange="saveVaccine(' + c.firstRowNum + ', \'' + field + '\', this)">';
+}
+function saveVaccine(row, field, el) {
+  var cust = customers.filter(function(c) { return c.firstRowNum === row; })[0];
+  var p = new URLSearchParams();
+  p.set('action', 'saveProfileField'); p.set('secret', DELETE_SECRET); p.set('row', String(row)); p.set('field', field); p.set('value', el.value);
+  fetch(FIRST_API_URL, { method: 'POST', body: p }).then(function(r) { return r.json(); }).then(function(res) {
+    if (res && res.success) {
+      if (cust) cust.profile[field] = el.value;
+      el.style.borderColor = '#2EA87E';
+      setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
+      updateFollowCount();
+    } else alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー'));
+  }).catch(function() { alert('保存に失敗しました（通信エラー）'); });
+}
+
+// ===== 次回来店フォロー =====
+var followState = { tab: 'follow', days: 45, follows: null, error: '' };
+try { var _fd = parseInt(localStorage.getItem('rinon_follow_days') || '', 10); if (_fd) followState.days = _fd; } catch (e) {}
+
+function followCandidates() {
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var out = [];
+  var follows = followState.follows || [];
+  (customers || []).forEach(function(c) {
+    var v = c.lastVisit;
+    if (!v) return;
+    var d = new Date(v.date);
+    if (isNaN(d)) return;
+    d.setHours(0, 0, 0, 0);
+    var days = Math.round((today - d) / 86400000);
+    if (days < followState.days || days > 400) return;       // 先の予約がある人は lastVisit が未来なので入らない
+    var key = customerKey(c.owner, c.dog, c.phone);
+    var ymdLast = ymd(d);
+    var done = follows.filter(function(f) { return f.key === key && String(f.at).slice(0, 10) >= ymdLast; })[0];
+    out.push({ c: c, key: key, days: days, last: ymdLast, done: done || null });
+  });
+  out.sort(function(a, b) { return (a.done ? 1 : 0) - (b.done ? 1 : 0) || b.days - a.days; });
+  return out;
+}
+function vacCandidates() {
+  var out = [], none = 0;
+  (customers || []).forEach(function(c) {
+    var p = c.profile || {};
+    var items = [];
+    ['狂犬病ワクチン期限', '混合ワクチン期限'].forEach(function(f) {
+      var st = vacStatus(p[f]);
+      if (st && st.days <= 30) items.push({ f: f.replace('期限', ''), days: st.days, date: ymd(st.date) });
+    });
+    if (!vacStatus(p['狂犬病ワクチン期限']) && !vacStatus(p['混合ワクチン期限'])) none++;
+    if (items.length) out.push({ c: c, items: items, min: Math.min.apply(null, items.map(function(i) { return i.days; })) });
+  });
+  out.sort(function(a, b) { return a.min - b.min; });
+  out.none = none;
+  return out;
+}
+function updateFollowCount() {
+  var n = vacCandidates().length;
+  var el = document.getElementById('followCount');
+  if (el) el.textContent = n ? '（💉' + n + '）' : '';
+}
+function openFollow() {
+  document.getElementById('followOverlay').style.display = 'block';
+  renderFollow();
+  loadFollows();
+}
+function closeFollow() { document.getElementById('followOverlay').style.display = 'none'; }
+function loadFollows() {
+  var q = new URLSearchParams(); q.set('action', 'getFollows'); q.set('secret', DELETE_SECRET);
+  fetch(REPEAT_API_URL + '?' + q.toString(), { cache: 'no-store' }).then(function(r) { return r.json(); }).then(function(res) {
+    if (res && res.success) { followState.follows = res.follows || []; followState.error = ''; }
+    else followState.error = (res && res.error) || '読み込みに失敗しました';
+    renderFollow();
+  }).catch(function(e) { followState.error = '通信エラー'; if (followState.follows === null) followState.follows = []; renderFollow(); });
+}
+function setFollowTab(t) { followState.tab = t; renderFollow(); }
+function setFollowDays(v) {
+  followState.days = parseInt(v, 10) || 45;
+  try { localStorage.setItem('rinon_follow_days', String(followState.days)); } catch (e) {}
+  renderFollow();
+}
+function renderFollow() {
+  var h = '<div class="fl-tabs">' +
+    '<button class="btn ' + (followState.tab === 'follow' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'follow\')">📩 次回来店フォロー</button>' +
+    '<button class="btn ' + (followState.tab === 'vac' ? 'btn-primary' : 'btn-light') + '" onclick="setFollowTab(\'vac\')">💉 ワクチン期限</button></div>';
+  if (followState.error) h += '<div style="background:#FFF0F0;color:#C06060;font-size:12px;padding:10px 14px;border-radius:10px;margin-bottom:12px;">フォロー記録を読み込めませんでした：' + salesEsc(followState.error) + '<br>リピート側のGASを最新にしてデプロイしたか確認してください。</div>';
+  if (followState.tab === 'follow') {
+    var list = followCandidates();
+    var todo = list.filter(function(x) { return !x.done; });
+    h += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:13px;">最後の来店から ' +
+      '<select onchange="setFollowDays(this.value)" style="padding:5px 8px;border:1px solid #B3D9F5;border-radius:8px;">' +
+      [30, 45, 60, 90].map(function(n) { return '<option value="' + n + '"' + (followState.days === n ? ' selected' : '') + '>' + n + '日</option>'; }).join('') +
+      '</select> 以上たって、次の予約がない子　<b>' + todo.length + '頭</b></div>';
+    h += '<div class="sales-box">';
+    if (!list.length) h += '<div style="text-align:center;color:#7AAAC0;padding:20px;">対象の子はいません</div>';
+    list.forEach(function(x, i) {
+      var c = x.c;
+      var btn;
+      if (x.done) btn = '<span style="font-size:11px;color:#1f7a4d;">✅ ' + salesEsc(String(x.done.at).slice(5, 10).replace('-', '/')) + ' ' + salesEsc(x.done.method) + '</span>';
+      else if (c.lineUserId) btn = '<button class="btn btn-primary btn-sm" onclick="openFollowSend(' + i + ')">LINEで送る</button>';
+      else btn = (c.phone ? '<a class="btn btn-light btn-sm" href="tel:' + salesEsc(normalizePhoneForKey(c.phone)) + '">📞 電話</a> ' : '') + '<button class="btn btn-light btn-sm" onclick="markFollowDone(' + i + ')">連絡済み</button>';
+      h += '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + lineBadge(c) + '</div>' +
+        '<div class="c2"><span class="sub">最終来店 ' + salesEsc(x.last.replace(/-/g, '/')) + '</span></div>' +
+        '<div class="c3"><b>' + x.days + '日</b><span class="sub">経過</span></div><div>' + btn + '</div></div>';
+    });
+    h += '</div><div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※最後の来店日が過去で、先の予約が入っていない子を表示しています。送ると記録され、次の来店があるまでは「送信済み」になります。</div>';
+    window._followList = list;
+  } else {
+    var vl = vacCandidates();
+    h += '<div class="sales-box"><h3>期限切れ・30日以内に切れる子</h3>';
+    if (!vl.length) h += '<div style="text-align:center;color:#7AAAC0;padding:20px;">該当する子はいません</div>';
+    vl.forEach(function(x) {
+      var c = x.c;
+      h += '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + '</div><div class="c2">' +
+        x.items.map(function(i) { return '<div style="font-size:12px;">' + salesEsc(i.f) + '：' + salesEsc(i.date.replace(/-/g, '/')) + (i.days < 0 ? ' <span class="vac-tag ng">期限切れ</span>' : ' <span class="vac-tag soon">あと' + i.days + '日</span>') + '</div>'; }).join('') +
+        '</div><div class="c3"></div><div><button class="btn btn-light btn-sm" onclick="closeFollow();showKarte(' + customers.indexOf(c) + ')">カルテ</button></div></div>';
+    });
+    h += '</div><div style="font-size:12px;color:#7AAAC0;">期限が未入力の子：' + vl.none + '頭（カルテの「狂犬病ワクチン期限」「混合ワクチン期限」に日付を入れると、ここに出ます）</div>';
+  }
+  document.getElementById('followContent').innerHTML = h;
+  updateFollowCount();
+}
+function followDraft(x) {
+  var c = x.c, m = Math.max(1, Math.round(x.days / 30));
+  var t = c.owner + '様、こんにちは🐶\nドッグサロンりのんです。\n\n' + c.dog + 'ちゃん、前回のご来店から約' + m + 'か月がたちました。\nそろそろお手入れの時期かなと思い、ご連絡しました✂️\n\n';
+  if (x.days <= 62) t += '前回のご来店から2か月以内のご予約は10%OFFです🎁（部分ケアのみは対象外）\n\n';
+  t += 'ご予約はこちらから\nhttps://dogsalon-rinon.github.io/rinon_reserve_repeat.html\n\nまたお会いできるのを楽しみにしています😊';
+  return t;
+}
+var _followIdx = null;
+function openFollowSend(i) {
+  var x = (window._followList || [])[i];
+  if (!x) return;
+  _followIdx = i;
+  document.getElementById('flTo').textContent = x.c.owner + ' 様 ／ ' + x.c.dog;
+  document.getElementById('flText').value = followDraft(x);
+  document.getElementById('flSendBtn').disabled = false;
+  document.getElementById('flSendBtn').textContent = 'LINEで送信';
+  document.getElementById('flModal').style.display = 'flex';
+}
+function closeFollowSend() { document.getElementById('flModal').style.display = 'none'; }
+function postFollow(x, method, text, done) {
+  var p = new URLSearchParams();
+  p.set('action', 'sendFollow'); p.set('secret', DELETE_SECRET);
+  p.set('key', x.key); p.set('owner', x.c.owner || ''); p.set('dog', x.c.dog || ''); p.set('method', method); p.set('text', text || '');
+  if (method === 'LINE') p.set('lineUserId', x.c.lineUserId || '');
+  fetch(REPEAT_API_URL, { method: 'POST', body: p }).then(function(r) { return r.json(); }).then(done).catch(function() { done({ error: '通信エラー' }); });
+}
+function sendFollowNow() {
+  var x = (window._followList || [])[_followIdx];
+  if (!x) return;
+  var text = document.getElementById('flText').value.trim();
+  if (!text) { alert('本文を入力してください'); return; }
+  var b = document.getElementById('flSendBtn'); b.disabled = true; b.textContent = '送信中...';
+  postFollow(x, 'LINE', text, function(res) {
+    if (res && res.success) { closeFollowSend(); (followState.follows = followState.follows || []).push({ at: new Date().toISOString().slice(0, 10), key: x.key, method: 'LINE' }); renderFollow(); loadFollows(); }
+    else { alert('送れませんでした：' + ((res && res.error) || '不明なエラー')); b.disabled = false; b.textContent = 'LINEで送信'; }
+  });
+}
+function markFollowDone(i) {
+  var x = (window._followList || [])[i];
+  if (!x) return;
+  postFollow(x, '電話等', '', function(res) {
+    if (res && res.success) { (followState.follows = followState.follows || []).push({ at: new Date().toISOString().slice(0, 10), key: x.key, method: '電話等' }); renderFollow(); loadFollows(); }
+    else alert('記録できませんでした：' + ((res && res.error) || '不明なエラー'));
+  });
 }
 
 function salesPost(params) {
@@ -2774,6 +3043,18 @@ function saveBodyNow(uid) {
 </script>
 
 <datalist id="coatList"><option value="さらさら"><option value="ふわふわ"><option value="毛玉あり"><option value="絡まりやすい"><option value="ごわつき"><option value="乾燥"><option value="抜け毛が多い"></datalist>
+<div id="followOverlay">
+  <div class="sales-top">
+    <h2>🔔 フォロー・期限</h2>
+    <button class="btn btn-primary btn-sm" onclick="closeFollow()">✕ 閉じる</button>
+  </div>
+  <div class="sales-body"><div id="followContent"></div></div>
+</div>
+<div class="fl-modal" id="flModal"><div class="box">
+  <div style="font-weight:700;margin-bottom:8px;">LINEを送る：<span id="flTo"></span></div>
+  <textarea id="flText"></textarea>
+  <div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-light" style="flex:1;" onclick="closeFollowSend()">キャンセル</button><button class="btn btn-primary" style="flex:2;" id="flSendBtn" onclick="sendFollowNow()">LINEで送信</button></div>
+</div></div>
 <div id="salesOverlay">
   <div class="sales-top">
     <h2>💰 売上明細表 <span id="salesLoading" style="font-size:11px;font-weight:400;color:#B3D9F5;"></span></h2>
