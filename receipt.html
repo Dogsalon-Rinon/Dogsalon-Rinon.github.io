@@ -307,7 +307,7 @@
     <div class="right">
       <span class="hint">品目は「＋行を追加」で増やせます／印刷はB5指定</span>
       <button class="secondary" onclick="addRow()">＋ 行を追加</button>
-      <button onclick="window.print()">🖨️ 印刷する</button>
+      <button onclick="printReceipt()">🖨️ 印刷する</button>
     </div>
   </div>
 
@@ -655,6 +655,80 @@ function recalc() {
   document.getElementById('taxExclDisplay').textContent = taxExcl.toLocaleString('ja-JP') + '円';
   document.getElementById('taxAmountDisplay').textContent = taxAmount.toLocaleString('ja-JP') + '円';
 }
+
+
+// ===== 領収書を発行（印刷）したタイミングで、売上を自動記録する =====
+var SALES_API_URL = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1T_TfAJsY3Gzo2xlLg686tHRSaszZ0K4Fk4mIti1vRToUbw/exec';
+var SALES_SECRET  = 'rinon2026';
+var lastRecordedPayload = '';
+
+function collectSalePayload() {
+  var items = [];
+  document.querySelectorAll('#itemsBody tr').forEach(function(tr) {
+    var n = (tr.querySelector('.item-name').value || '').trim();
+    var pv = parseFloat(((tr.querySelector('.item-price').value) || '0').replace(/[^0-9.\-]/g, ''));
+    if (n && !isNaN(pv)) items.push({ name: n, price: pv });
+  });
+  var total = parseFloat((document.getElementById('total').value || '0').replace(/[^0-9.\-]/g, '')) || 0;
+  var yy = document.getElementById('y').value, mm = ('0' + document.getElementById('m').value).slice(-2), dd = ('0' + document.getElementById('d').value).slice(-2);
+  var params = new URLSearchParams(window.location.search);
+  return {
+    visitKey: params.get('vkey') || '',
+    date: yy + '-' + mm + '-' + dd,
+    owner: (document.getElementById('owner').value || '').trim(),
+    dog: (document.getElementById('dog').value || '').trim(),
+    desc: (document.getElementById('desc').value || '').trim(),
+    items: items, total: total
+  };
+}
+
+function showSaleToast(msg, ok) {
+  var t = document.getElementById('saleToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'saleToast';
+    t.className = 'no-print';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:700;color:#fff;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.2);';
+    document.body.appendChild(t);
+  }
+  t.style.background = ok ? '#2a8a4a' : '#c0392b';
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._h);
+  t._h = setTimeout(function() { t.style.display = 'none'; }, ok ? 3000 : 8000);
+}
+
+function recordSale() {
+  var d = collectSalePayload();
+  if (d.total <= 0 || d.items.length === 0) return; // 空の領収書は記録しない
+  var body = JSON.stringify(d);
+  if (body === lastRecordedPayload) return; // 同じ内容を二重に送らない
+  lastRecordedPayload = body;
+  var params = new URLSearchParams();
+  params.set('action', 'saveSale');
+  params.set('secret', SALES_SECRET);
+  params.set('visitKey', d.visitKey);
+  params.set('date', d.date);
+  params.set('owner', d.owner);
+  params.set('dog', d.dog);
+  params.set('desc', d.desc);
+  params.set('items', JSON.stringify(d.items));
+  params.set('total', String(d.total));
+  fetch(SALES_API_URL, { method: 'POST', body: params })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res && res.success) showSaleToast(res.updated ? '売上を更新しました' : '売上に記録しました', true);
+      else { lastRecordedPayload = ''; showSaleToast('売上の記録に失敗しました：' + ((res && res.error) || '不明なエラー'), false); }
+    })
+    .catch(function() { lastRecordedPayload = ''; showSaleToast('売上の記録に失敗しました（通信エラー）。印刷は続けられます', false); });
+}
+
+function printReceipt() {
+  recordSale();
+  window.print();
+}
+// Ctrl+Pなど、ボタン以外で印刷した場合も記録する
+window.addEventListener('beforeprint', recordSale);
 
 populateMenuSelects();
 
