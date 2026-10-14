@@ -173,12 +173,23 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 .sales-card .sub { font-size:10px; color:#7AAAC0; margin-top:2px; }
 .sales-box { background:#fff; border:1px solid #D0E8F8; border-radius:14px; padding:12px 14px; margin-bottom:14px; overflow-x:auto; }
 .sales-box h3 { font-size:13px; margin-bottom:8px; }
+.sr { display:grid; grid-template-columns: 92px 120px 100px minmax(0,1fr) 84px 132px 52px 120px; gap:6px 8px; padding:9px 8px; border-bottom:1px solid #E8F4FC; align-items:start; font-size:12px; }
+.sr.head { background:#E8F4FC; color:#1A6FA8; font-weight:700; border-radius:8px; align-items:center; }
+.sr.est { background:#FFFBEF; }
+.sr.total { font-weight:700; background:#F0F7FF; border-top:2px solid #B3D9F5; border-bottom:none; }
+.sr .num { text-align:right; white-space:nowrap; }
+.sr .c-dog-inline { display:none; }
+.sr.total .tot-label { grid-column:1 / 5; }
+.sr.total .tot-amt { grid-column:6; font-size:15px; }
+.sr .desc { min-width:0; word-break:break-all; }
+.sr .rsn { font-size:10px; color:#B4780A; margin-top:2px; }
+.sr-amt { width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:14px; font-weight:700; text-align:right; color:#0C447C; background:#fff; }
+.sr.est .sr-amt { border-color:#E8C96A; background:#FFFDF5; }
+.sr-amt:focus { outline:2px solid #1A6FA8; }
 table.sales-table { width:100%; border-collapse:collapse; font-size:12px; }
 table.sales-table th { background:#E8F4FC; color:#1A6FA8; padding:7px 8px; text-align:left; white-space:nowrap; }
 table.sales-table td { padding:7px 8px; border-bottom:1px solid #E8F4FC; vertical-align:top; }
 table.sales-table td.num, table.sales-table th.num { text-align:right; white-space:nowrap; }
-table.sales-table tr.est td { background:#FFFBEF; color:#8a6d1a; }
-table.sales-table tr.total td { font-weight:700; background:#F0F7FF; border-top:2px solid #B3D9F5; }
 .sales-items { font-size:10px; color:#7AAAC0; margin-top:2px; }
 .sales-badge { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:10px; }
 .sales-badge.act { background:#E3F6EC; color:#1f7a4d; }
@@ -186,14 +197,52 @@ table.sales-table tr.total td { font-weight:700; background:#F0F7FF; border-top:
 .sales-ops button { margin-right:4px; }
 .sales-add { display:none; background:#fff; border:1px solid #D0E8F8; border-radius:14px; padding:12px 14px; margin-bottom:14px; }
 .sales-add input { padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; margin:2px 4px 2px 0; }
-@media (max-width:768px) { .sales-cards { grid-template-columns:repeat(2,1fr); } .sales-top h2 { width:100%; } }
+@media (max-width:768px) {
+  .sales-cards { grid-template-columns:repeat(2,1fr); }
+  .sales-top h2 { width:100%; }
+  .sales-body { padding:10px; }
+  .sr.head { display:none; }
+  .sr { grid-template-columns: 1fr auto; grid-template-areas: "date badge" "who who" "desc desc" "amt ops"; padding:12px 6px; gap:4px 8px; font-size:13px; }
+  .sr .c-date { grid-area:date; font-weight:700; }
+  .sr .c-badge { grid-area:badge; text-align:right; }
+  .sr .c-who { grid-area:who; font-size:14px; font-weight:700; }
+  .sr .c-dog { display:none; }
+  .sr .c-dog-inline { display:inline; }
+  .sr.total .tot-label, .sr.total .tot-amt { grid-column:auto; }
+  .sr .c-desc { grid-area:desc; }
+  .sr .c-disc { display:none; }
+  .sr .c-amt { grid-area:amt; }
+  .sr .c-ops { grid-area:ops; align-self:center; text-align:right; }
+  .sr .c-ops button { margin:0 0 0 4px; }
+  .sr.total { grid-template-areas: "date badge"; }
+  .sr.total .c-date { grid-area:date; }
+  .sr.total .c-amt { grid-area:badge; text-align:right; }
+}
 @media print {
   body.printing-sales > *:not(#salesOverlay) { display:none !important; }
   body.printing-sales #salesOverlay { position:static !important; display:block !important; overflow:visible; background:#fff; }
-  body.printing-sales .sales-top .no-print, body.printing-sales .sales-ops, body.printing-sales .sales-add { display:none !important; }
+  body.printing-sales .sales-top .no-print, body.printing-sales .c-ops, body.printing-sales .sales-add { display:none !important; }
   body.printing-sales .sales-top { position:static; background:#fff; color:#000; padding:0 0 8px; }
   body.printing-sales .sales-month button { display:none; }
 }
+
+#saleEditOverlay { display:none; position:fixed; inset:0; z-index:1000; background:rgba(12,68,124,.45); overflow:auto; }
+.se-sheet { background:#fff; max-width:640px; margin:24px auto; border-radius:16px; padding:16px; }
+.se-sheet h3 { font-size:15px; margin-bottom:2px; }
+.se-sub { font-size:12px; color:#7AAAC0; margin-bottom:12px; }
+.se-row { display:grid; grid-template-columns:minmax(0,1fr) 110px 30px; gap:6px; margin-bottom:6px; align-items:center; }
+.se-row input { padding:7px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; width:100%; }
+.se-row input.p { text-align:right; font-weight:700; }
+.se-row.disc input { background:#FFF6E8; }
+.se-row .x { color:#C06060; cursor:pointer; text-align:center; font-size:16px; }
+.se-pick { display:flex; gap:6px; margin-bottom:6px; flex-wrap:wrap; }
+.se-pick select, .se-pick input { padding:7px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; flex:1; min-width:0; }
+.se-pick button { flex:none; }
+.se-sec { font-size:11px; color:#7AAAC0; margin:12px 0 4px; font-weight:700; }
+.se-total { display:flex; justify-content:space-between; align-items:center; background:#F0F7FF; border-radius:10px; padding:10px 12px; margin:12px 0; font-weight:700; }
+.se-total b { font-size:20px; }
+.se-foot { display:flex; gap:8px; justify-content:flex-end; }
+@media (max-width:768px) { .se-sheet { margin:0; border-radius:0; min-height:100%; } }
 </style>
 </head>
 <body>
@@ -2101,7 +2150,13 @@ var EST_BREED_ALIAS = [
   ['シーズー', 'シーズー'], ['ペキニーズ', 'ペキニーズ'], ['パピヨン', 'パピヨン'], ['パグ', 'パグ'], ['ボストンテリア', 'ボストンテリア'],
   ['コーギー', 'コーギー']
 ];
-var salesState = { month: '', sales: null, includeEst: true, error: '' };
+var salesState = { month: '', sales: null, includeEst: true, error: '', estDisc: 10 };
+try { var _sd = localStorage.getItem('rinon_est_disc'); if (_sd !== null && !isNaN(parseInt(_sd, 10))) salesState.estDisc = parseInt(_sd, 10); } catch (e) {}
+function setEstDisc(v) {
+  salesState.estDisc = parseInt(v, 10) || 0;
+  try { localStorage.setItem('rinon_est_disc', String(salesState.estDisc)); } catch (e) {}
+  renderSales();
+}
 
 function salesEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
 function yen(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
@@ -2111,6 +2166,15 @@ function ymd(dt) {
   return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
 }
 
+function shortMenu(m) {
+  return String(m || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').replace('シャンプー・カット', 'シャンプーカット').trim();
+}
+function estimateReason(breed, weight, menu) {
+  var m = String(menu || '');
+  if (/コース/.test(m) && !estBreedKey(breed, weight)) return '犬種「' + (breed || '不明') + '」が料金表にありません';
+  if (/コース/.test(m)) return 'その犬種にこのコースの料金がありません';
+  return 'メニューが「' + shortMenu(m) + '」のため金額が決められません';
+}
 function estBreedKey(breed, weight) {
   var b = String(breed || '').replace(/（/g, '(').replace(/）/g, ')').trim();
   if (!b) return null;
@@ -2191,7 +2255,7 @@ function buildSalesRows(month) {
   (salesState.sales || []).forEach(function(s) {
     if (s.visitKey) haveKey[s.visitKey] = true;
     if (String(s.date || '').indexOf(month) === 0) {
-      rows.push({ kind: 'act', id: s.id, date: s.date, time: '', owner: s.owner, dog: s.dog, desc: s.desc, items: s.items || [], discount: s.discount || 0, total: s.total || 0, note: s.note || '' });
+      rows.push({ kind: 'act', id: s.id, visitKey: s.visitKey || '', date: s.date, time: '', owner: s.owner, dog: s.dog, desc: s.desc, items: s.items || [], discount: s.discount || 0, total: s.total || 0, note: s.note || '' });
     }
   });
   if (salesState.includeEst) {
@@ -2205,8 +2269,15 @@ function buildSalesRows(month) {
         var ds = ymd(v.date);
         if (!ds || ds.indexOf(month) !== 0 || ds > today) return;
         var est = estimateVisitAmount(p['犬種'], p['体重'], v.menu);
-        rows.push({ kind: 'est', visit: v, date: ds, time: v.time || '', owner: c.owner, dog: c.dog, desc: est ? est.label : (v.menu || '（メニュー不明）'),
+        rows.push({ kind: 'est', visit: v, date: ds, time: v.time || '', owner: c.owner, dog: c.dog, desc: est ? est.label : (shortMenu(v.menu) || '（メニュー不明）'), reason: est ? '' : estimateReason(p['犬種'], p['体重'], v.menu),
                     items: est ? [{ name: est.label, price: est.amount }] : [], discount: 0, total: est ? est.amount : 0, unknown: !est, menu: v.menu || '' });
+        var last = rows[rows.length - 1];
+        if (est && salesState.estDisc > 0) {
+          var dsc = Math.round(est.amount * salesState.estDisc / 100);
+          last.discount = -dsc; last.total = est.amount - dsc;
+          last.items = [{ name: est.label, price: est.amount }, { name: salesState.estDisc + '%割引', price: -dsc }];
+          last.reason = '料金表 ' + yen(est.amount) + ' から' + salesState.estDisc + '%OFFで計算';
+        }
       });
     });
   }
@@ -2247,30 +2318,29 @@ function renderSales() {
     '<div class="sales-card"><div class="lb">実績のみ（領収書ベース）</div><div class="vl">' + yen(actSum) + '</div><div class="sub">割引合計 ' + (disc ? '−' + yen(-disc) : '¥0') + '</div></div>' +
   '</div>';
 
-  h += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;font-size:12px;">' +
+  h += '<div style="display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;">' +
        '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" ' + (salesState.includeEst ? 'checked' : '') + ' onchange="salesState.includeEst=this.checked;renderSales();"> 推定（領収書がまだの来店）を含める</label>' +
+       '<label style="display:flex;align-items:center;gap:6px;">推定に反映する割引 <select onchange="setEstDisc(this.value)" style="padding:4px 8px;border:1px solid #B3D9F5;border-radius:8px;font-size:12px;"><option value="0"' + (salesState.estDisc === 0 ? ' selected' : '') + '>なし</option><option value="10"' + (salesState.estDisc === 10 ? ' selected' : '') + '>10%OFF</option><option value="15"' + (salesState.estDisc === 15 ? ' selected' : '') + '>15%OFF</option></select></label>' +
        (unk.length ? '<span style="color:#B4780A;">⚠️ 金額が分からない来店 ' + unk.length + '件（合計には入っていません）</span>' : '') + '</div>';
 
-  h += '<div class="sales-box"><h3>明細</h3><table class="sales-table"><thead><tr><th>日付</th><th>お客様</th><th>ワンちゃん</th><th>内容</th><th class="num">割引</th><th class="num">税込金額</th><th>区分</th><th class="sales-ops">操作</th></tr></thead><tbody>';
-  if (!rows.length) h += '<tr><td colspan="8" style="text-align:center;color:#7AAAC0;padding:20px;">この月の売上はまだありません</td></tr>';
+  h += '<div class="sales-box"><h3>明細　<span style="font-size:11px;font-weight:400;color:#7AAAC0;">金額はその場で書き換えられます。コースやオプションを変えるときは「内訳」を押してください</span></h3>' +
+       '<div class="sr head"><div>日付</div><div>お客様</div><div>ワンちゃん</div><div>内容</div><div class="num">割引</div><div class="num">税込金額</div><div>区分</div><div></div></div>';
+  if (!rows.length) h += '<div style="text-align:center;color:#7AAAC0;padding:20px;">この月の売上はまだありません</div>';
   rows.forEach(function(r, i) {
     var itemsText = (r.items || []).map(function(it) { return salesEsc(it.name) + ' ' + (it.price < 0 ? '−' + yen(-it.price) : yen(it.price)); }).join(' ／ ');
-    var ops = '';
-    if (r.kind === 'act') {
-      ops = '<button class="btn btn-light btn-sm" onclick="editSale(\'' + salesEsc(r.id) + '\',' + (r.total || 0) + ')">修正</button><button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteSale(\'' + salesEsc(r.id) + '\')">削除</button>';
-    } else if (!r.unknown) {
-      ops = '<button class="btn btn-light btn-sm" onclick="confirmEstimate(' + i + ')">この金額で確定</button>';
-    }
-    h += '<tr class="' + (r.kind === 'est' ? 'est' : '') + '"><td>' + salesEsc(String(r.date).replace(/-/g, '/')) + (r.time ? '<div class="sales-items">' + salesEsc(r.time) + '</div>' : '') + '</td>' +
-      '<td>' + salesEsc(r.owner) + '</td><td>' + salesEsc(r.dog) + '</td>' +
-      '<td>' + salesEsc(r.desc) + (itemsText && r.kind === 'act' ? '<div class="sales-items">' + itemsText + '</div>' : '') + (r.note ? '<div class="sales-items">' + salesEsc(r.note) + '</div>' : '') + '</td>' +
-      '<td class="num">' + (r.discount ? '−' + yen(-r.discount) : '') + '</td>' +
-      '<td class="num">' + (r.unknown ? '要確認' : yen(r.total)) + '</td>' +
-      '<td>' + (r.kind === 'act' ? '<span class="sales-badge act">実績</span>' : '<span class="sales-badge est">推定</span>') + '</td>' +
-      '<td class="sales-ops">' + ops + '</td></tr>';
+    var ops = '<button class="btn btn-light btn-sm" onclick="openSaleEdit(' + i + ')">内訳</button>' + (r.kind === 'act' ? '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteSale(\'' + salesEsc(r.id) + '\')">削除</button>' : '');
+    h += '<div class="sr ' + (r.kind === 'est' ? 'est' : '') + '">' +
+      '<div class="c-date">' + salesEsc(String(r.date).replace(/-/g, '/')) + (r.time ? ' <span style="font-weight:400;color:#7AAAC0;font-size:11px;">' + salesEsc(r.time) + '</span>' : '') + '</div>' +
+      '<div class="c-who">' + salesEsc(r.owner) + '<span class="c-dog-inline" style="font-weight:400;"> ／ ' + salesEsc(r.dog) + '</span></div>' +
+      '<div class="c-dog">' + salesEsc(r.dog) + '</div>' +
+      '<div class="desc c-desc">' + salesEsc(r.desc) + (itemsText && r.kind === 'act' ? '<div class="sales-items">' + itemsText + '</div>' : '') + (r.reason ? '<div class="rsn">' + salesEsc(r.reason) + '</div>' : '') + (r.note ? '<div class="sales-items">' + salesEsc(r.note) + '</div>' : '') + '</div>' +
+      '<div class="num c-disc">' + (r.discount ? '−' + yen(-r.discount) : '') + '</div>' +
+      '<div class="c-amt"><input class="sr-amt" type="number" inputmode="numeric" min="0" step="1" value="' + (r.unknown ? '' : Math.round(r.total)) + '" placeholder="金額を入力" onchange="saleAmountChanged(' + i + ', this)" onkeydown="if(event.key===\'Enter\')this.blur();"></div>' +
+      '<div class="c-badge">' + (r.kind === 'act' ? '<span class="sales-badge act">実績</span>' : '<span class="sales-badge est">推定</span>') + '</div>' +
+      '<div class="c-ops">' + ops + '</div></div>';
   });
-  if (rows.length) h += '<tr class="total"><td colspan="5">合計</td><td class="num">' + yen(all) + '</td><td colspan="2"></td></tr>';
-  h += '</tbody></table></div>';
+  if (rows.length) h += '<div class="sr total"><div class="c-date tot-label">合計（税込）</div><div class="num c-amt tot-amt">' + yen(all) + '</div></div>';
+  h += '</div>';
 
   var catKeys = Object.keys(cats);
   if (catKeys.length) {
@@ -2280,7 +2350,7 @@ function renderSales() {
     });
     h += '</tbody></table></div>';
   }
-  h += '<div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※「実績」は領収書を発行した時に自動で記録された金額です。「推定」は、領収書がまだの来店を、犬種とメニューから料金表どおりに計算した金額です（オプション・サイズ代・割引は含みません）。領収書を発行すると、推定は実績に置き換わります。</div>';
+  h += '<div style="font-size:11px;color:#7AAAC0;line-height:1.7;">※「実績」は領収書を発行した時に自動で記録された金額です。「推定」は、領収書がまだの来店を、犬種とメニューから料金表どおりに計算した金額です（オプション・サイズ代は含みません。割引は上の選択どおりに全件へ一律で反映します）。税込金額の欄に金額を入れると、その金額で確定します。領収書を発行すると、実績に置き換わります。</div>';
   document.getElementById('salesContent').innerHTML = h;
   window._salesRows = rows;
 }
@@ -2292,6 +2362,42 @@ function salesPost(params) {
 function salesGet(params) {
   params.set('secret', DELETE_SECRET);
   return fetch(REPEAT_API_URL + '?' + params.toString(), { cache: 'no-store' }).then(function(r) { return r.json(); });
+}
+
+function saleAmountChanged(i, el) {
+  var r = (window._salesRows || [])[i];
+  if (!r) return;
+  var raw = String(el.value || '').trim();
+  if (raw === '') { renderSales(); return; }
+  var n = parseFloat(raw.replace(/[^0-9.\-]/g, ''));
+  if (isNaN(n) || n < 0) { alert('金額を正しく入力してください'); renderSales(); return; }
+  if (Math.round(n) === Math.round(r.total) && r.kind === 'act') return;
+  el.disabled = true;
+  var done = function(res) {
+    if (res && res.success) { salesToast('保存しました'); loadSales(); }
+    else { alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー')); renderSales(); }
+  };
+  var fail = function() { alert('保存に失敗しました（通信エラー）'); renderSales(); };
+  if (r.kind === 'act') {
+    var q = new URLSearchParams(); q.set('action', 'updateSale'); q.set('id', r.id); q.set('total', String(n));
+    salesGet(q).then(done).catch(fail);
+  } else {
+    var p = new URLSearchParams();
+    p.set('action', 'saveSale'); p.set('visitKey', r.visit.key);
+    p.set('date', r.date); p.set('owner', r.owner || ''); p.set('dog', r.dog || ''); p.set('desc', r.desc);
+    p.set('items', JSON.stringify([{ name: r.desc, price: n }])); p.set('total', String(n)); p.set('note', '金額を入力して確定');
+    salesPost(p).then(done).catch(fail);
+  }
+}
+function salesToast(msg) {
+  var t = document.getElementById('salesToast');
+  if (!t) {
+    t = document.createElement('div'); t.id = 'salesToast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2a8a4a;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;z-index:1000;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(function() { t.style.display = 'none'; }, 2000);
 }
 
 function confirmEstimate(i) {
@@ -2355,6 +2461,192 @@ function printSales() {
   document.body.classList.add('printing-sales');
   setTimeout(function() { window.print(); document.body.classList.remove('printing-sales'); }, 50);
 }
+var EST_SINGLE_MENU = [
+  { name: "爪切り(やすりがけ含む)",       small: 550,  medium: 660 },
+  { name: "耳掃除",                       small: 550,  medium: 660 },
+  { name: "足裏バリカン",                 small: 550,  medium: 660 },
+  { name: "足回りカット(前足・後足)",     small: 550,  medium: 660 },
+  { name: "お腹バリカン(おへそ下まで)",   small: 385,  medium: 495 },
+  { name: "肛門腺絞り",                   small: 550,  medium: 660 },
+  { name: "耳毛抜き",                     small: 385,  medium: 495 }
+];
+var EST_OPTION_MENU = [
+  { name: "毛玉代",                             price: 550 },
+  { name: "薬用シャンプー",                     price: 550 },
+  { name: "ひげ切り",                           price: 550 },
+  { name: "デザインカット(ワンポイント)",       price: 550 },
+  { name: "デザインカット(おぱんつetc)", price: 1100 },
+  { name: "オールシザー",                       price: 1100 },
+  { name: "部分カット(1ヵ所~)",                 price: 550 },
+  { name: "お顔カット",                         price: 1100 },
+  { name: "足先バリカン",                       price: 550 },
+  { name: "足ハサミカット",                     price: 550 },
+  { name: "サイズ代", price: 550,  exact: true },
+  { name: "サイズ代", price: 880,  exact: true },
+  { name: "サイズ代", price: 1100, exact: true }
+];
+
+// ===== 売上の内訳編集 =====
+var saleEdit = null; // { row, items:[{name,price,kind}], rate, desc, breed }
+
+function openSaleEdit(i) {
+  var r = (window._salesRows || [])[i];
+  if (!r) return;
+  var breedKey = null;
+  if (r.visit) {
+    var c = (customers || []).filter(function(cc) { return cc.visits.indexOf(r.visit) !== -1; })[0];
+    if (c) breedKey = estBreedKey(c.profile['犬種'], c.profile['体重']);
+  }
+  var items = [], rate = 0;
+  (r.items || []).forEach(function(it) {
+    var price = Number(it.price) || 0;
+    if (price < 0) {
+      var m = /(\d+)%/.exec(it.name || '');
+      if (m) { rate = parseInt(m[1], 10); }
+      else items.push({ name: it.name, price: price, kind: 'disc' });
+    } else items.push({ name: it.name, price: price, kind: 'item' });
+  });
+  // 合計だけが分かっていて内訳が無い実績（手入力や旧データ）は、1行の項目にする
+  if (!items.length && r.total > 0) items.push({ name: r.desc || '売上', price: r.total, kind: 'item' });
+  saleEdit = { row: r, items: items, rate: rate, desc: r.desc || '', breed: breedKey || '' };
+  renderSaleEdit();
+  document.getElementById('saleEditOverlay').style.display = 'block';
+}
+function closeSaleEdit() { document.getElementById('saleEditOverlay').style.display = 'none'; saleEdit = null; }
+
+function seDiscLines() {
+  var base = 0;
+  saleEdit.items.forEach(function(it) { if (it.kind === 'item') base += Number(it.price) || 0; });
+  var lines = [];
+  if (saleEdit.rate > 0 && base > 0) lines.push({ name: saleEdit.rate + '%割引', price: -Math.round(base * saleEdit.rate / 100), kind: 'rate' });
+  return lines;
+}
+function seAllItems() {
+  return saleEdit.items.concat(seDiscLines());
+}
+function seTotal() {
+  return seAllItems().reduce(function(t, it) { return t + (Number(it.price) || 0); }, 0);
+}
+
+function renderSaleEdit() {
+  var e = saleEdit, r = e.row, h = '';
+  h += '<h3>内訳の編集</h3><div class="se-sub">' + salesEsc(String(r.date).replace(/-/g, '/')) + '　' + salesEsc(r.owner) + ' 様 ／ ' + salesEsc(r.dog) + '</div>';
+  h += '<div class="se-sec">内訳（名前と金額は直接書き換えられます）</div>';
+  e.items.forEach(function(it, k) {
+    h += '<div class="se-row' + (it.kind === 'disc' ? ' disc' : '') + '"><input value="' + salesEsc(it.name) + '" onchange="seSet(' + k + ',\'name\',this.value)">' +
+         '<input class="p" type="number" inputmode="numeric" value="' + (it.price === 0 ? '' : Math.round(it.price)) + '" placeholder="0" onchange="seSet(' + k + ',\'price\',this.value)"><span class="x" onclick="seDel(' + k + ')">×</span></div>';
+  });
+  seDiscLines().forEach(function(it) {
+    h += '<div class="se-row disc"><input value="' + salesEsc(it.name) + '" disabled><input class="p" value="' + Math.round(it.price) + '" disabled><span></span></div>';
+  });
+  if (!e.items.length) h += '<div style="font-size:12px;color:#7AAAC0;margin-bottom:6px;">まだ内訳がありません。下から追加してください。</div>';
+
+  // コース
+  var breedOpts = Object.keys(EST_BREED_MENU).map(function(b) { return '<option value="' + salesEsc(b) + '"' + (b === e.breed ? ' selected' : '') + '>' + salesEsc(b) + '</option>'; }).join('');
+  h += '<div class="se-sec">コースを追加</div><div class="se-pick"><select id="se-breed" onchange="seBreedChanged()">' + (e.breed ? '' : '<option value="">犬種を選択</option>') + breedOpts + '</select><select id="se-course"></select><button class="btn btn-primary btn-sm" onclick="seAddCourse()">＋追加</button></div>';
+  // 単品
+  h += '<div class="se-sec">単品メニューを追加</div><div class="se-pick"><select id="se-single">' + EST_SINGLE_MENU.map(function(m, k) { return '<option value="' + k + '">' + salesEsc(m.name) + '（小型¥' + m.small.toLocaleString('ja-JP') + ' / 中型¥' + m.medium.toLocaleString('ja-JP') + '）</option>'; }).join('') +
+       '</select><select id="se-size" style="max-width:90px;"><option value="small">小型犬</option><option value="medium">中型犬</option></select><button class="btn btn-primary btn-sm" onclick="seAddSingle()">＋追加</button></div>';
+  // オプション
+  h += '<div class="se-sec">オプションを追加</div><div class="se-pick"><select id="se-option">' + EST_OPTION_MENU.map(function(m, k) { return '<option value="' + k + '">' + salesEsc(m.name) + '（+¥' + m.price.toLocaleString('ja-JP') + (m.exact ? '' : '~') + '）</option>'; }).join('') +
+       '</select><button class="btn btn-primary btn-sm" onclick="seAddOption()">＋追加</button></div>';
+  // 自由入力
+  h += '<div class="se-sec">自由に追加</div><div class="se-pick"><input id="se-cname" placeholder="項目名（例：〇〇代）"><input id="se-cprice" type="number" inputmode="numeric" placeholder="金額" style="max-width:110px;"><button class="btn btn-primary btn-sm" onclick="seAddCustom()">＋追加</button></div>';
+  // 割引
+  h += '<div class="se-sec">割引</div><div class="se-pick"><button class="btn ' + (e.rate === 10 ? 'btn-primary' : 'btn-light') + ' btn-sm" onclick="seRate(10)">10%OFF</button><button class="btn ' + (e.rate === 15 ? 'btn-primary' : 'btn-light') + ' btn-sm" onclick="seRate(15)">15%OFF</button><button class="btn ' + (e.rate === 0 ? 'btn-primary' : 'btn-light') + ' btn-sm" onclick="seRate(0)">割引なし</button>' +
+       '<input id="se-dname" placeholder="割引名" style="min-width:90px;"><input id="se-dprice" type="number" inputmode="numeric" placeholder="割引額" style="min-width:90px;"><button class="btn btn-light btn-sm" onclick="seAddDisc()">金額で追加</button></div>';
+  h += '<div class="se-sec">但し書き（領収書に出る内容）</div><div class="se-pick"><input id="se-desc" value="' + salesEsc(e.desc) + '" onchange="saleEdit.desc=this.value"></div>';
+  h += '<div class="se-total"><span>合計（税込）</span><b>' + yen(seTotal()) + '</b></div>';
+  h += '<div class="se-foot"><button class="btn btn-light" onclick="closeSaleEdit()">キャンセル</button><button class="btn btn-primary" onclick="saveSaleEdit()">保存する</button></div>';
+  document.getElementById('saleEditSheet').innerHTML = h;
+  seBreedChanged(true);
+}
+
+function seBreedChanged(keep) {
+  var b = document.getElementById('se-breed').value;
+  if (!keep) saleEdit.breed = b;
+  var sel = document.getElementById('se-course');
+  var t = EST_BREED_MENU[b];
+  var labels = { shampoo: 'シャンプーコース', cut: 'シャンプーカットコース', special: 'スペシャルコース' };
+  sel.innerHTML = '';
+  if (!t) return;
+  ['shampoo', 'cut', 'special'].forEach(function(c) {
+    if (t[c] !== null && t[c] !== undefined) {
+      var o = document.createElement('option'); o.value = c; o.textContent = labels[c] + '（¥' + t[c].toLocaleString('ja-JP') + '~）'; sel.appendChild(o);
+    }
+  });
+}
+
+function seKeepDesc() { var d = document.getElementById('se-desc'); if (d) saleEdit.desc = d.value; }
+function seAddCourse() {
+  seKeepDesc();
+  var b = document.getElementById('se-breed').value, c = document.getElementById('se-course').value;
+  var t = EST_BREED_MENU[b];
+  if (!t || !c || t[c] === null || t[c] === undefined) { alert('犬種とコースを選んでください'); return; }
+  var labels = { shampoo: 'シャンプーコース', cut: 'シャンプーカットコース', special: 'スペシャルコース' };
+  saleEdit.items.push({ name: b + '　' + labels[c], price: t[c], kind: 'item' });
+  saleEdit.desc = { shampoo: 'シャンプー', cut: 'シャンプーカット', special: 'スペシャルコース' }[c];
+  saleEdit.breed = b;
+  renderSaleEdit();
+}
+function seAddSingle() {
+  seKeepDesc();
+  var m = EST_SINGLE_MENU[parseInt(document.getElementById('se-single').value, 10)];
+  var size = document.getElementById('se-size').value;
+  if (!m) return;
+  saleEdit.items.push({ name: m.name + '（' + (size === 'medium' ? '中型犬' : '小型犬') + '）', price: size === 'medium' ? m.medium : m.small, kind: 'item' });
+  renderSaleEdit();
+}
+function seAddOption() {
+  seKeepDesc();
+  var m = EST_OPTION_MENU[parseInt(document.getElementById('se-option').value, 10)];
+  if (!m) return;
+  saleEdit.items.push({ name: m.name, price: m.price, kind: 'item' });
+  renderSaleEdit();
+}
+function seAddCustom() {
+  seKeepDesc();
+  var n = document.getElementById('se-cname').value.trim(), p = parseFloat(document.getElementById('se-cprice').value);
+  if (!n || isNaN(p) || p < 0) { alert('項目名と金額を入力してください'); return; }
+  saleEdit.items.push({ name: n, price: p, kind: 'item' });
+  renderSaleEdit();
+}
+function seAddDisc() {
+  seKeepDesc();
+  var n = document.getElementById('se-dname').value.trim() || '割引', p = parseFloat(document.getElementById('se-dprice').value);
+  if (isNaN(p) || p <= 0) { alert('割引額を入力してください'); return; }
+  saleEdit.items.push({ name: n, price: -Math.round(p), kind: 'disc' });
+  renderSaleEdit();
+}
+function seRate(v) { seKeepDesc(); saleEdit.rate = v; renderSaleEdit(); }
+function seSet(k, f, v) {
+  seKeepDesc();
+  var it = saleEdit.items[k]; if (!it) return;
+  if (f === 'name') it.name = v;
+  else { var n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); it.price = isNaN(n) ? 0 : (it.kind === 'disc' ? -Math.abs(n) : n); }
+  renderSaleEdit();
+}
+function seDel(k) { seKeepDesc(); saleEdit.items.splice(k, 1); renderSaleEdit(); }
+
+function saveSaleEdit() {
+  seKeepDesc();
+  var e = saleEdit, r = e.row;
+  var items = seAllItems().filter(function(it) { return (it.name || '').trim() && (Number(it.price) || 0) !== 0; });
+  var total = items.reduce(function(t, it) { return t + (Number(it.price) || 0); }, 0);
+  if (!items.length || total <= 0) { alert('内訳と合計金額を確認してください'); return; }
+  var p = new URLSearchParams();
+  p.set('action', 'saveSale');
+  if (r.kind === 'act') { p.set('id', r.id); p.set('visitKey', r.visitKey || ''); }
+  else { p.set('visitKey', r.visit.key); }
+  p.set('date', r.date); p.set('owner', r.owner || ''); p.set('dog', r.dog || '');
+  p.set('desc', (e.desc || '').trim() || items[0].name);
+  p.set('items', JSON.stringify(items.map(function(it) { return { name: it.name, price: Number(it.price) }; })));
+  p.set('total', String(total)); p.set('note', '内訳を編集');
+  salesPost(p).then(function(res) {
+    if (res && res.success) { closeSaleEdit(); salesToast('保存しました'); loadSales(); }
+    else alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー'));
+  }).catch(function() { alert('保存に失敗しました（通信エラー）'); });
+}
 </script>
 
 <div id="salesOverlay">
@@ -2379,5 +2671,7 @@ function printSales() {
     <div id="salesContent"><div class="loading"><div class="spinner"></div>売上を読み込み中...</div></div>
   </div>
 </div>
+
+<div id="saleEditOverlay"><div class="se-sheet" id="saleEditSheet"></div></div>
 </body>
 </html>
