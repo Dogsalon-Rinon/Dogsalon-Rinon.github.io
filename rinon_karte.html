@@ -386,10 +386,10 @@ function driveViewUrl(fileId) {
 
 // 顧客の「プロフィール更新先」（初回シートの行か、初回データが無ければリピートシートの最古の行）を判定
 function profileTarget(c) {
-  if (c.firstRowNum) return { url: FIRST_API_URL, row: c.firstRowNum };
+  if (c.firstRowNum) return { url: FIRST_API_URL, row: c.firstRowNum, ts: (c.profile && c.profile['タイムスタンプ']) || '', dog: (c.profile && c.profile['ワンちゃんのお名前']) || '' };
   var v = c.visits.find(function(v) { return v.type === 'first'; }) || c.visits[0];
   if (!v) return null;
-  return { url: v.type === 'first' ? FIRST_API_URL : REPEAT_API_URL, row: v.rowNum };
+  return { url: v.type === 'first' ? FIRST_API_URL : REPEAT_API_URL, row: v.rowNum, ts: v.ts || '', dog: v.dogName || '' };
 }
 
 // 画像をリサイズ・圧縮してbase64(dataURLの本体部分)を返す
@@ -430,7 +430,7 @@ function uploadProfilePhoto(idx, inputEl) {
     params.set('action', 'uploadPhoto');
     params.set('secret', DELETE_SECRET);
     params.set('target', 'profile');
-    params.set('row', target.row);
+    params.set('row', target.row); params.set('ts', target.ts || ''); params.set('dog', target.dog || '');
     params.set('image', base64);
     params.set('mimeType', 'image/jpeg');
     return fetch(target.url, { method: 'POST', body: params });
@@ -458,7 +458,7 @@ function deleteProfilePhoto(idx) {
   params.set('action', 'deletePhoto');
   params.set('secret', DELETE_SECRET);
   params.set('target', 'profile');
-  params.set('row', target.row);
+  params.set('row', target.row); params.set('ts', target.ts || ''); params.set('dog', target.dog || '');
   params.set('fileId', c.dogPhotoId);
   fetch(target.url, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) { alert('削除に失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (box) box.style.opacity = '1'; return; }
@@ -488,7 +488,7 @@ function uploadVisitPhoto(uid, inputEl) {
       params.set('action', 'uploadPhoto');
       params.set('secret', DELETE_SECRET);
       params.set('target', 'visit');
-      params.set('row', info.rowNum);
+      params.set('row', info.rowNum); params.set('ts', info.ts || ''); params.set('dog', info.dogName || '');
       params.set('image', base64);
       params.set('mimeType', 'image/jpeg');
       return fetch(apiUrl, { method: 'POST', body: params });
@@ -520,7 +520,7 @@ function deleteVisitPhoto(uid, fileId) {
   params.set('action', 'deletePhoto');
   params.set('secret', DELETE_SECRET);
   params.set('target', 'visit');
-  params.set('row', info.rowNum);
+  params.set('row', info.rowNum); params.set('ts', info.ts || ''); params.set('dog', info.dogName || '');
   params.set('fileId', fileId);
   fetch(apiUrl, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) { alert('削除に失敗しました：' + (res && res.error ? res.error : '不明なエラー')); if (container) container.style.opacity = '1'; return; }
@@ -817,6 +817,7 @@ function buildCustomers() {
       lastTrim: r['前回の施術からの期間'] || '',
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
+      ts: r['タイムスタンプ'] || '', dogName: r['ワンちゃんのお名前'] || '',
       rowNum: r['__rowNum'],
       photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
       memo: r['施術メモ'] || '',
@@ -857,6 +858,7 @@ function buildCustomers() {
       lastTrim: r['前回の施術からの期間'] || '',
       request: r['ご要望'] || '',
       key: key + '_' + r['タイムスタンプ'],
+      ts: r['タイムスタンプ'] || '', dogName: r['ワンちゃんのお名前'] || '',
       rowNum: r['__rowNum'],
       photos: (r['施術写真'] || '').toString().split(',').filter(Boolean),
       memo: r['施術メモ'] || '',
@@ -1175,7 +1177,7 @@ function showKarte(idx, silent) {
     var uid = idx + '_' + vi;
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
                           time: v.time || '', endTime: v.endTime || '',
-                          rowNum: v.rowNum, type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
+                          rowNum: v.rowNum, ts: v.ts || '', dogName: v.dogName || '', type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
     var photosHtml = (v.photos || []).map(function(fid) {
       return '<div class="visit-photo-thumb">' +
         '<img src="' + driveThumbUrl(fid, 150) + '" onclick="window.open(\'' + driveViewUrl(fid) + '\',\'_blank\')">' +
@@ -1346,7 +1348,7 @@ function saveMemoNow(uid, el) {
   var params = new URLSearchParams();
   params.set('action', 'saveMemo');
   params.set('secret', DELETE_SECRET);
-  params.set('row', info.rowNum);
+  params.set('row', info.rowNum); params.set('ts', info.ts || ''); params.set('dog', info.dogName || '');
   params.set('memo', val);
   fetch(apiUrl, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
     if (!res || !res.success) {
@@ -3502,7 +3504,7 @@ function saveBodyNow(uid) {
   var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
   var keys = ['weight', 'coat', 'skin', 'caution', 'style'];
   var params = new URLSearchParams();
-  params.set('action', 'saveBody'); params.set('secret', DELETE_SECRET); params.set('row', info.rowNum);
+  params.set('action', 'saveBody'); params.set('secret', DELETE_SECRET); params.set('row', info.rowNum); params.set('ts', info.ts || ''); params.set('dog', info.dogName || '');
   var vals = {};
   keys.forEach(function(k) { var el = document.getElementById('bd-' + uid + '-' + k); vals[k] = el ? el.value : ''; params.set(k, vals[k]); });
   fetch(apiUrl, { method: 'POST', body: params }).then(function(r) { return r.json(); }).then(function(res) {
