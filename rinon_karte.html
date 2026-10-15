@@ -481,11 +481,25 @@ function deleteProfilePhoto(idx) {
   });
 }
 
+function futureVisitWarn(info) {
+  // まだ来ていない予約（未来日）に写真・メモを入れようとしたとき、確認を出す
+  try {
+    var d = new Date(String(info.date || '').replace(/-/g, '/'));
+    if (isNaN(d.getTime())) return true;
+    var t = new Date(); t.setHours(23, 59, 59, 999);
+    if (d.getTime() > t.getTime()) {
+      var m = (d.getMonth() + 1) + '/' + d.getDate();
+      return confirm('これは ' + m + ' の「これから来る予約」です。\n今日の施術の写真・メモなら、一つ下の過去の来店に入れてください。\n\nそれでも、この予約に保存しますか？');
+    }
+  } catch (e) {}
+  return true;
+}
 function uploadVisitPhoto(uid, inputEl) {
   var files = inputEl.files ? Array.prototype.slice.call(inputEl.files) : [];
   if (files.length === 0) return;
   var info = visitLookup[uid];
   if (!info || !info.rowNum) { alert('この来店の行情報が見つからないため、写真を保存できません'); return; }
+  if (!futureVisitWarn(info)) { inputEl.value = ''; return; }
   var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
   var container = document.getElementById('visit-photos-' + uid);
   if (container) container.style.opacity = '0.5';
@@ -1367,6 +1381,7 @@ function formatPhone(val) {
 function saveMemoNow(uid, el) {
   var info = visitLookup[uid];
   if (!info || !info.rowNum) return;
+  if (!futureVisitWarn(info)) { el.value = (info.visitObj && info.visitObj.memo) || ''; return; }
   var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
   var val = el.value;
 
