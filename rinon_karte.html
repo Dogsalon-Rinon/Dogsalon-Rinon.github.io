@@ -1265,8 +1265,8 @@ function showKarte(idx, silent) {
             ? '<span class="tag tag-green">✅ 登録あり</span> <span style="font-size:11px; color:#7AAAC0;">' + email + '</span>'
             : '<span class="tag" style="background:#FFE8E8; color:#C06060;">❌ 未登録</span>') +
         '</div></div>' +
-        '<div class="info-item"><div class="info-label">狂犬病ワクチン期限' + vacTag(p['狂犬病ワクチン期限']) + '</div>' + vacInput(c, '狂犬病ワクチン期限', p['狂犬病ワクチン期限']) + '</div>' +
-        '<div class="info-item"><div class="info-label">混合ワクチン期限' + vacTag(p['混合ワクチン期限']) + '</div>' + vacInput(c, '混合ワクチン期限', p['混合ワクチン期限']) + '</div>' +
+        vacItemHtml(c, VAC_DEFS[0]) +
+        vacItemHtml(c, VAC_DEFS[1]) +
         '<div class="info-item" style="grid-column:1/-1;"><div class="info-label">住所（手入力・全端末で共有）</div>' +
           (c.firstRowNum
             ? '<input type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="住所を入力..." value="' + (p['住所'] || '').replace(/"/g, '&quot;') + '" onchange="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)">'
@@ -2035,7 +2035,7 @@ function submitBlockSlot() {
     <div style="margin-bottom:8px;">
       <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#0C447C; cursor:pointer;">
         <input type="checkbox" id="rs-notify" checked style="width:16px; height:16px;">
-        お客様にメールで変更をお知らせする
+        お客様に変更をお知らせする（メール・LINE）
       </label>
     </div>
     <div style="margin-bottom:16px;">
@@ -2061,7 +2061,7 @@ function submitBlockSlot() {
     <div style="margin-bottom:8px;">
       <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#0C447C; cursor:pointer;">
         <input type="checkbox" id="cv-notify" checked style="width:16px; height:16px;">
-        お客様にメールでキャンセルをお知らせする
+        お客様にキャンセルをお知らせする（メール・LINE）
       </label>
     </div>
     <div style="margin-bottom:16px;">
@@ -2146,7 +2146,7 @@ function submitReschedule() {
         err.style.display = 'block';
         return;
       }
-      alert('✅ 日時を変更しました' + (res.emailSent ? '（お客様にメールを送信しました）' : ''));
+      alert('✅ 日時を変更しました' + noticeSentText(res));
       closeReschedule();
       loadData();
     })
@@ -2156,6 +2156,12 @@ function submitReschedule() {
     });
 }
 
+function noticeSentText(res) {
+  var ch = [];
+  if (res && res.emailSent) ch.push('メール');
+  if (res && res.lineSent) ch.push('LINE');
+  return ch.length ? '（お客様に' + ch.join('と') + 'を送信しました）' : '';
+}
 function openCancelVisit(uid) {
   var info = visitLookup[uid];
   if (!info || !info.rowNum) { alert('この来店の行情報が見つかりません'); return; }
@@ -2197,7 +2203,7 @@ function submitCancelVisit() {
         err.style.display = 'block';
         return;
       }
-      alert('✅ キャンセルしました' + (res.emailSent ? '（お客様にメールを送信しました）' : ''));
+      alert('✅ キャンセルしました' + noticeSentText(res));
       closeCancelVisit();
       loadData();
     })
@@ -2579,8 +2585,25 @@ function vacStatus(val) {
   var days = Math.round((d - t) / 86400000);
   return { days: days, date: d };
 }
-function vacTag(val) {
-  var st = vacStatus(val);
+var VAC_DEFS = [
+  { field: '狂犬病ワクチン接種日', old: '狂犬病ワクチン期限', label: '狂犬病' },
+  { field: '混合ワクチン接種日', old: '混合ワクチン期限', label: '混合' }
+];
+// 接種日 → 期限（接種日の1年後）。以前「期限」の欄に入れた日付は、接種日として扱う
+function vacGiven(p, d) { return String((p && (p[d.field] || p[d.old])) || '').trim(); }
+function vacExpiry(given) {
+  var v = String(given || '').trim().replace(/\//g, '-');
+  var m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!m) return '';
+  return (parseInt(m[1], 10) + 1) + '-' + ('0' + parseInt(m[2], 10)).slice(-2) + '-' + ('0' + parseInt(m[3], 10)).slice(-2);
+}
+function vacStatusOf(p, d) {
+  var g = vacGiven(p, d);
+  var st = vacStatus(vacExpiry(g));
+  if (st) { st.given = g; st.expiry = vacExpiry(g); }
+  return st;
+}
+function vacTag(st) {
   if (!st) return '';
   if (st.days < 0) return '<span class="vac-tag ng">期限切れ</span>';
   if (st.days <= 30) return '<span class="vac-tag soon">あと' + st.days + '日</span>';
@@ -2588,13 +2611,18 @@ function vacTag(val) {
 }
 function vacTagFor(c) {
   var p = c.profile || {};
-  var a = vacStatus(p['狂犬病ワクチン期限']), b = vacStatus(p['混合ワクチン期限']);
   var worst = null;
-  [a, b].forEach(function(x) { if (x && (worst === null || x.days < worst.days)) worst = x; });
+  VAC_DEFS.forEach(function(d) { var x = vacStatusOf(p, d); if (x && (worst === null || x.days < worst.days)) worst = x; });
   if (!worst) return '';
   if (worst.days < 0) return '<span class="vac-tag ng">💉期限切れ</span>';
   if (worst.days <= 30) return '<span class="vac-tag soon">💉あと' + worst.days + '日</span>';
   return '';
+}
+function vacItemHtml(c, d) {
+  var p = c.profile || {};
+  var st = vacStatusOf(p, d);
+  return '<div class="info-item"><div class="info-label">' + d.label + 'ワクチン接種日' + vacTag(st) + '</div>' + vacInput(c, d.field, vacGiven(p, d)) +
+    '<div style="font-size:11px;color:#7AAAC0;margin-top:3px;">' + (st ? '期限：' + salesEsc(st.expiry.replace(/-/g, '/')) + '（接種日から1年）' : '日付を入れると、期限が自動で出ます') + '</div></div>';
 }
 function vacInput(c, field, val) {
   if (!c.firstRowNum) return '<div class="info-value" style="color:#B0B0B0;">初回データがないため入力できません</div>';
@@ -2611,6 +2639,7 @@ function saveVaccine(row, field, el) {
       el.style.borderColor = '#2EA87E';
       setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
       updateFollowCount();
+      if (currentKarteIdx !== null && customers[currentKarteIdx] === cust) setTimeout(function() { showKarte(currentKarteIdx, true); }, 600);
     } else alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー'));
   }).catch(function() { alert('保存に失敗しました（通信エラー）'); });
 }
@@ -2645,11 +2674,13 @@ function vacCandidates() {
   (customers || []).forEach(function(c) {
     var p = c.profile || {};
     var items = [];
-    ['狂犬病ワクチン期限', '混合ワクチン期限'].forEach(function(f) {
-      var st = vacStatus(p[f]);
-      if (st && st.days <= 30) items.push({ f: f.replace('期限', ''), days: st.days, date: ymd(st.date) });
+    var any = false;
+    VAC_DEFS.forEach(function(d) {
+      var st = vacStatusOf(p, d);
+      if (st) any = true;
+      if (st && st.days <= 30) items.push({ f: d.label + 'ワクチン', days: st.days, date: ymd(st.date), given: st.given });
     });
-    if (!vacStatus(p['狂犬病ワクチン期限']) && !vacStatus(p['混合ワクチン期限'])) none++;
+    if (!any) none++;
     if (items.length) out.push({ c: c, items: items, min: Math.min.apply(null, items.map(function(i) { return i.days; })) });
   });
   out.sort(function(a, b) { return a.min - b.min; });
@@ -2737,10 +2768,10 @@ function renderFollow() {
     vl.forEach(function(x) {
       var c = x.c;
       h += '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + '</div><div class="c2">' +
-        x.items.map(function(i) { return '<div style="font-size:12px;">' + salesEsc(i.f) + '：' + salesEsc(i.date.replace(/-/g, '/')) + (i.days < 0 ? ' <span class="vac-tag ng">期限切れ</span>' : ' <span class="vac-tag soon">あと' + i.days + '日</span>') + '</div>'; }).join('') +
+        x.items.map(function(i) { return '<div style="font-size:12px;">' + salesEsc(i.f) + '　期限 ' + salesEsc(i.date.replace(/-/g, '/')) + '（接種 ' + salesEsc(String(i.given).replace(/-/g, '/')) + '）' + (i.days < 0 ? ' <span class="vac-tag ng">期限切れ</span>' : ' <span class="vac-tag soon">あと' + i.days + '日</span>') + '</div>'; }).join('') +
         '</div><div class="c3"></div><div><button class="btn btn-light btn-sm" onclick="closeFollow();showKarte(' + customers.indexOf(c) + ')">カルテ</button></div></div>';
     });
-    h += '</div><div style="font-size:12px;color:#7AAAC0;">期限が未入力の子：' + vl.none + '頭（カルテの「狂犬病ワクチン期限」「混合ワクチン期限」に日付を入れると、ここに出ます）</div>';
+    h += '</div><div style="font-size:12px;color:#7AAAC0;">期限が未入力の子：' + vl.none + '頭（カルテの「ワクチン接種日」に日付を入れると、1年後の期限で、ここに出ます）</div>';
   }
   document.getElementById('followContent').innerHTML = h;
   updateFollowCount();
