@@ -129,6 +129,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 }
 
 .back-to-list { display: none; }
+.fab-list { display: none; }
 
 @media (max-width: 768px) {
   .main { grid-template-columns: 1fr; }
@@ -154,6 +155,14 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
   .main.sidebar-collapsed .back-to-list {
     display: inline-flex; align-items: center; gap: 6px;
     margin-bottom: 14px; padding: 8px 16px;
+  }
+  /* 画面下に常に表示する「一覧へ」ボタン（スクロール不要） */
+  .main.sidebar-collapsed .fab-list { display: flex; }
+  .fab-list {
+    display: none; position: fixed; left: 14px; bottom: 18px; z-index: 900;
+    align-items: center; gap: 6px; padding: 12px 18px; border: none; border-radius: 28px;
+    background: #0C447C; color: #fff; font-size: 14px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(0,0,0,.28); cursor: pointer;
   }
 
   .welcome { padding: 40px 24px; }
@@ -312,6 +321,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 </div>
 
 <div class="main">
+<button class="fab-list" onclick="backToList()">← 一覧へ</button>
   <div class="sidebar">
     <div id="todaySide" class="today-side"></div>
     <div class="sidebar-header">
@@ -1138,10 +1148,20 @@ function filterCustomers() {
   renderList(filtered);
 }
 
-function backToList() {
-  document.querySelector('.main').classList.remove('sidebar-collapsed');
-  window.scrollTo(0, 0);
+var listScrollY = 0;
+function closeKarteView() {
+  var m = document.querySelector('.main');
+  if (!m.classList.contains('sidebar-collapsed')) return;
+  m.classList.remove('sidebar-collapsed');
+  var y = listScrollY;
+  setTimeout(function() { window.scrollTo(0, y); }, 0);
 }
+function backToList() {
+  // スマホの「戻る」操作と同じ動きにする（履歴を1つ戻す）
+  if (history.state && history.state.karte) { history.back(); }
+  else { closeKarteView(); }
+}
+window.addEventListener('popstate', function() { closeKarteView(); });
 
 function showKarte(idx, silent) {
   document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
@@ -1156,7 +1176,12 @@ function showKarte(idx, silent) {
   currentKarteIdx = idx;
 
   if (!silent && window.innerWidth <= 768) {
-    document.querySelector('.main').classList.add('sidebar-collapsed');
+    var mainEl = document.querySelector('.main');
+    if (!mainEl.classList.contains('sidebar-collapsed')) {
+      listScrollY = window.pageYOffset || 0;
+      try { history.pushState({ karte: true }, ''); } catch (e) {}
+    }
+    mainEl.classList.add('sidebar-collapsed');
     window.scrollTo(0, 0);
   }
 
