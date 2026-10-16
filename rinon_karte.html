@@ -3431,8 +3431,15 @@ function openSaleEdit(i) {
   var r = (window._salesRows || [])[i];
   if (!r) return;
   var breedKey = null, mixList = null;
-  if (r.visit) {
-    var c = (customers || []).filter(function(cc) { return cc.visits.indexOf(r.visit) !== -1; })[0];
+  {
+    // 推定の行は来店から、実績（領収書済み）の行は来店キー、無ければ飼い主名＋犬の名前でお客様を探す
+    var c = null;
+    if (r.visit) c = (customers || []).filter(function(cc) { return cc.visits.indexOf(r.visit) !== -1; })[0];
+    if (!c && r.visitKey) c = (customers || []).filter(function(cc) { return cc.visits.some(function(v) { return v.key === r.visitKey; }); })[0];
+    if (!c && r.dog) {
+      var dn = String(r.dog).replace(/(くん|ちゃん|さん)$/, '');
+      c = (customers || []).filter(function(cc) { return String(cc.owner || '').trim() === String(r.owner || '').trim() && String(cc.dog || '').trim() === dn; })[0];
+    }
     if (c) {
       breedKey = estBreedKey(pricingBreed(c), c.profile['体重']);
       if (isMixBreed(c.profile['犬種'])) {
