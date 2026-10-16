@@ -129,7 +129,6 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 }
 
 .back-to-list { display: none; }
-.fab-list { display: none; }
 
 @media (max-width: 768px) {
   .main { grid-template-columns: 1fr; }
@@ -155,14 +154,6 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
   .main.sidebar-collapsed .back-to-list {
     display: inline-flex; align-items: center; gap: 6px;
     margin-bottom: 14px; padding: 8px 16px;
-  }
-  /* 画面下に常に表示する「一覧へ」ボタン（スクロール不要） */
-  .main.sidebar-collapsed .fab-list { display: flex; }
-  .fab-list {
-    display: none; position: fixed; left: 14px; bottom: 18px; z-index: 900;
-    align-items: center; gap: 6px; padding: 12px 18px; border: none; border-radius: 28px;
-    background: #0C447C; color: #fff; font-size: 14px; font-weight: 700;
-    box-shadow: 0 4px 14px rgba(0,0,0,.28); cursor: pointer;
   }
 
   .welcome { padding: 40px 24px; }
@@ -321,7 +312,6 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 </div>
 
 <div class="main">
-<button class="fab-list" onclick="backToList()">← 一覧へ</button>
   <div class="sidebar">
     <div id="todaySide" class="today-side"></div>
     <div class="sidebar-header">
@@ -1175,7 +1165,6 @@ function backToList() {
   if (history.state && history.state.karte) { history.back(); }
   else { closeKarteView(); }
 }
-window.addEventListener('popstate', function() { closeKarteView(); });
 
 function showKarte(idx, silent) {
   document.querySelectorAll('.customer-card').forEach(function(c) { c.classList.remove('active'); });
@@ -3187,6 +3176,14 @@ function mergeGroup(ids) {
     .catch(function() { alert('統合できませんでした（通信エラー）'); });
 }
 
+// 保存の返事に最新の売上一覧が入っていれば、そのまま使う（再取得の通信を省いて速くする）
+function salesApply(res) {
+  if (res && res.sales) {
+    salesState.sales = res.sales; salesState.error = '';
+    try { writeSalesCache(salesState.sales); } catch (e) {}
+    renderSales();
+  } else { loadSales(); }
+}
 function salesPost(params) {
   params.set('secret', DELETE_SECRET);
   return fetch(REPEAT_API_URL, { method: 'POST', body: params }).then(function(r) { return r.json(); });
@@ -3206,7 +3203,7 @@ function saleAmountChanged(i, el) {
   if (Math.round(n) === Math.round(r.total) && r.kind === 'act') return;
   el.disabled = true;
   var done = function(res) {
-    if (res && res.success) { salesToast('保存しました'); loadSales(); }
+    if (res && res.success) { salesToast('保存しました'); salesApply(res); }
     else { alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー')); renderSales(); }
   };
   var fail = function() { alert('保存に失敗しました（通信エラー）'); renderSales(); };
@@ -3242,7 +3239,7 @@ function confirmEstimate(i) {
   p.set('date', r.date); p.set('owner', r.owner || ''); p.set('dog', r.dog || ''); p.set('desc', r.desc);
   p.set('items', JSON.stringify(r.items)); p.set('total', String(r.total)); p.set('note', '推定から確定');
   salesPost(p).then(function(res) {
-    if (res && res.success) loadSales(); else alert('確定に失敗しました：' + ((res && res.error) || '不明なエラー'));
+    if (res && res.success) salesApply(res); else alert('確定に失敗しました：' + ((res && res.error) || '不明なエラー'));
   }).catch(function() { alert('確定に失敗しました（通信エラー）'); });
 }
 
@@ -3253,7 +3250,7 @@ function editSale(id, total) {
   if (isNaN(n) || n < 0) { alert('金額を正しく入力してください'); return; }
   var p = new URLSearchParams(); p.set('action', 'updateSale'); p.set('id', id); p.set('total', String(n));
   salesGet(p).then(function(res) {
-    if (res && res.success) loadSales(); else alert('修正に失敗しました：' + ((res && res.error) || '不明なエラー'));
+    if (res && res.success) salesApply(res); else alert('修正に失敗しました：' + ((res && res.error) || '不明なエラー'));
   }).catch(function() { alert('修正に失敗しました（通信エラー）'); });
 }
 
@@ -3261,7 +3258,7 @@ function deleteSale(id) {
   if (!confirm('この売上の記録を削除します。よろしいですか？')) return;
   var p = new URLSearchParams(); p.set('action', 'deleteSale'); p.set('id', id);
   salesGet(p).then(function(res) {
-    if (res && res.success) loadSales(); else alert('削除に失敗しました：' + ((res && res.error) || '不明なエラー'));
+    if (res && res.success) salesApply(res); else alert('削除に失敗しました：' + ((res && res.error) || '不明なエラー'));
   }).catch(function() { alert('削除に失敗しました（通信エラー）'); });
 }
 
@@ -3284,7 +3281,7 @@ function submitSalesAdd() {
     if (res && res.success) {
       ['sa-owner', 'sa-dog', 'sa-desc', 'sa-total'].forEach(function(id) { document.getElementById(id).value = ''; });
       salesState.month = date.slice(0, 7);
-      loadSales();
+      salesApply(res);
     } else alert('追加に失敗しました：' + ((res && res.error) || '不明なエラー'));
   }).catch(function() { alert('追加に失敗しました（通信エラー）'); });
 }
@@ -3474,10 +3471,11 @@ function saveSaleEdit() {
   p.set('desc', (e.desc || '').trim() || items[0].name);
   p.set('items', JSON.stringify(items.map(function(it) { return { name: it.name, price: Number(it.price) }; })));
   p.set('total', String(total)); p.set('note', '内訳を編集');
+  var sb = document.querySelector('#saleEditOverlay .se-foot .btn-primary'); if (sb) { sb.disabled = true; sb.textContent = '保存中…'; }
   salesPost(p).then(function(res) {
-    if (res && res.success) { closeSaleEdit(); salesToast('保存しました'); loadSales(); }
-    else alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー'));
-  }).catch(function() { alert('保存に失敗しました（通信エラー）'); });
+    if (res && res.success) { closeSaleEdit(); salesToast('保存しました'); salesApply(res); }
+    else { alert('保存に失敗しました：' + ((res && res.error) || '不明なエラー')); if (sb) { sb.disabled = false; sb.textContent = '保存する'; } }
+  }).catch(function() { alert('保存に失敗しました（通信エラー）'); if (sb) { sb.disabled = false; sb.textContent = '保存する'; } });
 }
 
 // ===== ワンちゃんの体の記録／前回メモの当日表示 =====
@@ -3553,6 +3551,45 @@ function saveBodyNow(uid) {
     keys.forEach(function(k) { var el = document.getElementById('bd-' + uid + '-' + k); if (el) { el.style.borderColor = '#2EA87E'; setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 900); } });
   }).catch(function() { alert('通信エラーが発生しました'); });
 }
+
+// ===== スマホの「戻る」で、開いている画面（売上・フォロー・分析・各ダイアログ）を順に閉じる =====
+(function() {
+  var stack = [], skip = 0, raw = {};
+  var defs = [
+    ['openSales', 'closeSales'], ['openFollow', 'closeFollow'], ['openAnalysis', 'closeAnalysis'],
+    ['openSaleEdit', 'closeSaleEdit'], ['openFollowSend', 'closeFollowSend'], ['openMergeDialog', 'closeMergeDialog'],
+    ['openReschedule', 'closeReschedule'], ['openCancelVisit', 'closeCancelVisit'],
+    ['openPhoneReserve', 'closePhoneReserve'], ['openBlockSlot', 'closeBlockSlot']
+  ];
+  defs.forEach(function(d) {
+    var o = window[d[0]], c = window[d[1]];
+    if (typeof o !== 'function' || typeof c !== 'function') return;
+    raw[d[1]] = c;
+    window[d[0]] = function() {
+      var r = o.apply(this, arguments);
+      if (stack.indexOf(d[1]) === -1) {
+        stack.push(d[1]);
+        try { history.pushState({ layer: d[1] }, ''); } catch (e) {}
+      }
+      return r;
+    };
+    window[d[1]] = function() {
+      var r = c.apply(this, arguments);
+      var i = stack.lastIndexOf(d[1]);
+      if (i !== -1) {
+        stack.splice(i, 1);
+        skip++;
+        try { history.back(); } catch (e) { skip--; }
+      }
+      return r;
+    };
+  });
+  window.addEventListener('popstate', function() {
+    if (skip > 0) { skip--; return; }
+    if (stack.length) { var n = stack.pop(); raw[n](); return; }
+    closeKarteView();
+  });
+})();
 </script>
 
 <datalist id="coatList"><option value="さらさら"><option value="ふわふわ"><option value="毛玉あり"><option value="絡まりやすい"><option value="ごわつき"><option value="乾燥"><option value="抜け毛が多い"></datalist>
