@@ -1195,7 +1195,7 @@ function showKarte(idx, silent) {
   var email = p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '';
 
   visitLookup = {};
-  var breedForReceipt = p['犬種'] || '';
+  var breedForReceipt = pricingBreed(c);
   var visitsHtml = c.visits.slice().reverse().map(function(v, vi) {
     var isFirst = v.type === 'first';
     var typeLabel = isFirst ? '初回' : 'リピート';
@@ -1284,6 +1284,7 @@ function showKarte(idx, silent) {
         '<div class="info-item"><div class="info-label">電話番号' + (c.phones && c.phones.length > 1 ? '（' + c.phones.length + '件）' : '') + '</div><div class="info-value">' + phonesHtml(c, idx) + '</div></div>' +
         '<div class="info-item"><div class="info-label">ワンちゃん名</div><div class="info-value">' + c.dog + '</div></div>' +
         '<div class="info-item"><div class="info-label">犬種</div><div class="info-value">' + (p['犬種'] || '') + (p['ミックス詳細'] ? '（' + p['ミックス詳細'] + '）' : '') + '</div></div>' +
+        mixItemHtml(c, idx) +
         '<div class="info-item"><div class="info-label">体重</div><div class="info-value">' + (p['体重'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">性別</div><div class="info-value">' + (p['性別'] || '') + '</div></div>' +
         '<div class="info-item"><div class="info-label">生年月日</div><div class="info-value">' + (p['ワンちゃんの生年月日'] || p['生年月日'] || '') + (calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) ? '　（' + calcAgeText(p['ワンちゃんの生年月日'] || p['生年月日']) + '）' : '') + bdTagFor(c, true) + '</div></div>' +
@@ -2326,8 +2327,98 @@ function ymd(dt) {
 function shortMenu(m) {
   return String(m || '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').replace('シャンプー・カット', 'シャンプーカット').trim();
 }
+
+// ===== ミックス犬（内訳と、料金にする犬種）=====
+function isMixBreed(b) { return /ミックス|MIX|mix|雑種/.test(String(b || '')); }
+// 料金表を引くときの犬種。ミックスは「料金にする犬種」を使う（未設定なら犬種のまま）
+function pricingBreed(c) {
+  var p = (c && c.profile) || {};
+  var k = String(p['料金犬種'] || '').trim();
+  return k || p['犬種'] || '';
+}
+var MIX_HINTS = [
+  ['マルプー', ['マルチーズ', 'トイプードル']], ['チワプー', ['チワワ(スムース)', 'トイプードル']], ['ペキプー', ['ペキニーズ', 'トイプードル']],
+  ['ポメプー', ['ポメラニアン', 'トイプードル']], ['マルシー', ['マルチーズ', 'シーズー']], ['シープー', ['シーズー', 'トイプードル']],
+  ['チワワ', ['チワワ(スムース)']], ['ダックス', ['ダックス(ロング)']]
+];
+// 「マルチーズとプードル」などの文字から、料金表の犬種を最大2つ拾う
+function parseMixText(text) {
+  var t = String(text || ''), found = [];
+  var add = function(pos, key) { if (key && found.every(function(f) { return f.key !== key; })) found.push({ pos: pos, key: key }); };
+  MIX_HINTS.forEach(function(h) { var i = t.indexOf(h[0]); if (i !== -1) h[1].forEach(function(k) { add(i, k); }); });
+  EST_BREED_ALIAS.forEach(function(a) { var i = t.indexOf(a[0]); if (i !== -1) add(i, a[1]); });
+  found.sort(function(x, y) { return x.pos - y.pos; });
+  return found.map(function(f) { return f.key; }).slice(0, 2);
+}
+function mixPair(c) {
+  var p = c.profile || {};
+  var saved = String(p['ミックス内訳'] || '').split('×').map(function(s) { return s.trim(); }).filter(Boolean);
+  if (saved.length) return { a: saved[0], b: saved[1] || '', saved: true };
+  var g = parseMixText(p['ミックス詳細']);
+  return { a: g[0] || '', b: g[1] || '', saved: false };
+}
+function mixTarget(c) {
+  if (c.firstRowNum) return { url: FIRST_API_URL, row: c.firstRowNum };
+  var r = c.profile && c.profile['__rowNum'];
+  return r ? { url: REPEAT_API_URL, row: r } : null;
+}
+function mixItemHtml(c, idx) {
+  var p = c.profile || {};
+  if (!isMixBreed(p['犬種'])) return '';
+  var tg = mixTarget(c);
+  var pr = mixPair(c);
+  var keys = Object.keys(EST_BREED_MENU);
+  var opts = function(sel, blank) {
+    var list = keys.slice();
+    if (sel && list.indexOf(sel) === -1) list.unshift(sel);
+    return '<option value="">' + blank + '</option>' + list.map(function(k) { return '<option value="' + salesEsc(k) + '"' + (k === sel ? ' selected' : '') + '>' + salesEsc(k) + '</option>'; }).join('');
+  };
+  var price = String(p['料金犬種'] || '').trim();
+  var ss = 'padding:8px 10px;border:1px solid #B3D9F5;border-radius:10px;font-size:13px;background:#fff;max-width:100%;';
+  var pool = [pr.a, pr.b].filter(Boolean);
+  var priceOpts = '<option value="">選んでください</option>';
+  var seen = {};
+  pool.concat(keys).forEach(function(k) { if (seen[k]) return; seen[k] = 1; priceOpts += '<option value="' + salesEsc(k) + '"' + (k === price ? ' selected' : '') + '>' + salesEsc(k) + (pool.indexOf(k) !== -1 ? '（内訳）' : '') + '</option>'; });
+  if (price && !seen[price]) priceOpts += '<option value="' + salesEsc(price) + '" selected>' + salesEsc(price) + '</option>';
+  return '<div class="info-item" style="grid-column:1/-1;' + (price ? '' : 'border-color:#F2C77B;background:#FFF9EE;') + '">' +
+    '<div class="info-label">🐕 ミックスの内訳・料金にする犬種（サロン入力）</div>' +
+    (tg ? '' : '<div class="info-value" style="color:#B0B0B0;">この子は行の情報が無いため入力できません</div>') +
+    (tg ? '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px;">' +
+      '<select id="mx-a-' + idx + '" style="' + ss + '" onchange="saveMix(' + idx + ')">' + opts(pr.a, '内訳①') + '</select>' +
+      '<span>×</span>' +
+      '<select id="mx-b-' + idx + '" style="' + ss + '" onchange="saveMix(' + idx + ')">' + opts(pr.b, '内訳②') + '</select>' +
+      '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;"><span style="font-size:12px;font-weight:700;color:#0C447C;">料金にする犬種</span>' +
+      '<select id="mx-p-' + idx + '" style="' + ss + '" onchange="saveMix(' + idx + ')">' + priceOpts + '</select></div>' : '') +
+    '<div style="font-size:11px;color:#7AAAC0;margin-top:5px;line-height:1.6;">' +
+      (price ? '見積もり・領収書は「' + salesEsc(price) + '」の料金で出ます。' : '<b style="color:#B4780A;">料金にする犬種が未設定です。</b>見た目が近いほうを選ぶと、見積もりと領収書に反映されます。') +
+      (pr.saved || !pool.length ? '' : '　内訳は「ミックス詳細」から自動で当てはめました（変更すると保存されます）。') +
+      (p['ミックス詳細'] ? '<br>お客様の入力：' + salesEsc(p['ミックス詳細']) : '') + '</div></div>';
+}
+function saveMixField(tg, field, value) {
+  var q = new URLSearchParams();
+  q.set('action', 'saveProfileField'); q.set('secret', DELETE_SECRET); q.set('row', String(tg.row)); q.set('field', field); q.set('value', value);
+  return fetch(tg.url, { method: 'POST', body: q }).then(function(r) { return r.json(); }).then(function(res) {
+    if (!res || !res.success) throw new Error((res && res.error) || '保存に失敗しました');
+  });
+}
+function saveMix(idx) {
+  var c = customers[idx]; if (!c) return;
+  var tg = mixTarget(c); if (!tg) return;
+  var a = document.getElementById('mx-a-' + idx).value, b = document.getElementById('mx-b-' + idx).value, pv = document.getElementById('mx-p-' + idx).value;
+  var pair = [a, b].filter(Boolean).join('×');
+  var jobs = [];
+  if (pair !== String(c.profile['ミックス内訳'] || '')) jobs.push(['ミックス内訳', pair]);
+  if (pv !== String(c.profile['料金犬種'] || '')) jobs.push(['料金犬種', pv]);
+  if (!jobs.length) return;
+  jobs.reduce(function(ch, j) { return ch.then(function() { return saveMixField(tg, j[0], j[1]).then(function() { c.profile[j[0]] = j[1]; }); }); }, Promise.resolve())
+    .then(function() { salesToast('保存しました'); window._salesRows = null; if (currentKarteIdx === idx) showKarte(idx, true); })
+    .catch(function(err) { alert('保存に失敗しました：' + (err && err.message ? err.message : '通信エラー')); });
+}
+
 function estimateReason(breed, weight, menu) {
   var m = String(menu || '');
+  if (/コース/.test(m) && !estBreedKey(breed, weight) && isMixBreed(breed)) return 'ミックスの「料金にする犬種」が未設定です（カルテで選ぶと金額が出ます）';
   if (/コース/.test(m) && !estBreedKey(breed, weight)) return '犬種「' + (breed || '不明') + '」が料金表にありません';
   if (/コース/.test(m)) return 'その犬種にこのコースの料金がありません';
   return 'メニューが「' + shortMenu(m) + '」のため金額が決められません';
@@ -2463,8 +2554,8 @@ function buildSalesRows(month) {
         if (haveKey[v.key]) return;                   // 領収書で実績が記録済みのものは除外
         var ds = ymd(v.date);
         if (!ds || ds.indexOf(month) !== 0 || ds > today) return;
-        var est = estimateVisitAmount(p['犬種'], p['体重'], v.menu);
-        rows.push({ kind: 'est', visit: v, date: ds, time: v.time || '', owner: c.owner, dog: c.dog, desc: est ? est.label : (shortMenu(v.menu) || '（メニュー不明）'), reason: est ? '' : estimateReason(p['犬種'], p['体重'], v.menu),
+        var est = estimateVisitAmount(pricingBreed(c), p['体重'], v.menu);
+        rows.push({ kind: 'est', visit: v, date: ds, time: v.time || '', owner: c.owner, dog: c.dog, desc: est ? est.label : (shortMenu(v.menu) || '（メニュー不明）'), reason: est ? '' : estimateReason(pricingBreed(c), p['体重'], v.menu),
                     items: est ? [{ name: est.label, price: est.amount }] : [], discount: 0, total: est ? est.amount : 0, unknown: !est, menu: v.menu || '' });
         var last = rows[rows.length - 1];
         if (est && salesState.estDisc > 0) {
@@ -2994,6 +3085,24 @@ function renderAnalysis() {
       return '<div class="fl-row"><div><b>' + salesEsc(c.owner) + ' 様</b> ／ 🐾' + salesEsc(c.dog) + lineBadge(c) + '</div><div class="c2"><span class="sub">最終来店 ' + salesEsc(x.last.replace(/-/g, '/')) + '</span></div><div class="c3"><b>' + x.days + '日</b><span class="sub">経過</span></div><div><button class="btn btn-light btn-sm" onclick="closeAnalysis();showKarte(' + x.d.idx + ')">カルテ</button></div></div>'; }).join('')
       : '<div style="color:#7AAAC0;text-align:center;padding:14px;">該当する子はいません</div>') +
     '<div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※先の予約が入っている子は含みません。90日以内の子は「🔔 フォロー・期限」からご案内できます。</div></div>';
+
+  // ミックス犬
+  var mixDogs = dogs.filter(function(d) { return isMixBreed((d.c.profile || {})['犬種']); });
+  var mixUnset = mixDogs.filter(function(d) { return !String((d.c.profile || {})['料金犬種'] || '').trim(); });
+  var combo = {}, priceUse = {};
+  mixDogs.forEach(function(d) {
+    var pr = mixPair(d.c), nm = [pr.a, pr.b].filter(Boolean).join('×');
+    if (nm) combo[nm] = (combo[nm] || 0) + 1;
+    var pk = String((d.c.profile || {})['料金犬種'] || '').trim();
+    if (pk) priceUse[pk] = (priceUse[pk] || 0) + 1;
+  });
+  var comboList = Object.keys(combo).sort(function(a, b) { return combo[b] - combo[a]; }).slice(0, 8).map(function(k2) { return { l: k2, v: combo[k2] }; });
+  var priceList = Object.keys(priceUse).sort(function(a, b) { return priceUse[b] - priceUse[a]; }).slice(0, 8).map(function(k2) { return { l: k2, v: priceUse[k2] }; });
+  h += '<div class="sales-box"><h3>🐕 ミックス犬　<b>' + mixDogs.length + '頭</b><span style="font-size:11px;font-weight:400;color:#7AAAC0;">　全体の ' + (dogs.length ? Math.round(mixDogs.length / dogs.length * 100) : 0) + '%</span></h3>' +
+    (mixDogs.length ? (comboList.length ? '<div style="font-size:12px;font-weight:700;margin:4px 0;">多い組み合わせ</div>' + anBars(comboList) : '') +
+      (priceList.length ? '<div style="font-size:12px;font-weight:700;margin:10px 0 4px;">料金にしている犬種</div>' + anBars(priceList) : '') +
+      (mixUnset.length ? '<div style="font-size:12px;font-weight:700;margin:10px 0 4px;color:#B4780A;">料金にする犬種が未設定　' + mixUnset.length + '頭</div>' + mixUnset.map(function(d) { return '<div class="fl-row" style="grid-template-columns:1fr auto;"><div>' + salesEsc(d.c.owner) + ' 様 ／ 🐾' + salesEsc(d.c.dog) + '</div><div><button class="btn btn-light btn-sm" onclick="closeAnalysis();showKarte(' + d.idx + ')">カルテ</button></div></div>'; }).join('') : '<div style="font-size:12px;color:#2a8a4a;margin-top:8px;">✅ すべて設定済みです</div>')
+      : '<div style="color:#7AAAC0;">ミックスの子はまだいません</div>') + '</div>';
   document.getElementById('analysisContent').innerHTML = h;
 }
 
@@ -3324,7 +3433,7 @@ function openSaleEdit(i) {
   var breedKey = null;
   if (r.visit) {
     var c = (customers || []).filter(function(cc) { return cc.visits.indexOf(r.visit) !== -1; })[0];
-    if (c) breedKey = estBreedKey(c.profile['犬種'], c.profile['体重']);
+    if (c) breedKey = estBreedKey(pricingBreed(c), c.profile['体重']);
   }
   var items = [], rate = 0;
   (r.items || []).forEach(function(it) {
