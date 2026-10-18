@@ -284,6 +284,34 @@
     .stamp-area { position: static; margin: 4mm 0 0 auto; }
   }
 
+  /* 明細が多いときに自動で詰める（印刷直前に fitToOnePage が付け外しする） */
+  .sheet.c1 { padding-top: 9mm; padding-bottom: 7mm; }
+  .sheet.c1 .brand-row { margin-bottom: 2mm; }
+  .sheet.c1 .meta-row { margin-bottom: 2mm; }
+  .sheet.c1 .dog-row { margin-bottom: 3mm; }
+  .sheet.c1 .amount-block { padding: 2.5mm 6mm; }
+  .sheet.c1 .amount-note { margin-bottom: 3mm; }
+  .sheet.c1 .desc-row { margin-bottom: 2mm; padding: 1mm 0; }
+  .sheet.c1 table.items td { padding: 1.2mm 2.5mm; }
+  .sheet.c1 .tax-breakdown { margin-bottom: 3mm; }
+  .sheet.c1 .next-offer { margin-bottom: 3mm; padding: 2.5mm 4mm 2mm; }
+  .sheet.c1 .next-offer .box .pct { font-size: 24px; }
+  .sheet.c1 .footer { margin-top: 5mm; }
+  .sheet.c2 { padding-top: 7mm; padding-bottom: 5mm; }
+  .sheet.c2 .logo-box img { width: 18mm; height: 18mm; }
+  .sheet.c2 table.items { font-size: 11px; }
+  .sheet.c2 table.items td, .sheet.c2 table.items th { padding: 0.6mm 2.5mm; }
+  .sheet.c2 table.items td input { font-size: 11px; }
+  .sheet.c2 .next-offer .box .pct { font-size: 19px; }
+  .sheet.c2 .next-offer .ttl { font-size: 13px; margin-bottom: 1.5mm; }
+  .sheet.c2 .next-offer .small { margin-top: 1mm; }
+  .sheet.c2 .footer { margin-top: 3mm; min-height: 20mm; }
+  .sheet.c2 .issuer { line-height: 1.5; }
+  .sheet.c3 table.items { font-size: 10px; }
+  .sheet.c3 table.items td, .sheet.c3 table.items th { padding: 0.2mm 2mm; }
+  .sheet.c3 table.items td input { font-size: 10px; }
+  .sheet.c3 .next-offer { display: none; }
+
   @media print {
     body { background: #fff; }
     .toolbar, .add-btn, td.del, .no-print { display: none !important; }
@@ -743,6 +771,31 @@ function printReceipt() {
 }
 // Ctrl+Pなど、ボタン以外で印刷した場合も記録する
 window.addEventListener('beforeprint', recordSale);
+
+// 明細が多くて1ページに収まらないときは、余白や行の高さを段階的に詰めて1ページに収める
+function fitToOnePage() {
+  var sh = document.querySelector('.sheet');
+  if (!sh) return;
+  var limit = 256 * 96 / 25.4;
+  sh.classList.remove('c1', 'c2', 'c3');
+  sh.style.width = '182mm'; sh.style.minHeight = '0'; sh.style.height = 'auto';
+  // 印刷されない部分（追加ボタンなど）を一時的に隠して、印刷時の高さで測る
+  var hid = Array.prototype.slice.call(sh.querySelectorAll('.no-print, .add-btn, td.del'));
+  var olds = hid.map(function(el) { var o = el.style.display; el.style.display = 'none'; return o; });
+  var levels = ['', 'c1', 'c2', 'c3'];
+  for (var i = 0; i < levels.length; i++) {
+    if (levels[i]) sh.classList.add(levels[i]);
+    if (sh.getBoundingClientRect().height <= limit) break;
+  }
+  hid.forEach(function(el, k) { el.style.display = olds[k]; });
+  sh.style.width = ''; sh.style.minHeight = ''; sh.style.height = '';
+}
+function unfitPage() {
+  var sh = document.querySelector('.sheet');
+  if (sh) { sh.classList.remove('c1', 'c2', 'c3'); sh.style.width = ''; sh.style.minHeight = ''; sh.style.height = ''; }
+}
+window.addEventListener('beforeprint', fitToOnePage);
+window.addEventListener('afterprint', unfitPage);
 
 populateMenuSelects();
 document.getElementById('paySelect').addEventListener('change', recordSale);
