@@ -378,6 +378,15 @@
         <input type="number" id="customItemPrice" placeholder="金額" min="0" step="1">
         <button type="button" onclick="addCustomRow()">＋追加</button>
       </div>
+      <div class="picker-row">
+        <label for="paySelect" style="font-size:13px;font-weight:700;">お支払い方法</label>
+        <select id="paySelect">
+          <option value="">未選択</option>
+          <option value="現金">現金</option>
+          <option value="クレジット">クレジット</option>
+          <option value="電子マネー">電子マネー</option>
+        </select>
+      </div>
     </div>
 
     <table class="items" id="itemsTable">
@@ -472,6 +481,9 @@ var SINGLE_MENU = [
 
 var OPTION_MENU = [
   { name: "毛玉代",                             price: 550 },
+  { name: "毛玉代",                             price: 330,  exact: true },
+  { name: "毛玉代",                             price: 880,  exact: true },
+  { name: "毛玉代",                             price: 1100, exact: true },
   { name: "薬用シャンプー",                     price: 550 },
   { name: "ひげ切り",                           price: 550 },
   { name: "デザインカット(ワンポイント)",       price: 550 },
@@ -678,7 +690,8 @@ function collectSalePayload() {
     owner: (document.getElementById('owner').value || '').trim(),
     dog: (document.getElementById('dog').value || '').trim(),
     desc: (document.getElementById('desc').value || '').trim(),
-    items: items, total: total
+    items: items, total: total,
+    pay: (document.getElementById('paySelect') || {}).value || ''
   };
 }
 
@@ -714,6 +727,7 @@ function recordSale() {
   params.set('desc', d.desc);
   params.set('items', JSON.stringify(d.items));
   params.set('total', String(d.total));
+  params.set('pay', d.pay || '');
   fetch(SALES_API_URL, { method: 'POST', body: params })
     .then(function(r) { return r.json(); })
     .then(function(res) {
@@ -731,6 +745,7 @@ function printReceipt() {
 window.addEventListener('beforeprint', recordSale);
 
 populateMenuSelects();
+document.getElementById('paySelect').addEventListener('change', recordSale);
 
 function findBreedKey(text) {
   if (!text) return null;
