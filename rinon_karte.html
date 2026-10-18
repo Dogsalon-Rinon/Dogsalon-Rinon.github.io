@@ -913,6 +913,10 @@ function buildCustomers() {
   // 来店履歴を日付順に並べる
   customers = Object.values(map).map(function(c) {
     c.visits.sort(function(a, b) { return new Date(a.date) - new Date(b.date); });
+    // 常連さんが「初回予約」のフォームから入れてきた来店は、新規ではなくリピートとして扱う
+    c.visits.forEach(function(v, i) {
+      v.again = v.type === 'first' && c.visits.slice(0, i).some(function(x) { return String(x.status || '').indexOf('キャンセル') === -1 && String(x.status || '').indexOf('お断り') === -1; });
+    });
     c.visits.forEach(function(v, i) {
       if (i === 0) { v.daysSincePrev = null; return; }
       var prev = new Date(c.visits[i - 1].date);
@@ -1197,8 +1201,8 @@ function showKarte(idx, silent) {
   visitLookup = {};
   var breedForReceipt = pricingBreed(c);
   var visitsHtml = c.visits.slice().reverse().map(function(v, vi) {
-    var isFirst = v.type === 'first';
-    var typeLabel = isFirst ? '初回' : 'リピート';
+    var isFirst = v.type === 'first' && !v.again;
+    var typeLabel = isFirst ? '初回' : (v.again ? 'リピート（初回フォームから）' : 'リピート');
     var typeClass = isFirst ? 'first-type' : 'repeat-type';
     var memoKey = v.key;
     var memo = v.memo || '';
@@ -1584,7 +1588,7 @@ function exportExcel() {
 
     // 来店データ
     c.visits.forEach(function(v) {
-      var isFirst = v.type === 'first';
+      var isFirst = v.type === 'first' && !v.again;
       setCell(currentRow, 0, formatDateFull(v.date), visitCellStyle());
       setCell(currentRow, 1, isFirst ? '初回' : 'リピート', isFirst ? visitFirstStyle() : visitRepeatStyle());
       setCell(currentRow, 2, v.menu || '', visitCellStyle());
@@ -2990,7 +2994,7 @@ function todayPanelHtml() {
     }
     var vt = vacTagFor(c); if (vt) tags.push(vt.replace('vac-tag', 'td-tag warn').replace(' ng', '').replace(' soon', ''));
     var bt = bdTagFor(c); if (bt) tags.push(bt.replace('bd-tag', 'td-tag bd').replace(' style=""', ''));
-    if (v.type === 'first') tags.push('<span class="td-tag">初回</span>');
+    if (v.type === 'first' && !v.again) tags.push('<span class="td-tag">初回</span>');
     if (!c.lineRegistered) tags.push('<span class="td-tag">LINE未登録</span>');
     h += '<div class="td-item" onclick="showKarte(' + x.idx + ')"><div class="td-time">' + salesEsc(v.time || '--:--') + '</div><div class="td-main"><b>' + salesEsc(c.dog) + '</b> <span style="color:#7AAAC0;">' + salesEsc(c.owner) + ' 様</span>' +
       '<div style="font-size:12px;color:#1A6FA8;">' + salesEsc(shortMenu(v.menu)) + '</div>' + (tags.length ? '<div class="td-tags">' + tags.join('') + '</div>' : '') + '</div></div>';
@@ -3057,7 +3061,7 @@ function renderAnalysis() {
         if (st.indexOf('お断り') !== -1) return;
         booked++;
         if (st.indexOf('キャンセル') !== -1) { canc++; return; }
-        if (ymd(v.date) <= today) { vis++; if (v.type === 'first') nw++; }
+        if (ymd(v.date) <= today) { vis++; if (v.type === 'first' && !v.again) nw++; }
       });
     });
     return { mo: mo, vis: vis, nw: nw, canc: canc, booked: booked };
