@@ -626,7 +626,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       var toFetch = [];
       dates.forEach(function(d) {
         var dateStr = fmt(d);
-        if (d < today || d > maxDay) {
+        // 当日はネット予約不可（お電話のみ）なので、明日より前は受付外にする
+        if (dateStr <= fmt(today) || d > maxDay) {
           dayData[dateStr] = { outOfRange: true };
           return;
         }
@@ -652,6 +653,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
             var dateStr = fmt(d);
             var info = days[dateStr];
             if (info) {
+              if (info.outOfRange) { dayData[dateStr] = { outOfRange: true }; return; }
               dayData[dateStr] = { closed: !!info.closed, slots: info.slots || [] };
               if (!info.closed && (info.slots || []).length === 0) computedFull[dateStr] = true;
             } else {
@@ -688,7 +690,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
         var info = dayData[dateStr];
         var tag = '';
         if (info) {
-          if (info.outOfRange) tag = '<div style="font-size:9px; color:#CBD5E1;">-</div>';
+          if (info.outOfRange && isToday) tag = '<div style="font-size:9px; color:#1A6FA8; font-weight:700;">電話予約</div>';
+          else if (info.outOfRange) tag = '<div style="font-size:9px; color:#CBD5E1;">-</div>';
           else if (info.closed) tag = '<div style="font-size:9px; color:#94A3B8;">休業</div>';
           else if ((info.slots || []).length === 0) tag = '<div style="font-size:9px; color:#B91C1C;">満員</div>';
         }
@@ -711,6 +714,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
           var clickable = false;
           if (!info) {
             cell = '<span style="color:#CBD5E1; font-size:11px;">…</span>';
+          } else if (info.outOfRange && dateStr === todayStr) {
+            cell = '<span style="color:#7AAAC0; font-size:10px;">📞</span>';
           } else if (info.outOfRange || info.error) {
             cell = '<span style="color:#CBD5E1;">-</span>';
           } else if (info.closed) {
