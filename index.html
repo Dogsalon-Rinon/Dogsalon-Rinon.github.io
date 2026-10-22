@@ -682,7 +682,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 
       // ヘッダー行
       var head = document.getElementById('week-table-head');
-      var headHtml = '<th style="width:64px; padding:6px 2px; font-size:11px; color:#7AAAC0; border-bottom:1px solid #E8F4FC;">時間</th>';
+      var headHtml = '<th style="width:64px; padding:6px 2px; font-size:11px; color:#7AAAC0; border-bottom:1px solid #E8F4FC; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 3px rgba(120,150,180,0.12);">時間</th>';
       dates.forEach(function(d, i) {
         var dateStr = fmt(d);
         var isToday = dateStr === todayStr;
@@ -706,7 +706,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       var rowsHtml = '';
       for (var h = BUSINESS_START; h < BUSINESS_END; h++) {
         rowsHtml += '<tr>';
-        rowsHtml += '<td style="text-align:center; font-size:11px; color:#5A8FAA; padding:6px 2px; border-bottom:1px solid #F1F7FB;">' + h + '時〜</td>';
+        rowsHtml += '<td style="text-align:center; font-size:11px; color:#5A8FAA; padding:6px 2px; border-bottom:1px solid #F1F7FB; position:sticky; left:0; z-index:1; background:#fff; box-shadow:2px 0 3px rgba(120,150,180,0.12);">' + h + '時〜</td>';
         dates.forEach(function(d) {
           var dateStr = fmt(d);
           var info = dayData[dateStr];
