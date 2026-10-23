@@ -3125,10 +3125,24 @@ function renderAnalysis() {
 }
 
 // ===== 経費 =====
-var EXP_CATS = ['家賃', '光熱費', '通信費', '広告費', 'シャンプー剤・消耗品', '仕入れ', '備品・設備', '交通費', 'その他'];
-var EXP_FIXED = ['家賃', '光熱費', '通信費'];
+var EXP_CATS = ['家賃', '駐車場代', '光熱費', '通信費', '広告費', 'シャンプー剤・消耗品', '仕入れ', '備品・設備', '交通費', 'その他'];
+var EXP_FIXED = ['家賃', '駐車場代', '光熱費', '通信費'];
+// 毎月かならずかかる固定費（入力しなくても毎月の経費に自動で入る）。金額を変えるときはここを書き換える
+var FIXED_FROM = '2026-08'; // この月から自動で入れる
+var FIXED_MONTHLY = [
+  { category: '家賃',     memo: '固定費（毎月）', amount: 49500 },
+  { category: '駐車場代', memo: '固定費（毎月）', amount: 13000 }
+];
 function expensesOf(month) {
-  return (salesState.expenses || []).filter(function(x) { return String(x.date || '').indexOf(month) === 0; }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+  var list = (salesState.expenses || []).filter(function(x) { return String(x.date || '').indexOf(month) === 0; });
+  if (month >= FIXED_FROM) {
+    // 同じ項目をその月に手で入れていれば、二重にならないよう自動分は入れない
+    FIXED_MONTHLY.forEach(function(f) {
+      if (list.some(function(x) { return x.category === f.category; })) return;
+      list.push({ id: 'fixed:' + f.category + ':' + month, date: month + '-01', category: f.category, memo: f.memo, amount: f.amount, fixed: true });
+    });
+  }
+  return list.sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
 }
 function expenseBoxHtml(month) {
   var list = expensesOf(month);
@@ -3147,7 +3161,7 @@ function expenseBoxHtml(month) {
   if (!list.length) h += '<div style="color:#7AAAC0;font-size:12px;padding:6px 0;">この月の経費はまだありません</div>';
   else {
     h += '<table class="sales-table"><thead><tr><th>日付</th><th>項目</th><th>内容</th><th class="num">金額</th><th></th></tr></thead><tbody>' +
-      list.map(function(x) { return '<tr><td>' + salesEsc(x.date.replace(/-/g, '/')) + '</td><td>' + salesEsc(x.category) + '</td><td>' + salesEsc(x.memo) + '</td><td class="num">' + yen(x.amount) + '</td><td class="c-ops"><button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteExpense(\'' + salesEsc(x.id) + '\')">削除</button></td></tr>'; }).join('') +
+      list.map(function(x) { return '<tr><td>' + salesEsc(x.date.replace(/-/g, '/')) + '</td><td>' + salesEsc(x.category) + '</td><td>' + salesEsc(x.memo) + '</td><td class="num">' + yen(x.amount) + '</td><td class="c-ops">' + (x.fixed ? '<span style="font-size:11px;color:#7AAAC0;">自動</span>' : '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteExpense(\'' + salesEsc(x.id) + '\')">削除</button>') + '</td></tr>'; }).join('') +
       '</tbody></table>';
     h += '<div style="font-size:11px;color:#7AAAC0;margin-top:6px;">項目別：' + Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).map(function(k) { return salesEsc(k) + ' ' + yen(byCat[k]); }).join('　／　') + '</div>';
   }
@@ -3174,9 +3188,9 @@ function deleteExpense(id) {
 function copyFixedExpenses() {
   var pp = salesState.month.split('-'), pd = new Date(parseInt(pp[0], 10), parseInt(pp[1], 10) - 2, 1);
   var pm = pd.getFullYear() + '-' + ('0' + (pd.getMonth() + 1)).slice(-2);
-  var src = expensesOf(pm).filter(function(x) { return EXP_FIXED.indexOf(x.category) !== -1; });
-  var have = expensesOf(salesState.month).filter(function(x) { return EXP_FIXED.indexOf(x.category) !== -1; });
-  if (!src.length) { alert('前月に、家賃・光熱費・通信費の経費がありません'); return; }
+  var src = expensesOf(pm).filter(function(x) { return !x.fixed && EXP_FIXED.indexOf(x.category) !== -1; });
+  var have = expensesOf(salesState.month).filter(function(x) { return !x.fixed && EXP_FIXED.indexOf(x.category) !== -1; });
+  if (!src.length) { alert('前月に、光熱費・通信費などの固定費の入力がありません（家賃・駐車場代は自動で入っています）'); return; }
   if (have.length && !confirm('この月にはすでに固定費が入っています。前月分を追加でコピーしますか？（二重になる場合があります）')) return;
   if (!confirm('前月の固定費 ' + src.length + '件を、この月の同じ日付でコピーします。よろしいですか？')) return;
   var ps = src.map(function(x) {
