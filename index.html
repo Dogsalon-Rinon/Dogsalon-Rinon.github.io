@@ -549,11 +549,11 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
 
   <div style="background: white; border: 0.5px solid #B3D9F5; border-radius: 20px; padding: 24px; margin-bottom: 40px;">
 
-    <!-- 週ナビ -->
+    <!-- 月ナビ -->
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-      <button id="cal-prev" onclick="calMove(-1)" style="background:none; border:1px solid #B3D9F5; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:16px; color:#0C447C;">‹</button>
+      <button id="cal-prev" onclick="calMove(-1)" style="background:none; border:1px solid #B3D9F5; border-radius:999px; height:36px; padding:0 14px; cursor:pointer; font-size:13px; color:#0C447C; font-family:'Zen Maru Gothic',sans-serif;">‹ 前月</button>
       <span id="cal-title" style="font-family:'Zen Maru Gothic',sans-serif; font-size:15px; font-weight:500; color:#0C447C;"></span>
-      <button id="cal-next" onclick="calMove(1)" style="background:none; border:1px solid #B3D9F5; border-radius:50%; width:36px; height:36px; cursor:pointer; font-size:16px; color:#0C447C;">›</button>
+      <button id="cal-next" onclick="calMove(1)" style="background:none; border:1px solid #B3D9F5; border-radius:999px; height:36px; padding:0 14px; cursor:pointer; font-size:13px; color:#0C447C; font-family:'Zen Maru Gothic',sans-serif;">翌月 ›</button>
     </div>
 
     <!-- 凡例 -->
@@ -562,8 +562,10 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       <span style="color:#C3D2DA; font-weight:700;">×</span><span style="margin-left:-10px;">満員・休業・受付終了</span>
     </div>
 
-    <!-- 週テーブル（横スクロール対応） -->
-    <div style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+    <p style="font-size:11px; color:#7AAAC0; text-align:center; margin:0 0 8px;">← 横にスライドすると、ほかの日も見られます →</p>
+
+    <!-- 月テーブル（横スクロール対応） -->
+    <div id="cal-scroll" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
       <table id="week-table" style="border-collapse:collapse; width:100%; min-width:560px; font-family:'Zen Maru Gothic',sans-serif;">
         <thead>
           <tr id="week-table-head"></tr>
@@ -585,7 +587,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
     var DOW_LABELS = ['月','火','水','木','金','土','日'];
     var today = new Date();
     today.setHours(0,0,0,0);
-    var weekStart = mondayOf(today); // 表示中の週の月曜日
+    var monthStart = new Date(today.getFullYear(), today.getMonth(), 1); // 表示中の月の1日
+    var needScroll = true; // 表示を切り替えたら、今日（またはその月の最初の日）が見える位置へスクロール
     var dayData = {}; // dateStr -> { closed:bool, slots:[...] }
     var computedFull = {};
 
@@ -603,11 +606,11 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
     }
 
-    function weekDates() {
+    function weekDates() { // 表示中の月の全日
       var arr = [];
-      for (var i = 0; i < 7; i++) {
-        var d = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i);
-        arr.push(d);
+      var last = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+      for (var i = 1; i <= last; i++) {
+        arr.push(new Date(monthStart.getFullYear(), monthStart.getMonth(), i));
       }
       return arr;
     }
@@ -626,6 +629,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       var toFetch = [];
       dates.forEach(function(d) {
         var dateStr = fmt(d);
+        if (dayData[dateStr] && !dayData[dateStr].error) return; // 取得済みの日は再取得しない
         // 当日はネット予約不可（お電話のみ）なので、明日より前は受付外にする
         if (dateStr <= fmt(today) || d > maxDay) {
           dayData[dateStr] = { outOfRange: true };
@@ -676,9 +680,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       var maxDay = maxBookableDate();
 
       // タイトル
-      var first = dates[0], last = dates[6];
-      document.getElementById('cal-title').textContent =
-        (first.getMonth() + 1) + '/' + first.getDate() + '〜' + (last.getMonth() + 1) + '/' + last.getDate();
+      document.getElementById('cal-title').textContent = monthStart.getFullYear() + '年' + (monthStart.getMonth() + 1) + '月';
+      document.getElementById('week-table').style.minWidth = (64 + dates.length * 46) + 'px';
 
       // ヘッダー行
       var head = document.getElementById('week-table-head');
@@ -686,7 +689,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       dates.forEach(function(d, i) {
         var dateStr = fmt(d);
         var isToday = dateStr === todayStr;
-        var dowColor = i === 5 ? '#3B82F6' : (i === 6 ? '#EF4444' : '#5A8FAA');
+        var dowIdx = (d.getDay() + 6) % 7; // 月=0 … 日=6
+        var dowColor = dowIdx === 5 ? '#3B82F6' : (dowIdx === 6 ? '#EF4444' : '#5A8FAA');
         var info = dayData[dateStr];
         var tag = '';
         if (info) {
@@ -695,9 +699,9 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
           else if (info.closed) tag = '<div style="font-size:9px; color:#94A3B8;">休業</div>';
           else if ((info.slots || []).length === 0) tag = '<div style="font-size:9px; color:#B91C1C;">満員</div>';
         }
-        headHtml += '<th style="padding:6px 2px; font-size:11px; font-weight:500; color:' + dowColor + '; border-bottom:1px solid #E8F4FC;' +
+        headHtml += '<th style="min-width:46px; padding:6px 2px; font-size:11px; font-weight:500; color:' + dowColor + '; border-bottom:1px solid #E8F4FC;' +
           (isToday ? ' background:#F5FBFF;' : '') + '">' +
-          DOW_LABELS[i] + '<br><span style="font-size:12px; font-weight:700;">' + (d.getMonth() + 1) + '/' + d.getDate() + '</span>' + tag + '</th>';
+          DOW_LABELS[dowIdx] + '<br><span style="font-size:12px; font-weight:700;">' + (d.getMonth() + 1) + '/' + d.getDate() + '</span>' + tag + '</th>';
       });
       head.innerHTML = headHtml;
 
@@ -734,14 +738,23 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
       body.innerHTML = rowsHtml;
 
       // ナビ有効/無効
-      var prevWeekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() - 1);
-      var nextWeekStart = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 7);
-      var disablePrev = prevWeekEnd < today;
-      var disableNext = nextWeekStart > maxDay;
+      var thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      var nextMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+      var disablePrev = monthStart <= thisMonth;
+      var disableNext = nextMonthStart > maxDay;
       document.getElementById('cal-prev').style.opacity = disablePrev ? '0.3' : '1';
       document.getElementById('cal-prev').style.pointerEvents = disablePrev ? 'none' : 'auto';
       document.getElementById('cal-next').style.opacity = disableNext ? '0.3' : '1';
       document.getElementById('cal-next').style.pointerEvents = disableNext ? 'none' : 'auto';
+
+      // 切り替え直後は、まだ予約できる最初の日（今日の翌日など）が見える位置にそろえる
+      if (needScroll) {
+        needScroll = false;
+        var idx = 0;
+        for (var k = 0; k < dates.length; k++) { if (fmt(dates[k]) > todayStr) { idx = k; break; } }
+        if (fmt(dates[dates.length - 1]) <= todayStr) idx = 0;
+        document.getElementById('cal-scroll').scrollLeft = Math.max(0, idx - 0) * 46;
+      }
     }
 
     window.selectSlot = function(date, time) {
@@ -753,13 +766,13 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
     }
 
     window.calMove = function(dir) {
-      var next = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + dir * 7);
+      var next = new Date(monthStart.getFullYear(), monthStart.getMonth() + dir, 1);
       var maxDay = maxBookableDate();
-      var minWeek = mondayOf(today);
-      if (next < minWeek && dir < 0) return;
-      if (next > maxDay && dir > 0) return;
-      weekStart = next;
-      dayData = {};
+      var thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      if (next < thisMonth) return;
+      if (next > maxDay) return;
+      monthStart = next;
+      needScroll = true;
       fetchWeek();
     };
 

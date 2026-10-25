@@ -778,7 +778,10 @@ if (!/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
 <script>
 // ===== LIFF初期化（LINE内で開いた場合のみ動作） =====
 (function() {
+  // 動作確認用の表示。URLの末尾に ?debug=1 を付けたときだけ出す（お客様には出さない）
+  var SHOW_DEBUG = /[?&]debug=1/.test(location.search);
   function showDebug(text, color) {
+    if (!SHOW_DEBUG) return;
     var el = document.getElementById('liffDebugBanner');
     if (!el) {
       el = document.createElement('div');
