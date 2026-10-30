@@ -658,7 +658,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
             var info = days[dateStr];
             if (info) {
               if (info.outOfRange) { dayData[dateStr] = { outOfRange: true }; return; }
-              dayData[dateStr] = { closed: !!info.closed, slots: info.slots || [] };
+              dayData[dateStr] = { closed: !!info.closed, slots: info.slots || [], reason: info.reason || '' };
               if (!info.closed && (info.slots || []).length === 0) computedFull[dateStr] = true;
             } else {
               dayData[dateStr] = { error: true };
@@ -696,7 +696,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
         if (info) {
           if (info.outOfRange && isToday) tag = '<div style="font-size:9px; color:#1A6FA8; font-weight:700;">電話予約</div>';
           else if (info.outOfRange) tag = '<div style="font-size:9px; color:#CBD5E1;">-</div>';
-          else if (info.closed) tag = '<div style="font-size:9px; color:#94A3B8;">休業</div>';
+          else if (info.closed) tag = '<div style="font-size:9px; color:' + (info.reason === '満員' ? '#B91C1C' : '#94A3B8') + ';">' + (info.reason === '他店' || info.reason === '満員' ? info.reason : '休業') + '</div>';
           else if ((info.slots || []).length === 0) tag = '<div style="font-size:9px; color:#B91C1C;">満員</div>';
         }
         headHtml += '<th style="min-width:46px; padding:6px 2px; font-size:11px; font-weight:500; color:' + dowColor + '; border-bottom:1px solid #E8F4FC;' +
