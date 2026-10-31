@@ -356,6 +356,14 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         </div>
         <div class="menu-checkbox-hint">複数選択できます</div>
         <input type="hidden" name="menu" id="menuSelect">
+        <div id="winterCare" style="display:none;margin-top:12px;padding:12px;border:1.5px dashed #5DBAEC;border-radius:12px;background:#F4FBFF;">
+          <div style="font-weight:700;font-size:13px;color:#2A8FC4;">❄️ 冬限定「冬のうるおいケア」（任意）</div>
+          <div style="font-size:11px;color:#5A7A8C;margin:4px 0 8px;">コースと一緒に1つ選んで2割OFF／2つ選んで3割OFF。泡パックと温浴はどちらか1つです。</div>
+          <label class="menu-checkbox"><input type="checkbox" class="care-cb" data-grp="a" value="泡パック" onchange="updateMenuValue()">泡パック（通常1,100円 → 880円）</label>
+          <label class="menu-checkbox" style="margin-top:6px;"><input type="checkbox" class="care-cb" data-grp="a" value="温浴" onchange="updateMenuValue()">温浴（通常880円 → 700円）</label>
+          <label class="menu-checkbox" style="margin-top:6px;"><input type="checkbox" class="care-cb" data-grp="b" value="肉球ケア" onchange="updateMenuValue()">肉球ケア（通常550円 → 440円）</label>
+          <div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※泡パック＋肉球ケア 1,150円／温浴＋肉球ケア 1,000円</div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -487,9 +495,23 @@ document.getElementById('birthday_day').addEventListener('change', calcAge);
   document.getElementById('reserveDate').max = maxY + '-' + maxM + '-' + maxD;
 })();
 
+// 冬キャンペーン（〜2026-12-31）の表示切替
+(function() {
+  var d = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  if (d <= '2026-12-31') { var w = document.getElementById('winterCare'); if (w) w.style.display = 'block'; }
+})();
+
 function updateMenuValue() {
   var checked = Array.from(document.querySelectorAll('#menuCheckboxGroup input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
-  document.getElementById('menuSelect').value = checked.join('、');
+  var careBoxes = Array.from(document.querySelectorAll('.care-cb'));
+  var ev = window.event && window.event.target;
+  if (ev && ev.classList && ev.classList.contains('care-cb') && ev.checked && ev.dataset.grp === 'a') {
+    careBoxes.forEach(function(c) { if (c !== ev && c.dataset.grp === 'a') c.checked = false; });
+  }
+  var cares = careBoxes.filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+  var menuVal = checked.join('、');
+  if (menuVal && cares.length) menuVal += '【冬のうるおいケア：' + cares.join('＋') + '】';
+  document.getElementById('menuSelect').value = menuVal;
   updateTimeSlots();
   updatePriceEstimate();
 }
