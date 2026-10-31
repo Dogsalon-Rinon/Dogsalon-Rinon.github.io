@@ -314,11 +314,13 @@ function doVerify() {
         <input type="hidden" name="menu" id="menuSelect">
         <div id="winterCare" style="display:none;margin-top:12px;padding:12px;border:1.5px dashed #5DBAEC;border-radius:12px;background:#F4FBFF;">
           <div style="font-weight:700;font-size:13px;color:#2A8FC4;">❄️ 冬限定「冬のうるおいケア」（任意）</div>
-          <div style="font-size:11px;color:#5A7A8C;margin:4px 0 8px;">コースと一緒に1つ選んで2割OFF／2つ選んで3割OFF。泡パックと温浴はどちらか1つです。</div>
-          <label class="menu-checkbox"><input type="checkbox" class="care-cb" data-grp="a" value="泡パック" onchange="updateMenuValue()">泡パック（通常1,100円 → 880円）</label>
-          <label class="menu-checkbox" style="margin-top:6px;"><input type="checkbox" class="care-cb" data-grp="a" value="温浴" onchange="updateMenuValue()">温浴（通常880円 → 700円）</label>
-          <label class="menu-checkbox" style="margin-top:6px;"><input type="checkbox" class="care-cb" data-grp="b" value="肉球ケア" onchange="updateMenuValue()">肉球ケア（通常550円 → 440円）</label>
-          <div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※泡パック＋肉球ケア 1,150円／温浴＋肉球ケア 1,000円</div>
+          <div style="font-size:11px;color:#5A7A8C;margin:4px 0 10px;">コースにプラスできます。1つ選んで2割OFF、2つ選んで3割OFF。</div>
+          <div style="font-size:12px;font-weight:700;color:#0C447C;margin-bottom:4px;">① 次の中から1つ（どちらか）</div>
+          <label class="menu-checkbox"><input type="checkbox" class="care-cb" data-grp="a" value="泡パック" onchange="updateMenuValue()">泡パック　<s style="color:#8AA">1,100円</s> → <b>880円</b></label>
+          <label class="menu-checkbox" style="margin-top:6px;"><input type="checkbox" class="care-cb" data-grp="a" value="温浴" onchange="updateMenuValue()">温浴　<s style="color:#8AA">880円</s> → <b>700円</b></label>
+          <div style="font-size:12px;font-weight:700;color:#0C447C;margin:12px 0 4px;">② プラスする（おすすめ）</div>
+          <label class="menu-checkbox"><input type="checkbox" class="care-cb" data-grp="b" value="肉球ケア" onchange="updateMenuValue()">肉球ケア　<s style="color:#8AA">550円</s> → <b>440円</b></label>
+          <div id="careSummary" style="margin-top:10px;padding:8px 10px;border-radius:8px;background:#fff;border:1px solid #CFE8F6;font-size:12px;color:#0C447C;">ケアは選んでいません</div>
         </div>
       </div>
 
@@ -431,6 +433,12 @@ function updateMenuValue() {
     careBoxes.forEach(function(c) { if (c !== ev && c.dataset.grp === 'a') c.checked = false; });
   }
   var cares = careBoxes.filter(function(c) { return c.checked; }).map(function(c) { return c.value; });
+  var careSum = document.getElementById('careSummary');
+  if (careSum) {
+    var CARE_PRICE = {'泡パック':880,'温浴':700,'肉球ケア':440,'泡パック＋肉球ケア':1150,'温浴＋肉球ケア':1000};
+    if (!cares.length) careSum.textContent = 'ケアは選んでいません';
+    else { var key = cares.join('＋'); careSum.innerHTML = '選択中：<b>' + key + '</b>　<b style="color:#E8584C;">' + CARE_PRICE[key].toLocaleString() + '円</b>（' + (cares.length === 2 ? '3割OFF' : '2割OFF') + '）'; }
+  }
   var menuVal = checked.join('、');
   if (menuVal && cares.length) menuVal += '【冬のうるおいケア：' + cares.join('＋') + '】';
   document.getElementById('menuSelect').value = menuVal;
