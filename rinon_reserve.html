@@ -438,6 +438,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         <div class="price-label">料金目安（税込）</div>
         <div class="price-value" id="priceValue">犬種とメニューを選択してください</div>
         <div id="priceBreakdown" style="display:none;margin-top:8px;font-size:12.5px;color:#3A6080;line-height:1.9;"></div>
+        <div style="margin-top:10px;padding:8px 10px;border-radius:10px;background:#FFF4F2;border:1px solid #F7C9C2;font-size:13px;font-weight:700;color:#E8584C;text-align:center;">🎉 初回ご来店の方は10％OFFになります！<div style="font-size:10.5px;font-weight:400;color:#B07A74;margin-top:2px;">※上の金額は、初回10％OFF（コース料金分）を引いた目安です</div></div>
         <div class="price-note">毛玉・もつれ・毛量や、ワンちゃんの状態によって<br>料金が変わる場合がございます。詳しい金額は当日ご確認ください。</div>
       </div>
 
@@ -650,23 +651,23 @@ function updatePriceEstimate() {
   var yen = function(n) { return '¥' + n.toLocaleString('ja-JP') + '〜'; };
 
   valueEl.className = 'price-value';
+  // 初回ご来店10％OFF（コース等の料金のみ。うるおいケアは割引後の価格のまま）
+  var fin = results.map(function(r) { return { label: r.label, base: r.total, disc: Math.round(r.total * 0.1), total: r.total - Math.round(r.total * 0.1) + care }; });
   var html = '';
-  if (results.length === 2 && results[0].total !== results[1].total) {
-    // マルプー：どちらかの料金
-    valueEl.textContent = yen(results[0].total + care) + ' または ' + yen(results[1].total + care);
+  var noteMix = '<span style="font-size:11px;color:#7AAAC0;">※マルプーは、お顔・体型を見て、どちらかの料金に決まります（ご来店時にご案内します）</span>';
+  if (fin.length === 2 && fin[0].base !== fin[1].base) {
+    valueEl.textContent = yen(fin[0].total) + ' または ' + yen(fin[1].total);
     valueEl.style.fontSize = '17px';
-    html += results[0].label + '　' + yen(results[0].total + care) + '<br>' + results[1].label + '　' + yen(results[1].total + care) + '<br>' +
-      '<span style="font-size:11px;color:#7AAAC0;">※マルプーは、お顔・体型を見て、どちらかの料金に決まります（ご来店時にご案内します）</span>';
-    if (care) html = '通常料金　' + yen(results[0].total) + ' または ' + yen(results[1].total) + '<br>' +
-      '❄️ 冬のうるおいケア（' + careSel + '）　<b style="color:#E8584C;">＋¥' + care.toLocaleString('ja-JP') + '</b><br>' +
-      '<span style="font-size:11px;color:#7AAAC0;">※マルプーは、お顔・体型を見て、どちらかの料金に決まります（ご来店時にご案内します）</span>';
+    html = fin.map(function(x) {
+      return x.label + '　通常 ' + yen(x.base) + ' → 初回10％OFF <b>−¥' + x.disc.toLocaleString('ja-JP') + '</b>' + (care ? '　＋ケア ¥' + care.toLocaleString('ja-JP') : '') + '　＝ <b>' + yen(x.total) + '</b>';
+    }).join('<br>') + '<br>' + noteMix;
   } else {
-    var base = results[0].total;
-    valueEl.textContent = yen(base + care);
-    if (care) html = '通常料金　' + yen(base) + '<br>' +
-      '❄️ 冬のうるおいケア（' + careSel + '）　<b style="color:#E8584C;">＋¥' + care.toLocaleString('ja-JP') + '</b>';
+    var x = fin[0];
+    valueEl.textContent = yen(x.total);
+    html = '通常料金　' + yen(x.base) + '<br>🎉 初回10％OFF　<b style="color:#E8584C;">−¥' + x.disc.toLocaleString('ja-JP') + '</b>' +
+      (care ? '<br>❄️ 冬のうるおいケア（' + careSel + '）　<b style="color:#E8584C;">＋¥' + care.toLocaleString('ja-JP') + '</b>' : '');
   }
-  if (bdEl && html && (care || results.length === 2)) { bdEl.innerHTML = html; bdEl.style.display = 'block'; }
+  if (bdEl) { bdEl.innerHTML = html; bdEl.style.display = 'block'; }
 }
 
 // ===== 空き時間取得 =====

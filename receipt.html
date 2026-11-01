@@ -425,6 +425,7 @@
     </table>
     <div class="discount-row no-print">
       <span class="discount-label">💴 割引</span>
+      <button type="button" class="discount-btn" onclick="applyFirstVisitDiscount()" title="冬のうるおいケアを除いた金額から10%引き">初回10%OFF（ケア除く）</button>
       <button type="button" class="discount-btn" onclick="applyDiscount(0.10)">10%OFF</button>
       <button type="button" class="discount-btn" onclick="applyDiscount(0.15)">15%OFF</button>
       <span class="discount-custom">
@@ -515,6 +516,11 @@ var OPTION_MENU = [
   { name: "抜け毛処理",                         price: 550,  exact: true },
   { name: "抜け毛処理",                         price: 880,  exact: true },
   { name: "抜け毛処理",                         price: 1100, exact: true },
+  { name: "冬のうるおい 泡パック", price: 880, exact: true },
+  { name: "冬のうるおい 温浴", price: 700, exact: true },
+  { name: "冬のうるおい 肉球ケア", price: 440, exact: true },
+  { name: "冬のうるおい 泡パック＋肉球ケア", price: 1150, exact: true },
+  { name: "冬のうるおい 温浴＋肉球ケア", price: 1000, exact: true },
   { name: "薬用シャンプー",                     price: 550 },
   { name: "ひげ切り",                           price: 550 },
   { name: "デザインカット(ワンポイント)",       price: 550 },
@@ -662,6 +668,21 @@ function applyDiscount(rate) {
   var discountAmount = -Math.round(sum * rate);
   var label = Math.round(rate * 100) + '%割引';
   addDiscountRow(label, discountAmount);
+}
+
+function applyFirstVisitDiscount() {
+  // 初回10%OFF：「冬のうるおいケア」の品目と割引行を除いた合計から引く
+  var sum = 0, care = 0;
+  document.querySelectorAll('#itemsBody tr').forEach(function(tr) {
+    if (tr.classList.contains('discount-item-row')) return;
+    var pe = tr.querySelector('.item-price'), ne = tr.querySelector('.item-name');
+    if (!pe) return;
+    var v = parseFloat((pe.value || '0').replace(/[^0-9.\-]/g, ''));
+    if (isNaN(v)) return;
+    if (ne && /冬のうるおい/.test(ne.value || '')) care += v; else sum += v;
+  });
+  if (sum <= 0) { clearDiscount(); return; }
+  addDiscountRow('初回10%割引', -Math.round(sum * 0.10));
 }
 
 function applyCustomPercent() {
