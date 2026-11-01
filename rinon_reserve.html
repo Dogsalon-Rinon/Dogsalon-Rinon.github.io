@@ -206,6 +206,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
               <option>ポメラニアン</option>
               <option>トイプードル</option>
               <option>マルチーズ</option>
+              <option value="マルプー">マルプー（マルチーズ×プードル）</option>
               <option>シーズー</option>
               <option>ミニチュアダックス（ロング）</option>
               <option>ヨークシャーテリア</option>
@@ -436,6 +437,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
       <div class="price-estimate" id="priceEstimate">
         <div class="price-label">料金目安（税込）</div>
         <div class="price-value" id="priceValue">犬種とメニューを選択してください</div>
+        <div id="priceBreakdown" style="display:none;margin-top:8px;font-size:12.5px;color:#3A6080;line-height:1.9;"></div>
         <div class="price-note">毛玉・もつれ・毛量や、ワンちゃんの状態によって<br>料金が変わる場合がございます。詳しい金額は当日ご確認ください。</div>
       </div>
 
@@ -582,6 +584,9 @@ function updatePriceEstimate() {
   var breed = document.getElementById('breedSelect').value;
   var checked = Array.from(document.querySelectorAll('#menuCheckboxGroup input[type="checkbox"]:checked')).map(function(cb) { return cb.value; });
   var valueEl = document.getElementById('priceValue');
+  var bdEl = document.getElementById('priceBreakdown');
+  if (bdEl) { bdEl.style.display = 'none'; bdEl.innerHTML = ''; }
+  valueEl.style.fontSize = '';
 
   if (!breed || checked.length === 0) {
     valueEl.className = 'price-value small';
@@ -595,49 +600,73 @@ function updatePriceEstimate() {
     return;
   }
 
-  // 柴犬は体重で料金が変わる
-  var breedData = null;
+  // 料金表の候補（マルプーはマルチーズ／トイプードルのどちらか）
+  var cands = [];   // { label, data }
   if (breed === '柴犬') {
     var tier = getPriceSizeTier();
-    if (tier === 'medium') breedData = { shampoo: 7300, cut: null };
-    else if (tier === 'small') breedData = { shampoo: 6800, cut: null };
-  } else {
-    breedData = PRICE_BREED_MAP[breed] || null;
+    if (tier === 'medium') cands.push({ label: '', data: { shampoo: 7300, cut: null } });
+    else if (tier === 'small') cands.push({ label: '', data: { shampoo: 6800, cut: null } });
+  } else if (breed === 'マルプー') {
+    cands.push({ label: 'マルチーズ体型の場合', data: PRICE_BREED_MAP['マルチーズ'] });
+    cands.push({ label: 'プードル体型の場合', data: PRICE_BREED_MAP['トイプードル'] });
+  } else if (PRICE_BREED_MAP[breed]) {
+    cands.push({ label: '', data: PRICE_BREED_MAP[breed] });
   }
 
-  if (!breedData) {
+  if (!cands.length) {
     valueEl.className = 'price-value small';
     valueEl.textContent = '当日ご相談（犬種・体格により算出）';
     return;
   }
 
-  var total = 0;
-  var hasCourse = false;
-  var unknownItem = false;
-
-  if (checked.indexOf('シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）') !== -1) {
-    if (breedData.cut === null) { unknownItem = true; }
-    else { total += breedData.cut; hasCourse = true; }
-  } else if (checked.indexOf('シャンプーコース（シャンプー・ブロー・ブラッシング）') !== -1) {
-    total += breedData.shampoo; hasCourse = true;
-  }
-
   var sizeTier = getPriceSizeTier() || 'small';
-  checked.forEach(function(m) {
-    if (PRICE_SINGLE_MAP[m]) {
-      total += PRICE_SINGLE_MAP[m][sizeTier];
-      hasCourse = true;
+  var results = [];
+  var failed = false;
+  cands.forEach(function(cd) {
+    var total = 0, hasCourse = false, unknownItem = false;
+    if (checked.indexOf('シャンプー・カットコース（シャンプー・カット・ブロー・爪切り・耳掃除）') !== -1) {
+      if (cd.data.cut === null) { unknownItem = true; }
+      else { total += cd.data.cut; hasCourse = true; }
+    } else if (checked.indexOf('シャンプーコース（シャンプー・ブロー・ブラッシング）') !== -1) {
+      total += cd.data.shampoo; hasCourse = true;
     }
+    checked.forEach(function(m) {
+      if (PRICE_SINGLE_MAP[m]) { total += PRICE_SINGLE_MAP[m][sizeTier]; hasCourse = true; }
+    });
+    if (!hasCourse || unknownItem) failed = true;
+    results.push({ label: cd.label, total: total });
   });
 
-  if (!hasCourse || unknownItem) {
+  if (failed) {
     valueEl.className = 'price-value small';
     valueEl.textContent = '当日ご相談（料金未定）';
     return;
   }
 
+  // 冬のうるおいケア（キャンペーン価格）
+  var careSel = Array.from(document.querySelectorAll('.care-cb:checked')).map(function(c) { return c.value; }).join('＋');
+  var CARE_TOTAL = {'泡パック':880,'温浴':700,'肉球ケア':440,'泡パック＋肉球ケア':1150,'温浴＋肉球ケア':1000};
+  var care = (careSel && CARE_TOTAL[careSel]) ? CARE_TOTAL[careSel] : 0;
+  var yen = function(n) { return '¥' + n.toLocaleString('ja-JP') + '〜'; };
+
   valueEl.className = 'price-value';
-  valueEl.textContent = '¥' + total.toLocaleString('ja-JP') + '〜';
+  var html = '';
+  if (results.length === 2 && results[0].total !== results[1].total) {
+    // マルプー：どちらかの料金
+    valueEl.textContent = yen(results[0].total + care) + ' または ' + yen(results[1].total + care);
+    valueEl.style.fontSize = '17px';
+    html += results[0].label + '　' + yen(results[0].total + care) + '<br>' + results[1].label + '　' + yen(results[1].total + care) + '<br>' +
+      '<span style="font-size:11px;color:#7AAAC0;">※マルプーは、お顔・体型を見て、どちらかの料金に決まります（ご来店時にご案内します）</span>';
+    if (care) html = '通常料金　' + yen(results[0].total) + ' または ' + yen(results[1].total) + '<br>' +
+      '❄️ 冬のうるおいケア（' + careSel + '）　<b style="color:#E8584C;">＋¥' + care.toLocaleString('ja-JP') + '</b><br>' +
+      '<span style="font-size:11px;color:#7AAAC0;">※マルプーは、お顔・体型を見て、どちらかの料金に決まります（ご来店時にご案内します）</span>';
+  } else {
+    var base = results[0].total;
+    valueEl.textContent = yen(base + care);
+    if (care) html = '通常料金　' + yen(base) + '<br>' +
+      '❄️ 冬のうるおいケア（' + careSel + '）　<b style="color:#E8584C;">＋¥' + care.toLocaleString('ja-JP') + '</b>';
+  }
+  if (bdEl && html && (care || results.length === 2)) { bdEl.innerHTML = html; bdEl.style.display = 'block'; }
 }
 
 // ===== 空き時間取得 =====

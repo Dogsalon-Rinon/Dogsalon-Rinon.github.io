@@ -1672,6 +1672,7 @@ loadData();
             <option>ポメラニアン</option>
             <option>トイプードル</option>
             <option>マルチーズ</option>
+            <option>マルプー</option>
             <option>シーズー</option>
             <option>ミニチュアダックス（ロング）</option>
             <option>ヨークシャーテリア</option>
@@ -2338,7 +2339,7 @@ function shortMenu(m) {
 }
 
 // ===== ミックス犬（内訳と、料金にする犬種）=====
-function isMixBreed(b) { return /ミックス|MIX|mix|雑種/.test(String(b || '')); }
+function isMixBreed(b) { return /ミックス|MIX|mix|雑種|マルプー/.test(String(b || '')); }
 // 料金表を引くときの犬種。ミックスは「料金にする犬種」を使う（未設定なら犬種のまま）
 function pricingBreed(c) {
   var p = (c && c.profile) || {};
@@ -2363,7 +2364,7 @@ function mixPair(c) {
   var p = c.profile || {};
   var saved = String(p['ミックス内訳'] || '').split('×').map(function(s) { return s.trim(); }).filter(Boolean);
   if (saved.length) return { a: saved[0], b: saved[1] || '', saved: true };
-  var g = parseMixText(p['ミックス詳細']);
+  var g = parseMixText(p['ミックス詳細'] || p['犬種']);
   return { a: g[0] || '', b: g[1] || '', saved: false };
 }
 function mixTarget(c) {
@@ -3465,6 +3466,11 @@ var EST_OPTION_MENU = [
   { name: "抜け毛処理",                         price: 550,  exact: true },
   { name: "抜け毛処理",                         price: 880,  exact: true },
   { name: "抜け毛処理",                         price: 1100, exact: true },
+  { name: "冬のうるおい 泡パック", price: 880, exact: true },
+  { name: "冬のうるおい 温浴", price: 700, exact: true },
+  { name: "冬のうるおい 肉球ケア", price: 440, exact: true },
+  { name: "冬のうるおい 泡パック＋肉球ケア", price: 1150, exact: true },
+  { name: "冬のうるおい 温浴＋肉球ケア", price: 1000, exact: true },
   { name: "薬用シャンプー",                     price: 550 },
   { name: "ひげ切り",                           price: 550 },
   { name: "デザインカット(ワンポイント)",       price: 550 },
