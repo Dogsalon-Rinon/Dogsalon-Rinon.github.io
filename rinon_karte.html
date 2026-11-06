@@ -1133,7 +1133,7 @@ function renderList(data) {
       (ownerKanaText(c) ? '<div class="customer-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
       '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + vacTagFor(c) + bdTagFor(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + (temperText(c.profile) ? '　<span style="color:#B5524A;font-size:11px;font-weight:700;">⚠️噛み・苦手</span>' : '') + '</div>' +
-      '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span><span class="visit-badge">' + c.visitCount + '回</span>' + (c.cancelCount ? '<span style="font-size:10.5px;color:#C06060;margin-left:6px;">キャンセル' + c.cancelCount + '回</span>' : '') + '</div>' +
+      '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span>' + (c.cancelCount ? '<span style="font-size:10.5px;color:#C06060;margin-right:6px;">キャンセル' + c.cancelCount + '回</span>' : '') + '<span class="visit-badge">来店' + c.visitCount + '回</span></div>' +
       listPrevHtml(c) +
     '</div>';
   }).join('');
@@ -1282,7 +1282,7 @@ function showKarte(idx, silent) {
         '<div>' +
           (ownerKanaText(c) ? '<div class="karte-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
           '<div class="karte-title">' + c.owner + ' 様　<span>/ ' + c.dog + '</span>' + lineBadge(c, true) + '<span class="yomi-link" onclick="setYomi(' + idx + ')">ふりがな設定</span></div>' +
-          '<div class="karte-date">来店回数：' + c.visitCount + '回' + (c.cancelCount ? '（キャンセル' + c.cancelCount + '回）' : '') + '　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
+          '<div class="karte-date">' + (c.cancelCount ? 'キャンセル回数：' + c.cancelCount + '回　|　' : '') + '来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
         '</div>' +
       '</div>' +
       '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteCustomer(' + idx + ')">🗑 このカルテを削除</button>' +
@@ -1319,7 +1319,7 @@ function showKarte(idx, silent) {
     '</div>' +
 
     '<div class="section">' +
-      '<div class="section-title">来店履歴（' + c.visitCount + '回' + (c.cancelCount ? '／キャンセル' + c.cancelCount + '回' : '') + '）<span style="font-size:10px; color:#7AAAC0; text-transform:none;">各回ごとにメモを記入できます</span></div>' +
+      '<div class="section-title">来店履歴（' + (c.cancelCount ? 'キャンセル' + c.cancelCount + '回／' : '') + '来店' + c.visitCount + '回）<span style="font-size:10px; color:#7AAAC0; text-transform:none;">各回ごとにメモを記入できます</span></div>' +
       visitsHtml +
     '</div>';
 }
