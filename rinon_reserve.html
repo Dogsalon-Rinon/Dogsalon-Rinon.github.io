@@ -318,6 +318,26 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.7; }
         </select>
       </div>
 
+      <div class="form-group" id="temperGroup">
+        <div class="form-label">噛む・触られるのが苦手など <span class="required">必須</span></div>
+        <div class="menu-checkbox-group" id="temperCheckboxGroup" style="border-color:#F0B8B0;">
+          <label class="menu-checkbox"><input type="checkbox" value="特に問題ない" onchange="updateTemperValue(event)">特に問題ない</label>
+          <label class="menu-checkbox"><input type="checkbox" value="噛む・噛もうとすることがある" onchange="updateTemperValue(event)">噛む・噛もうとすることがある</label>
+          <label class="menu-checkbox"><input type="checkbox" value="触られるのが苦手な場所がある" onchange="updateTemperValue(event)">触られるのが苦手な場所がある（足先・顔・お尻など）</label>
+          <label class="menu-checkbox"><input type="checkbox" value="他店で施術を断られたことがある" onchange="updateTemperValue(event)">他のサロンで施術を断られたことがある</label>
+          <label class="menu-checkbox"><input type="checkbox" value="施術を途中でやめたことがある" onchange="updateTemperValue(event)">施術を途中でやめたことがある</label>
+          <label class="menu-checkbox"><input type="checkbox" value="急に怒る・予測できない" onchange="updateTemperValue(event)">急に怒る・予測できないことがある</label>
+        </div>
+        <div class="menu-checkbox-hint">複数選択できます。正直にお知らせいただくほど、安全に施術できます</div>
+        <input type="hidden" name="temper" id="temperSelect">
+        <div id="temperNotice" style="display:none;margin-top:10px;padding:12px;border-radius:12px;background:#FFF4F2;border:1.5px solid #F0B8B0;font-size:12.5px;color:#8A4A42;line-height:1.8;">
+          <b>ご申告ありがとうございます。</b><br>
+          事前にお知らせいただくことで、口輪の使用や施術内容の調整など、安全な準備ができます。内容を確認してからご予約を確定しますので、確定のご連絡まで少しお時間をいただきます。<br>
+          状態によっては、施術をお断りしたり、内容を一部に絞らせていただく場合があります。<span style="color:#B5524A;font-weight:700;">特に12月は混み合うため、事前にご相談ください。</span>
+          <textarea name="temper_detail" rows="3" placeholder="どんな時に、どのように噛むか・苦手な場所など（わかる範囲で）" style="width:100%;margin-top:8px;padding:10px;border:1.5px solid #F0B8B0;border-radius:10px;font-size:13px;font-family:inherit;"></textarea>
+        </div>
+      </div>
+
       <div class="form-group">
         <div class="form-label">病歴・現在の治療 <span class="required">必須</span></div>
         <div class="menu-checkbox-group" id="medicalCheckboxGroup">
@@ -525,6 +545,21 @@ function updateMenuValue() {
   document.getElementById('menuSelect').value = menuVal;
   updateTimeSlots();
   updatePriceEstimate();
+}
+
+function updateTemperValue(ev) {
+  var boxes = Array.from(document.querySelectorAll('#temperCheckboxGroup input[type="checkbox"]'));
+  var noneBox = boxes.find(function(cb) { return cb.value === '特に問題ない'; });
+  var changed = ev && ev.target ? ev.target : null;
+  if (changed === noneBox && noneBox.checked) {
+    boxes.forEach(function(cb) { if (cb !== noneBox) cb.checked = false; });
+  } else if (changed && changed !== noneBox && changed.checked) {
+    noneBox.checked = false;
+  }
+  var checked = boxes.filter(function(cb) { return cb.checked; }).map(function(cb) { return cb.value; });
+  document.getElementById('temperSelect').value = checked.join('、');
+  var flagged = checked.some(function(v) { return v !== '特に問題ない'; });
+  document.getElementById('temperNotice').style.display = flagged ? 'block' : 'none';
 }
 
 function updateMedicalValue(ev) {
@@ -782,7 +817,7 @@ function submitReserve() {
   const get = id => { const el = f.querySelector('[name="' + id + '"]'); return el ? el.value : ''; };
 
   const isLineUser = !!document.getElementById('lineUserId').value;
-  const required = ['owner_name','phone','email','dog_name','breed','weight','color','birthday_year','birthday_month','birthday_day','gender','personality','medical','last_trim','menu','reserve_date']
+  const required = ['owner_name','phone','email','dog_name','breed','weight','color','birthday_year','birthday_month','birthday_day','gender','personality','temper','medical','last_trim','menu','reserve_date']
     .filter(id => !(isLineUser && id === 'email'));
 
   document.querySelectorAll('.form-group.field-error').forEach(function(g) { g.classList.remove('field-error'); });
@@ -838,6 +873,8 @@ function submitReserve() {
   params.set('gender', get('gender'));
   params.set('personality', get('personality'));
   params.set('medical', get('medical') || 'なし');
+  params.set('temper', get('temper'));
+  params.set('temper_detail', get('temper_detail'));
   params.set('menu', get('menu'));
   params.set('date', get('reserve_date'));
   params.set('time', selectedTime);
