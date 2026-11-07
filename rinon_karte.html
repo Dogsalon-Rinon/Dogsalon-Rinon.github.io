@@ -319,7 +319,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
     <div id="todaySide" class="today-side"></div>
     <div class="sidebar-header">
       <h2>顧客一覧</h2>
-      <input class="search-box" type="text" id="searchBox" placeholder="名前・犬種で検索..." oninput="filterCustomers()">
+      <input class="search-box" type="text" id="searchBox" placeholder="名前・犬種・電話番号で検索..." oninput="filterCustomers()">
       <div class="sort-toggle">
         <button id="sortVisit" onclick="setSortMode('visit')">来店順</button>
         <button id="sortKana" onclick="setSortMode('kana')">あいうえお順<br><span style="font-size:9px; font-weight:400;">（飼い主名）</span></button>
@@ -1155,7 +1155,14 @@ function formatDateFull(d) {
 
 function filterCustomers() {
   var q = document.getElementById('searchBox').value.toLowerCase();
+  // 電話番号でも検索（ハイフン・空白・全角数字はそろえて、一部だけ（下4桁など）でも探せる）
+  var qDigits = q.replace(/[０-９]/g, function(ch) { return String.fromCharCode(ch.charCodeAt(0) - 65248); }).replace(/[^0-9]/g, '');
+  var phoneSearch = qDigits.length >= 3 && /^[0-9０-９\-－ー\s()（）+]+$/.test(q);
   var filtered = customers.filter(function(c) {
+    if (phoneSearch) {
+      var phs = (c.phones && c.phones.length) ? c.phones : [c.phone || (c.profile && c.profile['電話番号'])];
+      if (phs.some(function(ph) { return String(ph || '').replace(/[０-９]/g, function(ch) { return String.fromCharCode(ch.charCodeAt(0) - 65248); }).replace(/[^0-9]/g, '').indexOf(qDigits) !== -1; })) return true;
+    }
     return (c.owner || '').toLowerCase().includes(q) ||
            (c.dog || '').toLowerCase().includes(q) ||
            (c.profile['犬種'] || '').toLowerCase().includes(q);
