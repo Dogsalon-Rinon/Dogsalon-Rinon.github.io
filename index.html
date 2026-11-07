@@ -687,7 +687,10 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
           else if (info.closed) tag = '<div style="font-size:9px; color:' + (info.reason === '満員' ? '#B91C1C' : '#94A3B8') + ';">' + (info.reason === '他店' || info.reason === '満員' ? info.reason : '休業') + '</div>';
           else if ((info.slots || []).length === 0) tag = '<div style="font-size:9px; color:#B91C1C;">満員</div>';
         }
-        headHtml += '<th style="min-width:46px; padding:6px 2px; font-size:11px; font-weight:500; color:' + dowColor + '; border-bottom:1px solid #E8F4FC;' +
+        // 注記（満員・休業など）の有無で日付の高さがずれないよう、無い日も同じ高さの空き行を入れる
+        if (!tag) tag = '<div style="font-size:9px; line-height:12px; visibility:hidden;">-</div>';
+        else tag = tag.replace('<div style="', '<div style="line-height:12px; ');
+        headHtml += '<th style="min-width:46px; vertical-align:top; padding:6px 2px; font-size:11px; font-weight:500; color:' + dowColor + '; border-bottom:1px solid #E8F4FC;' +
           (isToday ? ' background:#F5FBFF;' : '') + '">' +
           DOW_LABELS[dowIdx] + '<br><span style="font-size:12px; font-weight:700;">' + (d.getMonth() + 1) + '/' + d.getDate() + '</span>' + tag + '</th>';
       });
