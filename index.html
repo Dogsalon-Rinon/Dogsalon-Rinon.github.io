@@ -619,7 +619,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
         var dateStr = fmt(d);
         if (dayData[dateStr] && !dayData[dateStr].error) return; // 取得済みの日は再取得しない
         // 当日はネット予約不可（お電話のみ）なので、明日より前は受付外にする
-        if (dateStr <= fmt(today) || d > maxDay) {
+        if (dateStr < fmt(today) || d > maxDay) {
           dayData[dateStr] = { outOfRange: true };
           return;
         }
@@ -647,7 +647,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', sans-serif; padding: 20px;
             if (info) {
               if (info.outOfRange) { dayData[dateStr] = { outOfRange: true }; return; }
               dayData[dateStr] = { closed: !!info.closed, slots: info.slots || [], reason: info.reason || '' };
-              if (!info.closed && (info.slots || []).length === 0) computedFull[dateStr] = true;
+              if (!info.closed && (info.slots || []).length === 0 && dateStr !== fmt(today)) computedFull[dateStr] = true;
             } else {
               dayData[dateStr] = { error: true };
             }
