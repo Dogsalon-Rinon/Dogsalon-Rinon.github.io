@@ -384,6 +384,41 @@ let friendDataRaw = null;
 function driveThumbUrl(fileId, size) {
   return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w' + (size || 200);
 }
+// 写真を画面の中で大きく表示する（Googleドライブを別タブで開くと、そのたびにログインを求められるため）
+var _photoList = [], _photoIdx = 0;
+function openPhoto(fid, uid) {
+  var list = [fid];
+  if (uid && visitLookup[uid] && visitLookup[uid].visitObj && (visitLookup[uid].visitObj.photos || []).length) list = visitLookup[uid].visitObj.photos.slice();
+  _photoList = list; _photoIdx = Math.max(0, list.indexOf(fid));
+  var ov = document.getElementById('photoLightbox');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'photoLightbox';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;flex-direction:column;';
+    ov.innerHTML = '<div style="position:absolute;top:10px;right:14px;color:#fff;font-size:30px;cursor:pointer;padding:6px 12px;" onclick="closePhoto()">×</div>' +
+      '<div id="photoPrev" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:44px;cursor:pointer;padding:10px;user-select:none;" onclick="stepPhoto(-1)">‹</div>' +
+      '<div id="photoNext" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);color:#fff;font-size:44px;cursor:pointer;padding:10px;user-select:none;" onclick="stepPhoto(1)">›</div>' +
+      '<img id="photoLightboxImg" style="max-width:94vw;max-height:86vh;object-fit:contain;border-radius:6px;">' +
+      '<div id="photoCount" style="color:#cde;font-size:12px;margin-top:8px;"></div>';
+    ov.addEventListener('click', function(e) { if (e.target === ov) closePhoto(); });
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', function(e) {
+      if (!document.getElementById('photoLightbox') || document.getElementById('photoLightbox').style.display === 'none') return;
+      if (e.key === 'Escape') closePhoto(); else if (e.key === 'ArrowLeft') stepPhoto(-1); else if (e.key === 'ArrowRight') stepPhoto(1);
+    });
+  }
+  ov.style.display = 'flex';
+  showPhoto();
+}
+function showPhoto() {
+  var img = document.getElementById('photoLightboxImg');
+  img.src = driveThumbUrl(_photoList[_photoIdx], 1600);
+  document.getElementById('photoCount').textContent = _photoList.length > 1 ? (_photoIdx + 1) + ' / ' + _photoList.length : '';
+  document.getElementById('photoPrev').style.display = _photoList.length > 1 ? 'block' : 'none';
+  document.getElementById('photoNext').style.display = _photoList.length > 1 ? 'block' : 'none';
+}
+function stepPhoto(d) { _photoIdx = (_photoIdx + d + _photoList.length) % _photoList.length; showPhoto(); }
+function closePhoto() { var ov = document.getElementById('photoLightbox'); if (ov) ov.style.display = 'none'; }
 function driveViewUrl(fileId) {
   return 'https://drive.google.com/file/d/' + fileId + '/view';
 }
@@ -1226,7 +1261,7 @@ function showKarte(idx, silent) {
                           rowNum: v.rowNum, ts: v.ts || '', dogName: v.dogName || '', type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
     var photosHtml = (v.photos || []).map(function(fid) {
       return '<div class="visit-photo-thumb">' +
-        '<img src="' + driveThumbUrl(fid, 150) + '" onclick="window.open(\'' + driveViewUrl(fid) + '\',\'_blank\')">' +
+        '<img src="' + driveThumbUrl(fid, 150) + '" onclick="openPhoto(\'' + fid + '\', \'' + uid + '\')">' +
         '<span class="visit-photo-del" onclick="deleteVisitPhoto(\'' + uid + '\', \'' + fid + '\')">×</span>' +
       '</div>';
     }).join('');
@@ -1277,7 +1312,7 @@ function showKarte(idx, silent) {
       '<div class="karte-header-main">' +
         '<div class="dog-photo-box" id="dog-photo-box-' + idx + '">' +
           (c.dogPhotoId
-            ? '<img src="' + driveThumbUrl(c.dogPhotoId, 200) + '" class="dog-photo-img" onclick="window.open(\'' + driveViewUrl(c.dogPhotoId) + '\',\'_blank\')">'
+            ? '<img src="' + driveThumbUrl(c.dogPhotoId, 200) + '" class="dog-photo-img" onclick="openPhoto(\'' + c.dogPhotoId + '\')">'
             : '<div class="dog-photo-placeholder">🐶</div>') +
           '<div class="dog-photo-actions">' +
             '<label class="dog-photo-upload">' + (c.dogPhotoId ? '変更' : '＋写真') +
