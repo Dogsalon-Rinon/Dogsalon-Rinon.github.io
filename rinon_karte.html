@@ -1320,7 +1320,10 @@ function showKarte(idx, silent) {
           '<div class="karte-date">' + (c.cancelCount ? 'キャンセル回数：' + c.cancelCount + '回　|　' : '') + '来店回数：' + c.visitCount + '回　|　最終来店：' + formatDate(c.lastVisit.date) + '</div>' +
         '</div>' +
       '</div>' +
-      '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteCustomer(' + idx + ')">🗑 このカルテを削除</button>' +
+      '<div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">' +
+        '<button class="btn btn-primary btn-sm" onclick="prefillNextReserve(' + idx + ')">🔁 同じ内容で次回予約</button>' +
+  '<button class="btn btn-light btn-sm" style="color:#C06060;" onclick="deleteCustomer(' + idx + ')">🗑 このカルテを削除</button>' +
+      '</div>' +
     '</div>' +
 
     '<div class="section">' +
@@ -1690,7 +1693,7 @@ loadData();
       <input id="pr-owner" type="text" class="memo-box" style="min-height:auto; padding:8px 12px;">
     </div>
     <div style="margin-bottom:10px;">
-      <div class="info-label">電話番号</div>
+      <div class="info-label">電話番号<span style="color:#C06060;"> ＊必須</span></div>
       <input id="pr-phone" type="tel" class="memo-box" style="min-height:auto; padding:8px 12px;">
     </div>
     <div style="margin-bottom:10px;">
@@ -1913,6 +1916,45 @@ function openPhoneReserve() {
   document.getElementById('phoneReserveOverlay').style.display = 'flex';
 }
 
+// 今のカルテの内容（飼い主・ワンちゃん・前回のメニュー）を入れた状態で、予約追加の画面を開く
+function prefillNextReserve(idx) {
+  var c = customers[idx]; if (!c) return;
+  var p = c.profile || {};
+  openPhoneReserve();
+  setPrType('repeat');
+  function setText(id, v) { var el = document.getElementById(id); if (el) el.value = v || ''; }
+  function pick(id, v) {
+    var el = document.getElementById(id); v = String(v || '').trim();
+    if (!el || !v) return;
+    var opts = Array.prototype.slice.call(el.options), hit = null, i;
+    for (i = 0; i < opts.length && !hit; i++) if ((opts[i].value || opts[i].text) === v) hit = opts[i];
+    for (i = 0; i < opts.length && !hit; i++) { var t = opts[i].value || opts[i].text; if (t && (t.indexOf(v) === 0 || v.indexOf(t) === 0)) hit = opts[i]; }
+    if (hit) el.value = hit.value || hit.text;
+  }
+  setText('pr-owner', c.owner);
+  setText('pr-dog', c.dog);
+  setText('pr-phone', formatPhone(c.phone) || c.phone);
+  setText('pr-email', p['メールアドレス'] || p['メールアドレス（任意）'] || p['メールアドレス(任意)'] || '');
+  pick('pr-breed', p['犬種']); prToggleMix();
+  setText('pr-mix-detail', p['ミックス詳細'] || '');
+  var w = String(p['体重'] || '').replace(/[^0-9.]/g, ''); if (w) pick('pr-weight', w + 'kg');
+  pick('pr-color', p['毛の色']);
+  var bm = String(p['ワンちゃんの生年月日'] || '').match(/(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (bm) { setText('pr-by', bm[1]); setText('pr-bm', String(parseInt(bm[2], 10))); setText('pr-bd', String(parseInt(bm[3], 10))); }
+  pick('pr-gender', p['性別']);
+  pick('pr-personality', p['家でのふだんの性格']);
+  var med = p['病歴・現在の治療（選択肢）必須 '] || p['病歴・現在の治療（選択肢）必須'] || ''; if (med) pick('pr-medical', med);
+  // 前回（キャンセル・お断りを除く）のメニューと時間の長さ
+  var last = null;
+  (c.visits || []).forEach(function(v) { if (!visitCancelled(v)) last = v; });
+  if (last) {
+    var m = String(last.menu || '').replace(/【[^】]*】/g, '').replace(/（[^）]*）/g, '').replace(/\([^)]*\)/g, '').trim();
+    pick('pr-menu', m);
+  }
+  document.getElementById('pr-last-trim').selectedIndex = 0;
+  var d = document.getElementById('pr-date'); if (d) d.focus();
+}
+
 function closePhoneReserve() {
   document.getElementById('phoneReserveOverlay').style.display = 'none';
 }
@@ -1941,8 +1983,8 @@ function submitPhoneReserve() {
   var endTime = document.getElementById('pr-endtime').value;
   var err     = document.getElementById('pr-error');
 
-  if (!owner || !dog || !date || !time) {
-    err.textContent = '飼い主名・ワンちゃん名・日付・開始時間は必須です';
+  if (!owner || !dog || !date || !time || !phone) {
+    err.textContent = '飼い主名・電話番号・ワンちゃん名・日付・開始時間は必須です（電話番号がないとLINE・リマインドが届きません）';
     err.style.display = 'block';
     return;
   }
