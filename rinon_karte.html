@@ -197,7 +197,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 @media (max-width:640px) { .fl-row { grid-template-columns:1fr auto; } .fl-row .c2, .fl-row .c3 { grid-column:1; } }
 
 /* ===== 売上明細表 ===== */
-#salesOverlay, #followOverlay, #analysisOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
+#salesOverlay, #followOverlay, #analysisOverlay, #slotOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
 .sales-top { position:sticky; top:0; z-index:2; background:#0C447C; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .sales-top h2 { font-size:17px; font-weight:700; margin-right:auto; }
 .sales-month { display:flex; align-items:center; gap:8px; }
@@ -307,6 +307,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
   </div>
   <div class="header-right">
     <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
+    <button class="btn btn-light" onclick="openSlots()">📅 満員・休業の設定</button>
     <button class="btn btn-light" onclick="openSales()">💰 売上明細</button>
     <button class="btn btn-light" onclick="openAnalysis()">📈 分析</button>
     <button class="btn btn-light" onclick="openFollow()">🔔 フォロー・期限<span id="followCount"></span></button>
@@ -328,32 +329,13 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
         <div class="stat"><div class="stat-num" id="totalCount">-</div><div class="stat-label">登録頭数</div></div>
         <div class="stat"><div class="stat-num" id="totalVisits">-</div><div class="stat-label">来店総数</div></div>
       </div>
-      <button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px;" onclick="openPhoneReserve()">📞 電話予約を入力</button>
-      <button class="btn btn-light btn-sm" style="width:100%; margin-top:8px; color:#C06060; border-color:#F0C8C8;" onclick="openBlockSlot()">🚫 この日時を予約不可にする</button>
+      <button class="btn btn-primary btn-sm" style="width:100%; margin-top:10px;" onclick="openPhoneReserve()">➕ 予約を追加（口頭・電話・来店時）</button>
     </div>
     <div class="customer-list" id="customerList">
       <div class="loading"><div class="spinner"></div>データを読み込み中...</div>
     </div>
     <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
       <button class="btn btn-light btn-sm" style="width:100%;" onclick="showHiddenManager()">🗑 削除したカルテを管理</button>
-    </div>
-    <div style="padding:10px 16px; border-top:1px solid #E8F4FC;">
-      <div style="font-size:11px; color:#7AAAC0; margin-bottom:6px; text-align:center;">📅 カレンダー登録</div>
-      <div style="display:flex; gap:6px; margin-bottom:8px;">
-        <button id="mode-single" onclick="setMode('single')" style="flex:1; padding:5px; background:#1A6FA8; color:white; border:none; border-radius:8px; font-size:11px; cursor:pointer;">単日</button>
-        <button id="mode-range" onclick="setMode('range')" style="flex:1; padding:5px; background:#E8F6FE; color:#1A6FA8; border:1px solid #B3D9F5; border-radius:8px; font-size:11px; cursor:pointer;">期間</button>
-      </div>
-      <input type="date" id="statusDate" style="width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; color:#0C447C; box-sizing:border-box; margin-bottom:4px;">
-      <div id="endDateWrap" style="display:none;">
-        <div style="font-size:10px; color:#7AAAC0; text-align:center; margin:2px 0;">〜</div>
-        <input type="date" id="statusEndDate" style="width:100%; padding:6px 8px; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; color:#0C447C; box-sizing:border-box; margin-bottom:4px;">
-      </div>
-      <div style="display:flex; gap:6px; margin-top:4px;">
-        <button onclick="setCalStatus('満員')" style="flex:1; padding:6px; background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; border-radius:8px; font-size:12px; cursor:pointer;">満員</button>
-        <button onclick="setCalStatus('休業')" style="flex:1; padding:6px; background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; border-radius:8px; font-size:12px; cursor:pointer;">休業</button>
-        <button onclick="setCalStatus('他店')" style="flex:1; padding:6px; background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; border-radius:8px; font-size:12px; cursor:pointer;">他店</button>
-        <button onclick="setCalStatus('解除')" style="flex:1; padding:6px; background:#E8F6FE; color:#0C447C; border:1px solid #B3D9F5; border-radius:8px; font-size:12px; cursor:pointer;">解除</button>
-      </div>
     </div>
     <div class="kana-index" id="kanaIndex"></div>
   </div>
@@ -381,6 +363,14 @@ let repeatDataRaw = null;
 let friendDataRaw = null;
 
 // ── 写真機能（Googleドライブ保存） ──
+// 写真が読み込めないときの代わりの取得先（ドライブのサムネイルが一時的に失敗しても、別の入口で試す）
+function photoFallback(img, fid, size) {
+  var n = parseInt(img.getAttribute('data-try') || '0', 10);
+  img.setAttribute('data-try', n + 1);
+  if (n === 0) img.src = 'https://lh3.googleusercontent.com/d/' + fid + '=w' + (size || 200);
+  else if (n === 1) img.src = 'https://drive.google.com/uc?export=view&id=' + fid;
+  else if (n === 2) setTimeout(function() { img.src = driveThumbUrl(fid, size) + '&r=' + Date.now(); }, 1500);
+}
 function driveThumbUrl(fileId, size) {
   return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w' + (size || 200);
 }
@@ -412,7 +402,10 @@ function openPhoto(fid, uid) {
 }
 function showPhoto() {
   var img = document.getElementById('photoLightboxImg');
-  img.src = driveThumbUrl(_photoList[_photoIdx], 1600);
+  var _fid = _photoList[_photoIdx];
+  img.setAttribute('data-try', '0');
+  img.onerror = function() { photoFallback(img, _fid, 1600); };
+  img.src = driveThumbUrl(_fid, 1600);
   document.getElementById('photoCount').textContent = _photoList.length > 1 ? (_photoIdx + 1) + ' / ' + _photoList.length : '';
   document.getElementById('photoPrev').style.display = _photoList.length > 1 ? 'block' : 'none';
   document.getElementById('photoNext').style.display = _photoList.length > 1 ? 'block' : 'none';
@@ -1261,13 +1254,13 @@ function showKarte(idx, silent) {
                           rowNum: v.rowNum, ts: v.ts || '', dogName: v.dogName || '', type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
     var photosHtml = (v.photos || []).map(function(fid) {
       return '<div class="visit-photo-thumb">' +
-        '<img src="' + driveThumbUrl(fid, 150) + '" onclick="openPhoto(\'' + fid + '\', \'' + uid + '\')">' +
+        '<img src="' + driveThumbUrl(fid, 150) + '" onerror="photoFallback(this, \'' + fid + '\', 150)" onclick="openPhoto(\'' + fid + '\', \'' + uid + '\')">' +
         '<span class="visit-photo-del" onclick="deleteVisitPhoto(\'' + uid + '\', \'' + fid + '\')">×</span>' +
       '</div>';
     }).join('');
     var mailBadges =
       (v.isPhoneBooking
-        ? '<span class="tag" style="background:#EEF2F5; color:#8a8a8a;">📞 電話予約（承認メール対象外）</span>'
+        ? '<span class="tag" style="background:#EEF2F5; color:#8a8a8a;">📞 口頭・電話予約（承認メール対象外）</span>'
         : (v.approvalMailSent
             ? '<span class="tag tag-green">✅ 承認メール送信済み（' + v.approvalMailSent + '）</span>'
             : '<span class="tag" style="background:#FFF4E5; color:#B4780A;">⚠️ 承認メール未送信</span>')
@@ -1312,7 +1305,7 @@ function showKarte(idx, silent) {
       '<div class="karte-header-main">' +
         '<div class="dog-photo-box" id="dog-photo-box-' + idx + '">' +
           (c.dogPhotoId
-            ? '<img src="' + driveThumbUrl(c.dogPhotoId, 200) + '" class="dog-photo-img" onclick="openPhoto(\'' + c.dogPhotoId + '\')">'
+            ? '<img src="' + driveThumbUrl(c.dogPhotoId, 200) + '" class="dog-photo-img" onerror="photoFallback(this, \'' + c.dogPhotoId + '\', 200)" onclick="openPhoto(\'' + c.dogPhotoId + '\')">'
             : '<div class="dog-photo-placeholder">🐶</div>') +
           '<div class="dog-photo-actions">' +
             '<label class="dog-photo-upload">' + (c.dogPhotoId ? '変更' : '＋写真') +
@@ -1674,10 +1667,14 @@ loadData();
 <div id="phoneReserveOverlay" style="display:none; position:fixed; inset:0; background:rgba(12,68,124,0.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
   <div style="background:white; border-radius:16px; padding:24px; max-width:460px; width:100%; max-height:90vh; overflow-y:auto;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <div style="font-size:16px; font-weight:700; color:#0C447C;">📞 電話予約を入力</div>
+      <div style="font-size:16px; font-weight:700; color:#0C447C;">➕ 予約を追加（口頭・電話・来店時）</div>
       <button onclick="closePhoneReserve()" style="background:none; border:none; font-size:20px; color:#7AAAC0; cursor:pointer; line-height:1;">×</button>
     </div>
 
+    <div style="background:#EAF6EE; border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.7; color:#2E6B45; margin-bottom:12px;">
+      ✅ 登録すると、カレンダーに入り、お客様のLINEに「ご予約確定」が届きます。前日のリマインドも自動で届きます。<br>
+      ※LINEに届くのは、<b>電話番号</b>がLINEの友だちリストと一致した場合です。メールアドレスを入れると、前日のリマインドはメールにも届きます。
+    </div>
     <div style="margin-bottom:12px;">
       <div class="info-label">区分</div>
       <div style="display:flex; gap:8px; margin-top:4px;">
@@ -1977,7 +1974,7 @@ function submitPhoneReserve() {
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.success) {
-        alert('✅ 登録しました！スプレッドシートとGoogleカレンダーに反映されました。');
+        alert('✅ 登録しました！スプレッドシートとGoogleカレンダーに反映されました。\n' + (res.lineNotified ? '📩 お客様のLINEに予約確定を送りました。' : '⚠️ LINEには送れませんでした（電話番号がLINEと未連携）。前日のリマインドはメールアドレスがあればメールで届きます。'));
         closePhoneReserve();
         loadData();
       } else {
@@ -2932,6 +2929,8 @@ function updateFollowCount() {
   var el = document.getElementById('followCount');
   if (el) el.textContent = n ? '（💉' + n + '）' : '';
 }
+function openSlots() { document.getElementById('slotOverlay').style.display = 'block'; }
+function closeSlots() { document.getElementById('slotOverlay').style.display = 'none'; }
 function openFollow() {
   document.getElementById('followOverlay').style.display = 'block';
   renderFollow();
@@ -3851,7 +3850,7 @@ function saveBodyNow(uid) {
 (function() {
   var stack = [], skip = 0, raw = {};
   var defs = [
-    ['openSales', 'closeSales'], ['openFollow', 'closeFollow'], ['openAnalysis', 'closeAnalysis'],
+    ['openSales', 'closeSales'], ['openSlots', 'closeSlots'], ['openFollow', 'closeFollow'], ['openAnalysis', 'closeAnalysis'],
     ['openSaleEdit', 'closeSaleEdit'], ['openFollowSend', 'closeFollowSend'], ['openMergeDialog', 'closeMergeDialog'],
     ['openReschedule', 'closeReschedule'], ['openCancelVisit', 'closeCancelVisit'],
     ['openPhoneReserve', 'closePhoneReserve'], ['openBlockSlot', 'closeBlockSlot']
@@ -3913,6 +3912,38 @@ function saveBodyNow(uid) {
   <textarea id="flText"></textarea>
   <div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-light" style="flex:1;" onclick="closeFollowSend()">キャンセル</button><button class="btn btn-primary" style="flex:2;" id="flSendBtn" onclick="sendFollowNow()">LINEで送信</button></div>
 </div></div>
+<div id="slotOverlay">
+  <div class="sales-top">
+    <h2>📅 満員・休業の設定</h2>
+    <button class="btn btn-primary btn-sm" onclick="closeSlots()">✕ 閉じる</button>
+  </div>
+  <div class="sales-body" style="max-width:560px;">
+    <div style="background:#fff; border:1px solid #D0E8F8; border-radius:14px; padding:18px; margin-bottom:14px;">
+      <div style="font-size:14px; font-weight:700; color:#0C447C; margin-bottom:4px;">1日・期間まるごと設定する</div>
+      <div style="font-size:12px; color:#7AAAC0; line-height:1.7; margin-bottom:12px;">ホームページのカレンダーに「満員」「休業」「他店」を表示します。間違えたときは「解除」を押してください。</div>
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <button id="mode-single" onclick="setMode('single')" style="flex:1; padding:8px; background:#1A6FA8; color:white; border:none; border-radius:8px; font-size:13px; cursor:pointer;">単日</button>
+        <button id="mode-range" onclick="setMode('range')" style="flex:1; padding:8px; background:#E8F6FE; color:#1A6FA8; border:1px solid #B3D9F5; border-radius:8px; font-size:13px; cursor:pointer;">期間</button>
+      </div>
+      <input type="date" id="statusDate" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:15px; color:#0C447C; box-sizing:border-box; margin-bottom:6px;">
+      <div id="endDateWrap" style="display:none;">
+        <div style="font-size:11px; color:#7AAAC0; text-align:center; margin:2px 0;">〜</div>
+        <input type="date" id="statusEndDate" style="width:100%; padding:10px; border:1px solid #B3D9F5; border-radius:8px; font-size:15px; color:#0C447C; box-sizing:border-box; margin-bottom:6px;">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button onclick="setCalStatus('満員')" style="flex:1; padding:12px 6px; background:#FEE2E2; color:#B91C1C; border:1px solid #FECACA; border-radius:8px; font-size:14px; cursor:pointer;">満員</button>
+        <button onclick="setCalStatus('休業')" style="flex:1; padding:12px 6px; background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; cursor:pointer;">休業</button>
+        <button onclick="setCalStatus('他店')" style="flex:1; padding:12px 6px; background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; border-radius:8px; font-size:14px; cursor:pointer;">他店</button>
+        <button onclick="setCalStatus('解除')" style="flex:1; padding:12px 6px; background:#E8F6FE; color:#0C447C; border:1px solid #B3D9F5; border-radius:8px; font-size:14px; cursor:pointer;">解除</button>
+      </div>
+    </div>
+    <div style="background:#fff; border:1px solid #D0E8F8; border-radius:14px; padding:18px;">
+      <div style="font-size:14px; font-weight:700; color:#0C447C; margin-bottom:4px;">時間を指定して予約不可にする</div>
+      <div style="font-size:12px; color:#7AAAC0; line-height:1.7; margin-bottom:12px;">「午後だけ不可」「この時間は用事がある」など、一部の時間だけ予約を止めたいときに使います。</div>
+      <button class="btn btn-light" style="width:100%; color:#C06060; border-color:#F0C8C8;" onclick="openBlockSlot()">🚫 この日時を予約不可にする</button>
+    </div>
+  </div>
+</div>
 <div id="salesOverlay">
   <div class="sales-top">
     <h2>💰 売上明細表 <span id="salesLoading" style="font-size:11px;font-weight:400;color:#B3D9F5;"></span></h2>
