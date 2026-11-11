@@ -84,12 +84,12 @@
   }
   .customer-row .suffix { font-size: 14px; margin-left: 3mm; white-space: nowrap; color: #a9927f; }
   .dog-row {
-    font-size: 11.5px; color: #8fae65; margin-bottom: 6mm;
+    font-size: 11.5px; color: #8fae65; margin-bottom: 6mm; display: flex; align-items: baseline; gap: 1mm;
   }
   .dog-row::before { content: "🐶 "; }
   .dog-row input {
     border: none; border-bottom: 1.5px dotted #cfe0b8; font-size: 11.5px; font-family: inherit;
-    background: transparent; width: 40mm; color: #4a4038;
+    background: transparent; flex: 1; min-width: 0; width: auto; color: #4a4038;
   }
 
   .amount-block {
@@ -255,7 +255,7 @@
 
     .meta-row { font-size: 11px; flex-wrap: wrap; gap: 2mm; }
     .customer-row input { font-size: 18px; }
-    .dog-row input { width: 32mm; }
+    .dog-row input { width: auto; }
 
     .amount-block { padding: 3mm 4mm; }
     .amount-block input { font-size: 22px; }
