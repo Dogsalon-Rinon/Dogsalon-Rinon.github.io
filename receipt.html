@@ -618,8 +618,12 @@ function addCustomRow() {
   priceInput.value = '';
 }
 
+// まとめて領収書のとき：[{dog, vkey, ...}]。ワンちゃんごとに売上を分けて記録する
+var MULTI = null;
+var targetDogIdx = 0;
 function makeRow(name, price, isDiscount) {
   var tr = document.createElement('tr');
+  if (MULTI) tr.setAttribute('data-dog', isDiscount ? '0' : String(targetDogIdx));
   if (isDiscount) tr.classList.add('discount-item-row');
   tr.innerHTML =
     '<td><input type="text" class="item-name" value="' + (name || '').replace(/"/g,'&quot;') + '" placeholder="例：シャンプー＋カット"></td>' +
@@ -629,6 +633,7 @@ function makeRow(name, price, isDiscount) {
 }
 
 function addRow(name, price) {
+  if (MULTI && name && name.indexOf('【') !== 0) name = '【' + MULTI[targetDogIdx].dog + '】' + name;
   document.getElementById('itemsBody').appendChild(makeRow(name, price));
   recalc();
 }
@@ -724,27 +729,26 @@ function recalc() {
 // ===== 領収書を発行（印刷）したタイミングで、売上を自動記録する =====
 var SALES_API_URL = 'https://script.google.com/macros/s/AKfycbykTK5aALpy4ZPwwZGUdRj1T_TfAJsY3Gzo2xlLg686tHRSaszZ0K4Fk4mIti1vRToUbw/exec';
 var SALES_SECRET  = 'rinon2026';
-var lastRecordedPayload = '';
+var lastRecordedPayloads = {};
 
-function collectSalePayload() {
-  var items = [];
+function collectSalePayloads() {
+  var yy = document.getElementById('y').value, mm = ('0' + document.getElementById('m').value).slice(-2), dd = ('0' + document.getElementById('d').value).slice(-2);
+  var params = new URLSearchParams(window.location.search);
+  var owner = (document.getElementById('owner').value || '').trim();
+  var pay = (document.getElementById('paySelect') || {}).value || '';
+  var desc = (document.getElementById('desc').value || '').trim();
+  var dogs = MULTI || [{ dog: (document.getElementById('dog').value || '').trim(), vkey: params.get('vkey') || '' }];
+  var groups = dogs.map(function(d) { return { visitKey: d.vkey || '', date: yy + '-' + mm + '-' + dd, owner: owner, dog: MULTI ? d.dog : d.dog, desc: desc, items: [], total: 0, pay: pay }; });
   document.querySelectorAll('#itemsBody tr').forEach(function(tr) {
     var n = (tr.querySelector('.item-name').value || '').trim();
     var pv = parseFloat(((tr.querySelector('.item-price').value) || '0').replace(/[^0-9.\-]/g, ''));
-    if (n && !isNaN(pv)) items.push({ name: n, price: pv });
+    if (!n || isNaN(pv)) return;
+    var gi = MULTI ? (parseInt(tr.getAttribute('data-dog'), 10) || 0) : 0;
+    if (!groups[gi]) gi = 0;
+    groups[gi].items.push({ name: n, price: pv });
+    groups[gi].total += pv;
   });
-  var total = parseFloat((document.getElementById('total').value || '0').replace(/[^0-9.\-]/g, '')) || 0;
-  var yy = document.getElementById('y').value, mm = ('0' + document.getElementById('m').value).slice(-2), dd = ('0' + document.getElementById('d').value).slice(-2);
-  var params = new URLSearchParams(window.location.search);
-  return {
-    visitKey: params.get('vkey') || '',
-    date: yy + '-' + mm + '-' + dd,
-    owner: (document.getElementById('owner').value || '').trim(),
-    dog: (document.getElementById('dog').value || '').trim(),
-    desc: (document.getElementById('desc').value || '').trim(),
-    items: items, total: total,
-    pay: (document.getElementById('paySelect') || {}).value || ''
-  };
+  return groups;
 }
 
 function showSaleToast(msg, ok) {
@@ -764,29 +768,30 @@ function showSaleToast(msg, ok) {
 }
 
 function recordSale() {
-  var d = collectSalePayload();
-  if (d.total <= 0 || d.items.length === 0) return; // 空の領収書は記録しない
-  var body = JSON.stringify(d);
-  if (body === lastRecordedPayload) return; // 同じ内容を二重に送らない
-  lastRecordedPayload = body;
-  var params = new URLSearchParams();
-  params.set('action', 'saveSale');
-  params.set('secret', SALES_SECRET);
-  params.set('visitKey', d.visitKey);
-  params.set('date', d.date);
-  params.set('owner', d.owner);
-  params.set('dog', d.dog);
-  params.set('desc', d.desc);
-  params.set('items', JSON.stringify(d.items));
-  params.set('total', String(d.total));
-  params.set('pay', d.pay || '');
-  fetch(SALES_API_URL, { method: 'POST', body: params })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-      if (res && res.success) showSaleToast(res.updated ? '売上を更新しました' : '売上に記録しました', true);
-      else { lastRecordedPayload = ''; showSaleToast('売上の記録に失敗しました：' + ((res && res.error) || '不明なエラー'), false); }
-    })
-    .catch(function() { lastRecordedPayload = ''; showSaleToast('売上の記録に失敗しました（通信エラー）。印刷は続けられます', false); });
+  collectSalePayloads().forEach(function(d) {
+    if (d.total <= 0 || d.items.length === 0) return; // 空の領収書は記録しない
+    var body = JSON.stringify(d);
+    if (lastRecordedPayloads[d.visitKey + '|' + d.dog] === body) return; // 同じ内容を二重に送らない
+    lastRecordedPayloads[d.visitKey + '|' + d.dog] = body;
+    var params = new URLSearchParams();
+    params.set('action', 'saveSale');
+    params.set('secret', SALES_SECRET);
+    params.set('visitKey', d.visitKey);
+    params.set('date', d.date);
+    params.set('owner', d.owner);
+    params.set('dog', d.dog);
+    params.set('desc', d.desc);
+    params.set('items', JSON.stringify(d.items));
+    params.set('total', String(d.total));
+    params.set('pay', d.pay || '');
+    fetch(SALES_API_URL, { method: 'POST', body: params })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res && res.success) showSaleToast(res.updated ? '売上を更新しました' : '売上に記録しました', true);
+        else { delete lastRecordedPayloads[d.visitKey + '|' + d.dog]; showSaleToast('売上の記録に失敗しました：' + ((res && res.error) || '不明なエラー'), false); }
+      })
+      .catch(function() { delete lastRecordedPayloads[d.visitKey + '|' + d.dog]; showSaleToast('売上の記録に失敗しました（通信エラー）。印刷は続けられます', false); });
+  });
 }
 
 function printReceipt() {
@@ -887,7 +892,7 @@ function detectCourse(menuText) {
     document.getElementById('d').value = today.getDate();
   }
 
-  // 犬種＋メニューから料金表を自動参照して金額を入れる
+  function fillRowsFor(breed, menu, amount) {
   var breedKey = findBreedKey(breed);
   var course = detectCourse(menu);
   if (breedKey && BREED_MENU[breedKey][course] !== null && BREED_MENU[breedKey][course] !== undefined) {
@@ -905,6 +910,31 @@ function detectCourse(menuText) {
   } else {
     addRow('', '');
   }
+  }
+  var othersRaw = params.get('others'), others = [];
+  try { if (othersRaw) others = JSON.parse(othersRaw) || []; } catch (e) { others = []; }
+  if (others.length) {
+    MULTI = [{ dog: dog || '', vkey: params.get('vkey') || '' }].concat(others.map(function(o) { return { dog: o.dog || '', vkey: o.vkey || '' }; }));
+    var names = [(dog || '') + (function(g) { return g && g.indexOf('オス') !== -1 ? 'くん' : (g && g.indexOf('メス') !== -1 ? 'ちゃん' : ''); })(gender)];
+    others.forEach(function(o) { names.push((o.dog || '') + (o.gender && o.gender.indexOf('オス') !== -1 ? 'くん' : (o.gender && o.gender.indexOf('メス') !== -1 ? 'ちゃん' : ''))); });
+    document.getElementById('dog').value = names.join('・');
+    document.getElementById('desc').value = 'トリミング';
+    var sel = document.createElement('select');
+    sel.id = 'targetDog';
+    sel.style.cssText = 'margin:6px 0; padding:6px; font-size:13px;';
+    MULTI.forEach(function(d, i) { var op = document.createElement('option'); op.value = i; op.textContent = d.dog + ' の項目を追加'; sel.appendChild(op); });
+    sel.onchange = function() { targetDogIdx = parseInt(sel.value, 10) || 0; };
+    var anchor = document.getElementById('itemsTable');
+    var wrap = document.createElement('div'); wrap.className = 'no-print';
+    wrap.innerHTML = '<div style="font-size:12px;color:#1A6FA8;margin-top:6px;">🐾 まとめて領収書：売上は、ワンちゃんごとに分けて記録されます。下のメニュー追加は、右で選んだワンちゃんの分になります。</div>';
+    wrap.appendChild(sel);
+    anchor.parentNode.insertBefore(wrap, anchor);
+    targetDogIdx = 0; fillRowsFor(breed, menu, amount);
+    others.forEach(function(o, i) { targetDogIdx = i + 1; fillRowsFor(o.breed || '', o.menu || '', ''); });
+    targetDogIdx = 0;
+    return;
+  }
+  fillRowsFor(breed, menu, amount);
 })();
 
 </script>

@@ -615,6 +615,33 @@ function saveAddressToSheet(rowNum, val, el) {
 }
 
 var visitLookup = {}; // uid -> {key, owner, dog, breed, menu, date}
+// 同じ飼い主・同じ日に来店した、別のワンちゃんの来店（キャンセル・お断りは除く）を探す
+function visitDayKey(d) { var t = new Date(d); return isNaN(t) ? '' : t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); }
+function siblingVisits(idx, v) {
+  var me = customers[idx], out = [];
+  if (!me || !v || visitCancelled(v)) return out;
+  var dk = visitDayKey(v.date); if (!dk) return out;
+  customers.forEach(function(c2, k) {
+    if (k === idx || String(c2.owner || '').replace(/\s/g, '') !== String(me.owner || '').replace(/\s/g, '')) return;
+    (c2.visits || []).forEach(function(v2) {
+      if (visitCancelled(v2) || visitDayKey(v2.date) !== dk) return;
+      out.push({ dog: c2.dog, breed: pricingBreed(c2), menu: v2.menu || '', gender: (c2.profile || {})['性別'] || '', vkey: v2.key });
+    });
+  });
+  return out;
+}
+function issueCombinedReceipt(uid) {
+  var info = visitLookup[uid]; if (!info) return;
+  var others = siblingVisits(info.customerIdx, info.visitObj);
+  if (!others.length) { alert('同じ日に来店した、同じ飼い主さまの別のワンちゃんが見つかりません。'); return; }
+  var params = new URLSearchParams({
+    owner: info.owner || '', dog: info.dog || '', breed: info.breed || '', menu: info.menu || '',
+    date: info.date || '', gender: info.gender || '', vkey: info.key || '',
+    others: JSON.stringify(others)
+  });
+  window.open('receipt.html?' + params.toString(), '_blank');
+}
+
 function issueReceipt(uid) {
   var info = visitLookup[uid];
   if (!info) return;
@@ -1290,6 +1317,7 @@ function showKarte(idx, silent) {
       '</div>' +
       '<div class="visit-actions">' +
         '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
+        (siblingVisits(idx, v).length ? '<button class="btn btn-light btn-sm" onclick="issueCombinedReceipt(\'' + uid + '\')">🧾 ' + siblingVisits(idx, v).map(function(x) { return x.dog; }).join('・') + 'とまとめて領収書</button>' : '') +
         (email
           ? '<button class="btn btn-green btn-sm" onclick="notifyComplete(\'' + uid + '\')">✅ お迎え通知</button>'
           : '<button class="btn btn-light btn-sm" disabled title="メール未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
