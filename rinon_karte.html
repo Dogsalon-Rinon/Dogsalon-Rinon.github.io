@@ -1955,6 +1955,18 @@ function prefillNextReserve(idx) {
   var d = document.getElementById('pr-date'); if (d) d.focus();
 }
 
+function lineResultText(res) {
+  if (res.lineNotified) return '📩 お客様のLINEに予約確定を送りました。';
+  var why = {
+    nophone: '電話番号が入っていません。',
+    none: 'この電話番号は、LINEの友だちリストにありません。（お客様がLINEを友だち追加していないか、友だちリストの電話番号が空・別の番号です）',
+    match_no_id: '友だちリストに番号はありますが、LINEユーザーIDが空です。',
+    send_failed: 'LINEの送信に失敗しました（ブロックされている可能性があります）。',
+    error: '友だちリストを確認できませんでした。'
+  }[res.lineReason] || 'LINEに連携されていません。';
+  return '⚠️ LINEには送れませんでした。\n' + why + '\n前日のリマインドは、メールアドレスがあればメールで届きます。\n（LINEで直接お知らせしてください）';
+}
+
 function closePhoneReserve() {
   document.getElementById('phoneReserveOverlay').style.display = 'none';
 }
@@ -2016,7 +2028,7 @@ function submitPhoneReserve() {
     .then(function(r) { return r.json(); })
     .then(function(res) {
       if (res.success) {
-        alert('✅ 登録しました！スプレッドシートとGoogleカレンダーに反映されました。\n' + (res.lineNotified ? '📩 お客様のLINEに予約確定を送りました。' : '⚠️ LINEには送れませんでした（電話番号がLINEと未連携）。前日のリマインドはメールアドレスがあればメールで届きます。'));
+        alert('✅ 登録しました！スプレッドシートとGoogleカレンダーに反映されました。\n' + lineResultText(res));
         closePhoneReserve();
         loadData();
       } else {
