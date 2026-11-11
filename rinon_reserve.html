@@ -737,7 +737,9 @@ function updateTimeSlots() {
       return;
     }
     if (data.closed) {
-      container.innerHTML = '<p class="slot-info warn">😴 この日は休業日です。別の日をお選びください。</p>';
+      if (data.reason === '満員') container.innerHTML = '<p class="slot-info warn">😢 この日は満員です。別の日をお選びください。</p>';
+      else if (data.reason === '他店') container.innerHTML = '<p class="slot-info warn">😴 この日は終日ご予約をお受けできません。別の日をお選びください。</p>';
+      else container.innerHTML = '<p class="slot-info warn">😴 この日は休業日です。別の日をお選びください。</p>';
       return;
     }
     if (!data.slots || data.slots.length === 0) {
