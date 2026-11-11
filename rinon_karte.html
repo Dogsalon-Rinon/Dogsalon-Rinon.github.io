@@ -1304,6 +1304,7 @@ function showKarte(idx, silent) {
             : '')) +
       '<div class="visit-detail">メニュー：' + (v.menu || '未選択') + '</div>' +
       '<div class="visit-detail">希望日：' + (v.date || '') + (v.time ? ' ' + v.time : '') + '</div>' +
+      (v.rowNum ? '<div class="visit-detail" style="font-size:11px; color:#9AB5C6;">📄 スプレッドシート：' + (v.type === 'first' ? '初回用' : 'リピーター用') + 'の ' + v.rowNum + ' 行目</div>' : '') +
       (v.daysSincePrev !== null && v.daysSincePrev !== undefined ? '<div class="visit-detail">前回の施術から：' + formatDaysSince(v.daysSincePrev) + '</div>' : '') +
       (v.lastTrim ? '<div class="visit-detail">前回からの期間（お客様申告）：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
