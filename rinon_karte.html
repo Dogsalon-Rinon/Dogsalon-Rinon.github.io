@@ -734,7 +734,7 @@ function loadHidden() {
   try { hidden = JSON.parse(localStorage.getItem('rinon_hidden') || '{}'); } catch(e) { hidden = {}; }
 }
 function hideCustomerKey(key) {
-  hidden[key] = true;
+  hidden[key] = Date.now(); // 削除した時刻を覚える（そのあとに入った予約は、新しいカルテとして表示するため）
   localStorage.setItem('rinon_hidden', JSON.stringify(hidden));
 }
 function unhideCustomerKey(key) {
@@ -1024,7 +1024,19 @@ function buildCustomers() {
   });
 
   // 削除（非表示）にした顧客を除外
-  customers = customers.filter(function(c) { return !hidden[customerKey(c.owner, c.dog, c.phone)]; });
+  // ただし、削除したあとに入った予約（同じ電話番号・同じ犬の名前で、削除より新しい行）があれば、また表示する
+  customers = customers.filter(function(c) {
+    var k = customerKey(c.owner, c.dog, c.phone);
+    var at = hidden[k];
+    if (!at) return true;
+    if (at === true) return true; // 古い形式の記録：削除したときにシートの行も消えているので、残っている行は新しいもの
+    var fresh = (c.visits || []).some(function(v) {
+      var t = new Date(String(v.ts || '').replace(/-/g, '/')).getTime();
+      return isNaN(t) || t > at;
+    });
+    if (fresh) { delete hidden[k]; try { localStorage.setItem('rinon_hidden', JSON.stringify(hidden)); } catch (e) {} }
+    return fresh;
+  });
 
   // 今日の日付
   var todayStr = (function() {
