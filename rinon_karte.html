@@ -682,11 +682,11 @@ function notifyComplete(uid) {
   var info = visitLookup[uid];
   if (!info) return;
 
-  if (!info.email) {
-    alert(info.owner + '様はメールアドレス未登録のため、通知を送信できません。\n口頭またはお電話でお知らせください。');
+  if (!info.email && !info.hasLine) {
+    alert(info.owner + '様はLINE・メールアドレスとも未登録のため、通知を送信できません。\n口頭またはお電話でお知らせください。');
     return;
   }
-  if (!confirm(info.dog + 'ちゃんの完了通知を ' + info.email + ' 宛に送信しますか？')) return;
+  if (!confirm(info.dog + 'ちゃんのお迎え通知を、' + (info.hasLine ? 'LINEで' : info.email + ' 宛に') + '送信しますか？')) return;
 
   var apiUrl = info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL;
   var params = new URLSearchParams({
@@ -698,7 +698,7 @@ function notifyComplete(uid) {
   });
   fetch(apiUrl + '?' + params.toString())
     .then(function(res){ return res.json(); })
-    .then(function(data){ alert(data && data.success ? '通知を送信しました' : '送信に失敗しました: ' + (data && data.error ? data.error : '不明なエラー')); })
+    .then(function(data){ alert(data && data.success ? ((data.via === 'line' ? 'LINEで' : (data.via === 'email' ? 'メールで' : '')) + '通知を送信しました') : '送信に失敗しました: ' + (data && data.error ? data.error : '不明なエラー')); })
     .catch(function(){ alert('送信に失敗しました（通信エラー）'); });
 }
 
@@ -1315,7 +1315,7 @@ function showKarte(idx, silent) {
     var uid = idx + '_' + vi;
     visitLookup[uid] = { key: memoKey, owner: c.owner, dog: c.dog, breed: breedForReceipt, menu: v.menu || '', date: v.date || '',
                           time: v.time || '', endTime: v.endTime || '',
-                          rowNum: v.rowNum, ts: v.ts || '', dogName: v.dogName || '', type: v.type, email: email, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
+                          rowNum: v.rowNum, ts: v.ts || '', dogName: v.dogName || '', type: v.type, email: email, hasLine: !!c.lineRegistered, visitObj: v, customerIdx: idx, gender: p['性別'] || '' };
     var photosHtml = (v.photos || []).map(function(fid) {
       return '<div class="visit-photo-thumb">' +
         '<img src="' + driveThumbUrl(fid, 150) + '" onerror="photoFallback(this, \'' + fid + '\', 150)" onclick="openPhoto(\'' + fid + '\', \'' + uid + '\')">' +
@@ -1356,9 +1356,9 @@ function showKarte(idx, silent) {
       '<div class="visit-actions">' +
         '<button class="btn btn-primary btn-sm" onclick="issueReceipt(\'' + uid + '\')">🧾 明細書・領収書を発行</button>' +
         (siblingVisits(idx, v).length ? '<button class="btn btn-light btn-sm" onclick="issueCombinedReceipt(\'' + uid + '\')">🧾 ' + siblingVisits(idx, v).map(function(x) { return x.dog; }).join('・') + 'とまとめて領収書</button>' : '') +
-        (email
-          ? '<button class="btn btn-green btn-sm" onclick="notifyComplete(\'' + uid + '\')">✅ お迎え通知</button>'
-          : '<button class="btn btn-light btn-sm" disabled title="メール未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
+        ((email || c.lineRegistered)
+          ? '<button class="btn btn-green btn-sm" onclick="notifyComplete(\'' + uid + '\')">✅ お迎え通知' + (c.lineRegistered ? '（LINE）' : '（メール）') + '</button>'
+          : '<button class="btn btn-light btn-sm" disabled title="LINE・メールとも未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
         '<button class="btn btn-light btn-sm" onclick="openReschedule(\'' + uid + '\')">📅 日時を変更</button>' +
         '<button class="btn btn-light btn-sm" style="color:#C06060; border-color:#F0C8C8;" onclick="openCancelVisit(\'' + uid + '\')">❌ キャンセル</button>' +
       '</div>' +
