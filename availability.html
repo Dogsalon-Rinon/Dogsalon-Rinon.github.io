@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空き状況カレンダー | Dog Salon Rinon</title>
+<meta name="description" content="ドッグサロンりのんのご予約の空き状況です。○をタップして、そのままご予約いただけます。">
+<link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@400;500;600&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { overflow-x: hidden; }
+body { background: #F5FBFF; font-family: 'Quicksand', 'Zen Maru Gothic', sans-serif; padding: 16px; color: #0C447C; }
+.page { max-width: 900px; margin: 0 auto; }
+.head { text-align: center; padding: 18px 12px 14px; }
+.head .logo { font-family: 'Pacifico', cursive; font-size: 40px; color: #1A6FA8; line-height: 1.1; }
+.head h1 { font-family: 'Zen Maru Gothic', sans-serif; font-size: 18px; font-weight: 700; margin-top: 6px; }
+.guide { background:#E8F6FE; border:1px solid #B3D9F5; border-radius:12px; padding:14px 16px; margin: 6px 0 16px; font-family:'Zen Maru Gothic',sans-serif; font-size:13px; line-height:2; }
+.guide .em { font-size:13px; color:#1A6FA8; font-weight:700; }
+.back { display:block; text-align:center; margin:18px 0 8px; font-family:'Zen Maru Gothic',sans-serif; font-size:13px; }
+.back a { color:#1A6FA8; text-decoration:none; font-weight:700; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="head">
+    <div class="logo">Rinon</div>
+    <h1>📅 空き状況カレンダー</h1>
+  </div>
+  <div class="guide">
+    🐾 <strong>ご予約の流れ</strong><br>
+    ① 表の中から空き（○）をタップ<br>
+    ②「初めての方」「リピーターの方」を選択して予約フォームへ<br>
+    <span class="em">📅 毎月1日より、2ヶ月先までのご予約が可能になります</span><br>
+    <span style="font-size:12px; color:#1A6FA8;">🎄 12月分は年末のため、10月1日より12月末までご予約いただけます</span><br>
+    <span style="font-size:12px; color:#5A8FAA;">⏳ 表示に時間がかかる場合がございます。しばらくお待ちください</span>
+  </div>
+
+  <div style="background: white; border: 0.5px solid #B3D9F5; border-radius: 20px; padding: 24px; margin-bottom: 40px;">
+
+    <!-- 月ナビ -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+      <button id="cal-prev" onclick="calMove(-1)" style="background:none; border:1px solid #B3D9F5; border-radius:999px; height:36px; padding:0 14px; cursor:pointer; font-size:13px; color:#0C447C; font-family:'Zen Maru Gothic',sans-serif;">‹ 前月</button>
+      <span id="cal-title" style="font-family:'Zen Maru Gothic',sans-serif; font-size:15px; font-weight:500; color:#0C447C;"></span>
+      <button id="cal-next" onclick="calMove(1)" style="background:none; border:1px solid #B3D9F5; border-radius:999px; height:36px; padding:0 14px; cursor:pointer; font-size:13px; color:#0C447C; font-family:'Zen Maru Gothic',sans-serif;">翌月 ›</button>
+    </div>
+
+    <!-- 凡例 -->
+    <div style="display:flex; gap:16px; justify-content:center; margin-bottom:14px; font-size:12px; color:#5A8FAA; flex-wrap:wrap;">
+      <span style="color:#1A6FA8; font-weight:700;">○</span><span style="margin-left:-10px;">空きあり</span>
+      <span style="color:#C3D2DA; font-weight:700;">×</span><span style="margin-left:-10px;">満員・休業・受付終了</span>
+    </div>
+
+    <p style="font-size:11px; color:#7AAAC0; text-align:center; margin:0 0 8px;">← 横にスライドすると、ほかの日も見られます →</p>
+
+    <!-- 月テーブル（横スクロール対応） -->
+    <div id="cal-scroll" style="overflow-x:auto; -webkit-overflow-scrolling:touch;">
+      <table id="week-table" style="border-collapse:collapse; width:100%; min-width:560px; font-family:'Zen Maru Gothic',sans-serif;">
+        <thead>
+          <tr id="week-table-head"></tr>
+        </thead>
+        <tbody id="week-table-body"></tbody>
+      </table>
+    </div>
+
+    <p style="font-size:11px; color:#1A6FA8; margin-top:12px; text-align:center; font-weight:700;">📞 当日のご予約はお電話のみ承ります（<a href="tel:07085090326" style="color:inherit;font-weight:700;">070-8509-0326</a>）</p>
+    <p style="font-size:10px; color:#7AAAC0; margin-top:6px; text-align:center;">※目安の空き時間です。犬種・メニューにより異なります。土日祝は9:00・12:00・15:00のみのご案内です</p>
+
+  </div>
+
+  <script>
+  (function() {
+    var APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzTsLcgTCLXyth5AlWeho6g5YatScnQnXY8LlO3N6AHhJlYYaXTtSn2wrSKilFmWOWZIg/exec';
+    var BUSINESS_START = 9;
+    var BUSINESS_END   = 18; // 最終受付開始は17時台
+    var DOW_LABELS = ['月','火','水','木','金','土','日'];
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var monthStart = new Date(today.getFullYear(), today.getMonth(), 1); // 表示中の月の1日
+    var needScroll = true; // 表示を切り替えたら、今日（またはその月の最初の日）が見える位置へスクロール
+    var dayData = {}; // dateStr -> { closed:bool, slots:[...] }
+    var computedFull = {};
+
+    function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function mondayOf(d) {
+      var date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      var dow = date.getDay(); // 0=日
+      var diff = (dow === 0) ? -6 : (1 - dow);
+      date.setDate(date.getDate() + diff);
+      return date;
+    }
+
+    function fmt(d) {
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+
+    function weekDates() { // 表示中の月の全日
+      var arr = [];
+      var last = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+      for (var i = 1; i <= last; i++) {
+        arr.push(new Date(monthStart.getFullYear(), monthStart.getMonth(), i));
+      }
+      return arr;
+    }
+
+    function maxBookableDate() {
+      // 当月+2ヶ月の月末まで予約可能
+      var d = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+      // 年末繁忙期のため、10月に入ったら12月末まで予約可能
+      if (today.getMonth() === 9) d = new Date(today.getFullYear(), 12, 0);
+      return d;
+    }
+
+    function fetchWeek() {
+      var dates = weekDates();
+      var maxDay = maxBookableDate();
+      var toFetch = [];
+      dates.forEach(function(d) {
+        var dateStr = fmt(d);
+        if (dayData[dateStr] && !dayData[dateStr].error) return; // 取得済みの日は再取得しない
+        // 当日はネット予約不可（お電話のみ）なので、明日より前は受付外にする
+        if (dateStr < fmt(today) || d > maxDay) {
+          dayData[dateStr] = { outOfRange: true };
+          return;
+        }
+        if (computedFull[dateStr]) {
+          dayData[dateStr] = { closed: false, slots: [] };
+          return;
+        }
+        toFetch.push(d);
+      });
+
+      renderTable(); // 読み込み中の表をまず表示
+
+      if (toFetch.length === 0) return;
+
+      // 日ごとに個別リクエストせず、週まとめて1回のリクエストで取得する（高速化）
+      var startStr = fmt(toFetch[0]);
+      var endStr = fmt(toFetch[toFetch.length - 1]);
+      fetch(APPS_SCRIPT_URL + '?action=weekAvailability&start=' + startStr + '&end=' + endStr)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var days = data.days || {};
+          toFetch.forEach(function(d) {
+            var dateStr = fmt(d);
+            var info = days[dateStr];
+            if (info) {
+              if (info.outOfRange) { dayData[dateStr] = { outOfRange: true }; return; }
+              dayData[dateStr] = { closed: !!info.closed, slots: info.slots || [], reason: info.reason || '' };
+              if (!info.closed && (info.slots || []).length === 0 && dateStr !== fmt(today)) computedFull[dateStr] = true;
+            } else {
+              dayData[dateStr] = { error: true };
+            }
+          });
+          renderTable();
+        })
+        .catch(function() {
+          toFetch.forEach(function(d) {
+            dayData[fmt(d)] = { error: true };
+          });
+          renderTable();
+        });
+    }
+
+    function renderTable() {
+      var dates = weekDates();
+      var todayStr = fmt(today);
+      var maxDay = maxBookableDate();
+
+      // タイトル
+      document.getElementById('cal-title').textContent = monthStart.getFullYear() + '年' + (monthStart.getMonth() + 1) + '月';
+      document.getElementById('week-table').style.minWidth = (64 + dates.length * 46) + 'px';
+
+      // ヘッダー行
+      var head = document.getElementById('week-table-head');
+      var headHtml = '<th style="width:64px; padding:6px 2px; font-size:11px; color:#7AAAC0; border-bottom:1px solid #E8F4FC; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 3px rgba(120,150,180,0.12);">時間</th>';
+      dates.forEach(function(d, i) {
+        var dateStr = fmt(d);
+        var isToday = dateStr === todayStr;
+        var dowIdx = (d.getDay() + 6) % 7; // 月=0 … 日=6
+        var dowColor = dowIdx === 5 ? '#3B82F6' : (dowIdx === 6 ? '#EF4444' : '#5A8FAA');
+        var info = dayData[dateStr];
+        var tag = '';
+        if (info) {
+          if (info.outOfRange && isToday) tag = '<div style="font-size:9px; color:#1A6FA8; font-weight:700;">電話予約</div>';
+          else if (info.outOfRange) tag = '<div style="font-size:9px; color:#CBD5E1;">-</div>';
+          else if (info.closed) tag = '<div style="font-size:9px; color:' + (info.reason === '満員' ? '#B91C1C' : '#94A3B8') + ';">' + (info.reason === '他店' || info.reason === '満員' ? info.reason : '休業') + '</div>';
+          else if ((info.slots || []).length === 0) tag = '<div style="font-size:9px; color:#B91C1C;">満員</div>';
+        }
+        // 注記（満員・休業など）の有無で日付の高さがずれないよう、無い日も同じ高さの空き行を入れる
+        if (!tag) tag = '<div style="font-size:9px; line-height:12px; visibility:hidden;">-</div>';
+        else tag = tag.replace('<div style="', '<div style="line-height:12px; ');
+        headHtml += '<th style="min-width:46px; vertical-align:top; padding:6px 2px; font-size:11px; font-weight:500; color:' + dowColor + '; border-bottom:1px solid #E8F4FC;' +
+          (isToday ? ' background:#F5FBFF;' : '') + '">' +
+          DOW_LABELS[dowIdx] + '<br><span style="font-size:12px; font-weight:700;">' + (d.getMonth() + 1) + '/' + d.getDate() + '</span>' + tag + '</th>';
+      });
+      head.innerHTML = headHtml;
+
+      // 本体行（時間帯ごと）
+      var body = document.getElementById('week-table-body');
+      var rowsHtml = '';
+      for (var h = BUSINESS_START; h < BUSINESS_END; h++) {
+        rowsHtml += '<tr>';
+        rowsHtml += '<td style="text-align:center; font-size:11px; color:#5A8FAA; padding:6px 2px; border-bottom:1px solid #F1F7FB; position:sticky; left:0; z-index:1; background:#fff; box-shadow:2px 0 3px rgba(120,150,180,0.12);">' + h + '時〜</td>';
+        dates.forEach(function(d) {
+          var dateStr = fmt(d);
+          var info = dayData[dateStr];
+          var cell = '<span style="color:#CBD5E1;">-</span>';
+          var clickable = false;
+          if (!info) {
+            cell = '<span style="color:#CBD5E1; font-size:11px;">…</span>';
+          } else if (info.outOfRange && dateStr === todayStr) {
+            // 当日：過ぎた時間帯は「-」、これからの時間帯はお電話のみ
+            if (h > new Date().getHours()) cell = '<span style="color:#7AAAC0; font-size:10px;">📞</span>';
+            else cell = '<span style="color:#CBD5E1;">-</span>';
+          } else if (info.outOfRange || info.error) {
+            cell = '<span style="color:#CBD5E1;">-</span>';
+          } else if (info.closed) {
+            cell = '<span style="color:#DCE6EA;">×</span>';
+          } else {
+            var hasSlot = (info.slots || []).some(function(s) { return s.indexOf(pad2(h) + ':') === 0; });
+            if (hasSlot) { cell = '<span style="color:#1A6FA8; font-weight:700;">○</span>'; clickable = true; }
+            else { cell = '<span style="color:#DCE6EA;">×</span>'; }
+          }
+          rowsHtml += '<td onclick="' + (clickable ? 'selectSlot(\'' + dateStr + '\',\'' + pad2(h) + ':00\')' : '') + '" style="text-align:center; padding:8px 2px; border-bottom:1px solid #F1F7FB; font-size:15px;' + (clickable ? ' cursor:pointer;' : '') + '">' + cell + '</td>';
+        });
+        rowsHtml += '</tr>';
+      }
+      body.innerHTML = rowsHtml;
+
+      // ナビ有効/無効
+      var thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      var nextMonthStart = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+      var disablePrev = monthStart <= thisMonth;
+      var disableNext = nextMonthStart > maxDay;
+      document.getElementById('cal-prev').style.opacity = disablePrev ? '0.3' : '1';
+      document.getElementById('cal-prev').style.pointerEvents = disablePrev ? 'none' : 'auto';
+      document.getElementById('cal-next').style.opacity = disableNext ? '0.3' : '1';
+      document.getElementById('cal-next').style.pointerEvents = disableNext ? 'none' : 'auto';
+
+      // 切り替え直後は、まだ予約できる最初の日（今日の翌日など）が見える位置にそろえる
+      if (needScroll) {
+        needScroll = false;
+        var idx = 0;
+        for (var k = 0; k < dates.length; k++) { if (fmt(dates[k]) > todayStr) { idx = k; break; } }
+        if (fmt(dates[dates.length - 1]) <= todayStr) idx = 0;
+        document.getElementById('cal-scroll').scrollLeft = Math.max(0, idx - 0) * 46;
+      }
+    }
+
+    window.selectSlot = function(date, time) {
+      var popup = document.getElementById('slot-popup');
+      document.getElementById('slot-popup-label').textContent = date.replace(/-/g, '/') + '  ' + time;
+      document.getElementById('slot-popup-first').href = 'rinon_reserve.html?date=' + date + '&time=' + encodeURIComponent(time);
+      document.getElementById('slot-popup-repeat').href = 'rinon_reserve_repeat.html?date=' + date + '&time=' + encodeURIComponent(time);
+      popup.style.display = 'flex';
+    }
+
+    window.calMove = function(dir) {
+      var next = new Date(monthStart.getFullYear(), monthStart.getMonth() + dir, 1);
+      var maxDay = maxBookableDate();
+      var thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      if (next < thisMonth) return;
+      if (next > maxDay) return;
+      monthStart = next;
+      needScroll = true;
+      fetchWeek();
+    };
+
+    fetchWeek();
+  })();
+  </script>
+  <div id="slot-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:white; border-radius:20px; padding:28px 24px; max-width:320px; width:100%; text-align:center;">
+      <div style="font-size:13px; color:#7AAAC0; margin-bottom:6px;">ご予約の時間</div>
+      <div id="slot-popup-label" style="font-size:18px; font-weight:700; color:#0C447C; margin-bottom:20px;"></div>
+      <div style="font-size:13px; color:#5A8FAA; margin-bottom:16px;">ご予約の種別を選択してください</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <a id="slot-popup-first" href="#" style="display:block; background:#1A6FA8; color:white; padding:14px; border-radius:24px; text-decoration:none; font-size:14px; font-weight:700;">🐾 初めての方のご予約</a>
+        <a id="slot-popup-repeat" href="#" style="display:block; background:#E8F6FE; color:#1A6FA8; border:1px solid #B3D9F5; padding:14px; border-radius:24px; text-decoration:none; font-size:14px; font-weight:700;">🔄 リピーターの方のご予約</a>
+        <button onclick="document.getElementById('slot-popup').style.display='none'" style="background:none; border:none; color:#7AAAC0; font-size:13px; cursor:pointer; margin-top:4px;">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="back"><a href="https://dogsalon-rinon.github.io/">🏠 ホームページへ戻る</a></div>
+</div>
+</body>
+</html>
