@@ -248,13 +248,50 @@ body { background: #F5FBFF; font-family: 'Quicksand', 'Zen Maru Gothic', sans-se
       }
     }
 
+    // 予約フォームから開かれたときは、日時を元のフォームに渡す（新しく別のフォームを開かない）
+    var fromForm = new URLSearchParams(location.search).get('from') === 'form';
+    var formType = new URLSearchParams(location.search).get('type') === 'repeat' ? 'repeat' : 'first';
+    if (fromForm) {
+      var g = document.querySelector('.guide');
+      if (g) g.innerHTML = '🐾 <strong>日時の選びかた</strong><br>① 表の中から、ご希望の空き（○）をタップ<br>② 「この日時で決定」を押すと、入力中の予約フォームに日時が入ります<br><span style="font-size:12px; color:#5A8FAA;">※入力した内容は消えません。決定後は、このタブを閉じてフォームに戻ってください</span>';
+    }
     window.selectSlot = function(date, time) {
+      if (fromForm) { return askConfirm(date, time); }
       var popup = document.getElementById('slot-popup');
       document.getElementById('slot-popup-label').textContent = date.replace(/-/g, '/') + '  ' + time;
       document.getElementById('slot-popup-first').href = 'rinon_reserve.html?date=' + date + '&time=' + encodeURIComponent(time);
       document.getElementById('slot-popup-repeat').href = 'rinon_reserve_repeat.html?date=' + date + '&time=' + encodeURIComponent(time);
       popup.style.display = 'flex';
     }
+
+    function askConfirm(date, time) {
+      document.getElementById('confirm-label').textContent = date.replace(/-/g, '/') + '  ' + time;
+      document.getElementById('confirm-popup').style.display = 'flex';
+      window._pick = { date: date, time: time };
+    }
+    window.sendPick = function() {
+      var pk = window._pick; if (!pk) return;
+      document.getElementById('confirm-popup').style.display = 'none';
+      var acked = false, ch = null;
+      try {
+        if ('BroadcastChannel' in window) {
+          ch = new BroadcastChannel('rinon-slot');
+          ch.onmessage = function(ev) { if (ev.data && ev.data.type === 'ack') acked = true; };
+          ch.postMessage({ type: 'slot', form: formType, date: pk.date, time: pk.time });
+        }
+      } catch (e) {}
+      var done = document.getElementById('done-popup');
+      document.getElementById('done-label').textContent = pk.date.replace(/-/g, '/') + '  ' + pk.time;
+      setTimeout(function() {
+        if (acked) {
+          done.style.display = 'flex';
+          try { window.close(); } catch (e) {}
+        } else {
+          // 元のフォームが閉じられていた場合は、この日時で新しいフォームを開く
+          location.href = (formType === 'repeat' ? 'rinon_reserve_repeat.html' : 'rinon_reserve.html') + '?date=' + pk.date + '&time=' + encodeURIComponent(pk.time);
+        }
+      }, 900);
+    };
 
     window.calMove = function(dir) {
       var next = new Date(monthStart.getFullYear(), monthStart.getMonth() + dir, 1);
@@ -283,6 +320,25 @@ body { background: #F5FBFF; font-family: 'Quicksand', 'Zen Maru Gothic', sans-se
     </div>
   </div>
 
+
+  <div id="confirm-popup" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:white; border-radius:20px; padding:28px 24px; max-width:320px; width:100%; text-align:center;">
+      <div style="font-size:13px; color:#7AAAC0; margin-bottom:6px;">ご希望の日時</div>
+      <div id="confirm-label" style="font-size:18px; font-weight:700; color:#0C447C; margin-bottom:8px;"></div>
+      <div style="font-size:12px; color:#5A8FAA; margin-bottom:16px; line-height:1.7;">この日時を、入力中の予約フォームに入れます。<br>入力した内容は消えません。</div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button onclick="sendPick()" style="background:#1A6FA8; color:white; padding:14px; border-radius:24px; border:none; font-size:14px; font-weight:700; cursor:pointer;">✅ この日時で決定</button>
+        <button onclick="document.getElementById('confirm-popup').style.display='none'" style="background:none; border:none; color:#7AAAC0; font-size:13px; cursor:pointer;">キャンセル</button>
+      </div>
+    </div>
+  </div>
+  <div id="done-popup" style="display:none; position:fixed; inset:0; background:rgba(245,251,255,0.98); z-index:10001; align-items:center; justify-content:center; padding:24px;">
+    <div style="text-align:center; max-width:320px;">
+      <div style="font-size:42px; margin-bottom:10px;">✅</div>
+      <div id="done-label" style="font-size:20px; font-weight:700; color:#0C447C; margin-bottom:10px;"></div>
+      <div style="font-size:14px; color:#1A6FA8; line-height:1.9; font-weight:700;">予約フォームに入れました。<br>このタブを閉じて、<br>予約フォームに戻ってください。</div>
+    </div>
+  </div>
   <div class="back"><a href="https://dogsalon-rinon.github.io/">🏠 ホームページへ戻る</a></div>
 </div>
 </body>

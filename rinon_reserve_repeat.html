@@ -328,7 +328,7 @@ function doVerify() {
       <div class="form-group">
         <div class="form-label">ご希望日 <span class="required">必須</span></div>
         
-        <a href="availability.html" target="_blank" rel="noopener" style="display:inline-block; margin:2px 0 8px; font-size:12.5px; font-weight:700; color:#1A6FA8; text-decoration:none; background:#E8F6FE; border:1px solid #B3D9F5; border-radius:999px; padding:6px 14px;">📅 空き状況をカレンダーで見る</a>
+        <a href="availability.html?from=form&type=repeat" target="_blank" style="display:inline-block; margin:2px 0 8px; font-size:12.5px; font-weight:700; color:#1A6FA8; text-decoration:none; background:#E8F6FE; border:1px solid #B3D9F5; border-radius:999px; padding:6px 14px;">📅 空き状況をカレンダーで見る</a>
         <input type="date" name="reserve_date" id="reserveDate" required>
         <div style="font-size:11.5px; color:#1A6FA8; margin-top:4px;">📞 当日のご予約はお電話のみ承ります（<a href="tel:07085090326" style="color:inherit;font-weight:700;">070-8509-0326</a>）</div>
       </div>
@@ -656,30 +656,53 @@ function isBookableDate(v) {
   return !!v && (!el.min || v >= el.min) && (!el.max || v <= el.max);
 }
 
-// URLパラメータから日付・時間を自動入力
-(function() {
-  var params = new URLSearchParams(window.location.search);
-  var pDate = params.get('date');
-  var pTime = params.get('time');
-  if (pDate && !isBookableDate(pDate)) pDate = null;
-  if (pDate) {
-    document.getElementById('reserveDate').value = pDate;
-    if (pTime) {
-      // 時間ボタンが生成されたら自動選択
-      var origUpdate = updateTimeSlots;
-      window._autoTime = pTime;
-      var origFetch = window.fetch;
-      // スロット読み込み完了後に自動クリック
-      var observer = new MutationObserver(function() {
+// 日付・時間を入れる（URLパラメータ、または空き状況ページからの選択）
+function applySlotChoice(pDate, pTime) {
+  if (pDate && !isBookableDate(pDate)) return false;
+  if (!pDate) return false;
+  document.getElementById('reserveDate').value = pDate;
+  if (pTime) {
+    window._autoTime = pTime;
+    if (!window._slotObserver) {
+      window._slotObserver = new MutationObserver(function() {
         if (window._autoTime) {
           var btn = document.querySelector('.time-slot-btn[data-time="' + window._autoTime + '"]');
           if (btn) { selectTime(btn); window._autoTime = null; }
         }
       });
-      observer.observe(document.getElementById('timeSlotContainer'), { childList: true, subtree: true });
+      window._slotObserver.observe(document.getElementById('timeSlotContainer'), { childList: true, subtree: true });
     }
-    updateTimeSlots();
   }
+  updateTimeSlots();
+  return true;
+}
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  applySlotChoice(params.get('date'), params.get('time'));
+})();
+
+// 空き状況ページ（別のタブ）で選んだ日時を、この入力途中のフォームに入れる（入力した内容は消えません）
+(function() {
+  function toast(msg) {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed; left:50%; top:16px; transform:translateX(-50%); background:#1A6FA8; color:#fff; padding:12px 18px; border-radius:14px; font-size:13px; font-weight:700; z-index:99999; box-shadow:0 6px 18px rgba(26,111,168,.3); max-width:90%; text-align:center;';
+    document.body.appendChild(t);
+    setTimeout(function() { t.remove(); }, 4500);
+  }
+  function onChoice(msg) {
+    if (!msg || msg.type !== 'slot' || msg.form !== 'repeat') return;
+    if (!applySlotChoice(msg.date, msg.time)) { toast('この日は、ご予約をお受けできない日です'); return; }
+    toast('📅 空き状況から、' + msg.date.replace(/-/g, '/') + ' ' + (msg.time || '') + ' を入れました');
+    try { var el = document.getElementById('reserveDate'); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    try { if (window._slotChannel) window._slotChannel.postMessage({ type: 'ack', form: 'repeat' }); } catch (e) {}
+  }
+  try {
+    if ('BroadcastChannel' in window) {
+      window._slotChannel = new BroadcastChannel('rinon-slot');
+      window._slotChannel.onmessage = function(ev) { onChoice(ev.data); };
+    }
+  } catch (e) {}
 })();
 
 // ===== 送信 =====
