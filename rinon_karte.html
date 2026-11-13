@@ -600,18 +600,39 @@ function calcAgeText(birthdayStr) {
   return years + '歳' + months + 'ヶ月';
 }
 
+// 住所の自動保存：入力が止まって0.8秒たつか、入力欄から外れたときに保存する。保存できたかを、入力欄の下に表示する
+var addrTimers = {}, addrSaved = {};
+var ADDR_OV_KEY = 'rinon_addr_override';
+function readAddrOverrides() { try { return JSON.parse(localStorage.getItem(ADDR_OV_KEY) || '{}') || {}; } catch (e) { return {}; } }
+function writeAddrOverride(row, owner, v) { try { var o = readAddrOverrides(); o[row] = { v: v, owner: owner, t: Date.now() }; localStorage.setItem(ADDR_OV_KEY, JSON.stringify(o)); } catch (e) {} }
+function addrStatus(el, text, color) { var st = el && el.parentNode && el.parentNode.querySelector('.addr-status'); if (st) { st.textContent = text; st.style.color = color || '#7AAAC0'; } }
+function addrTyping(rowNum, el) {
+  addrStatus(el, '入力中…（入力が止まると、自動で保存されます）', '#7AAAC0');
+  clearTimeout(addrTimers[rowNum]);
+  addrTimers[rowNum] = setTimeout(function() { saveAddressToSheet(rowNum, el.value, el); }, 800);
+}
 function saveAddressToSheet(rowNum, val, el) {
-  fetch(FIRST_API_URL + '?action=saveAddress&row=' + rowNum + '&secret=' + DELETE_SECRET + '&value=' + encodeURIComponent(val))
+  clearTimeout(addrTimers[rowNum]);
+  var cust = customers.filter(function(c) { return c.firstRowNum === rowNum; })[0];
+  var cur = cust ? String((cust.profile || {})['住所'] || '') : '';
+  if (val === cur && addrSaved[rowNum] === undefined) { addrStatus(el, '', ''); return; }
+  if (addrSaved[rowNum] === val) return;
+  addrStatus(el, '保存中…', '#7AAAC0');
+  fetch(FIRST_API_URL + '?action=saveAddress&row=' + rowNum + '&secret=' + DELETE_SECRET + '&owner=' + encodeURIComponent(cust ? cust.owner || '' : '') + '&value=' + encodeURIComponent(val) + '&_=' + Date.now(), { cache: 'no-store' })
     .then(function(res){ return res.json(); })
     .then(function(data){
       if (data && data.success) {
+        addrSaved[rowNum] = val;
+        if (cust) { cust.profile['住所'] = val; writeAddrOverride(rowNum, cust.owner || '', val); }
         el.style.borderColor = '#2EA87E';
+        addrStatus(el, '✅ 保存しました', '#2EA87E');
         setTimeout(function() { el.style.borderColor = '#B3D9F5'; }, 1000);
       } else {
-        alert('保存に失敗しました: ' + (data && data.error ? data.error : '不明なエラー'));
+        el.style.borderColor = '#C06060';
+        addrStatus(el, '⚠️ 保存できませんでした：' + ((data && data.error) || '不明なエラー') + '（もう一度、入力欄を触ってください）', '#C06060');
       }
     })
-    .catch(function(){ alert('保存に失敗しました（通信エラー）'); });
+    .catch(function(){ el.style.borderColor = '#C06060'; addrStatus(el, '⚠️ 保存できませんでした（通信エラー）。電波を確認して、もう一度入力欄を触ってください', '#C06060'); });
 }
 
 var visitLookup = {}; // uid -> {key, owner, dog, breed, menu, date}
@@ -861,8 +882,12 @@ function buildCustomers() {
   var map = {};
 
   // 初回データから顧客を作成
+  var addrOv = readAddrOverrides();
   firstDataRaw.forEach(function(r) {
     var owner = r['飼い主さまのお名前'] || r['飼い主様のお名前'];
+    // 保存した直後は、シートの読み込みが追いつかないことがあるので、保存した住所を優先する（30分間）
+    var ov = addrOv[r['__rowNum']];
+    if (ov && ov.owner === (owner || '') && Date.now() - ov.t < 30 * 60 * 1000) r['住所'] = ov.v;
     var dog = r['ワンちゃんのお名前'];
     var phone = r['電話番号'];
     var key = customerKey(owner, dog, phone);
@@ -1379,7 +1404,7 @@ function showKarte(idx, silent) {
         vacItemHtml(c, VAC_DEFS[1]) +
         '<div class="info-item" style="grid-column:1/-1;"><div class="info-label">住所（手入力・全端末で共有）</div>' +
           (c.firstRowNum
-            ? '<input type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="住所を入力..." value="' + (p['住所'] || '').replace(/"/g, '&quot;') + '" onchange="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)">'
+            ? '<input type="text" class="memo-box" style="min-height:auto; padding:8px 12px;" placeholder="住所を入力..." value="' + (p['住所'] || '').replace(/"/g, '&quot;') + '" oninput="addrTyping(' + c.firstRowNum + ', this)" onchange="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)" onblur="saveAddressToSheet(' + c.firstRowNum + ', this.value, this)"><div class="addr-status" style="font-size:11px; min-height:15px; margin-top:3px; color:#7AAAC0;"></div>'
             : '<div class="info-value" style="color:#B0B0B0;">初回データがないため編集できません</div>') +
         '</div>' +
       '</div>' +
