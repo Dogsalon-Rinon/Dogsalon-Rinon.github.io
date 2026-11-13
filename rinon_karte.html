@@ -197,7 +197,7 @@ body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #F0F7FF; co
 @media (max-width:640px) { .fl-row { grid-template-columns:1fr auto; } .fl-row .c2, .fl-row .c3 { grid-column:1; } }
 
 /* ===== 売上明細表 ===== */
-#salesOverlay, #followOverlay, #analysisOverlay, #slotOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
+#salesOverlay, #followOverlay, #analysisOverlay, #slotOverlay, #notifyOverlay { display:none; position:fixed; inset:0; z-index:900; background:#F0F7FF; overflow:auto; }
 .sales-top { position:sticky; top:0; z-index:2; background:#0C447C; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
 .sales-top h2 { font-size:17px; font-weight:700; margin-right:auto; }
 .sales-month { display:flex; align-items:center; gap:8px; }
@@ -296,6 +296,15 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 .list-prev { font-size:10px; color:#8a6d1a; background:#FFF6D9; border-radius:8px; padding:2px 8px; margin-top:5px; display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .list-prev.warn { color:#B42318; background:#FDE8E6; font-weight:700; }
 @media (max-width:768px) { .body-grid { grid-template-columns:1fr; } }
+.nchip { display:inline-block; margin:4px 6px 0 0; padding:5px 10px; border-radius:14px; font-size:12px; border:1px solid #B3D9F5; background:#E8F6FE; color:#0C447C; cursor:pointer; }
+.nchip.off { background:#F1F5F9; color:#64748B; border-color:#CBD5E1; }
+.nchip.glob { opacity:.55; }
+.ncard { background:#fff; border:1px solid #D0E8F8; border-radius:14px; padding:18px; margin-bottom:14px; }
+.ncard h3 { font-size:14px; color:#0C447C; margin:0 0 4px; }
+.ncard p { font-size:12px; color:#7AAAC0; line-height:1.7; margin:0 0 10px; }
+.nrow { display:flex; gap:8px; margin-top:8px; }
+.nrow button { flex:1; padding:11px 6px; border-radius:8px; border:1px solid #B3D9F5; background:#E8F6FE; color:#0C447C; font-size:13px; cursor:pointer; }
+.nstate { font-weight:700; font-size:13px; margin-bottom:6px; }
 </style>
 </head>
 <body>
@@ -308,6 +317,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
   <div class="header-right">
     <button class="btn btn-light" onclick="loadData()">🔄 データ更新</button>
     <button class="btn btn-light" onclick="openSlots()">📅 満員・休業の設定</button>
+    <button class="btn btn-light" onclick="openNotify()">🔔 通知設定</button>
     <button class="btn btn-light" onclick="openSales()">💰 売上明細</button>
     <button class="btn btn-light" onclick="openAnalysis()">📈 分析</button>
     <button class="btn btn-light" onclick="openFollow()">🔔 フォロー・期限<span id="followCount"></span></button>
@@ -922,6 +932,8 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
+      remOff: String(r['前日リマインド自動送信'] || '').trim().toUpperCase() === 'OFF',
+      pickOff: String(r['お迎え案内自動送信'] || '').trim().toUpperCase() === 'OFF',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
       status: r['カレンダー登録状況'] || '',
       body: { weight: r['当日体重(kg)'] || '', coat: r['毛の状態'] || '', skin: r['皮膚・体調'] || '', caution: r['苦手な場所・注意点'] || '', style: r['仕上がり'] || '' }
@@ -963,6 +975,8 @@ function buildCustomers() {
       endTime: r['終了時間'] || '',
       approvalMailSent: r['承認メール送信済み'] || '',
       pickupMailSent: r['お迎え案内送信済み'] || '',
+      remOff: String(r['前日リマインド自動送信'] || '').trim().toUpperCase() === 'OFF',
+      pickOff: String(r['お迎え案内自動送信'] || '').trim().toUpperCase() === 'OFF',
       isPhoneBooking: String(r['カレンダー登録状況'] || '').indexOf('電話予約') !== -1,
       status: r['カレンダー登録状況'] || '',
       body: { weight: r['当日体重(kg)'] || '', coat: r['毛の状態'] || '', skin: r['皮膚・体調'] || '', caution: r['苦手な場所・注意点'] || '', style: r['仕上がり'] || '' }
@@ -1346,6 +1360,7 @@ function showKarte(idx, silent) {
       (v.lastTrim ? '<div class="visit-detail">前回からの期間（お客様申告）：' + v.lastTrim + '</div>' : '') +
       (v.request ? '<div class="visit-detail">要望：' + v.request + '</div>' : '') +
       '<div class="visit-detail" style="margin-top:6px;">' + mailBadges + '</div>' +
+      notifyChipsHtml(uid, v) +
       prevBannerHtml(c, v) +
       '<textarea class="memo-box" style="min-height:50px; margin-top:8px;" placeholder="この回の施術メモ..." onchange="saveMemoNow(\'' + uid + '\', this)">' + memo + '</textarea>' +
       bodyRecordHtml(uid, v) +
@@ -3057,6 +3072,85 @@ function updateFollowCount() {
   var el = document.getElementById('followCount');
   if (el) el.textContent = n ? '（💉' + n + '）' : '';
 }
+
+// ===== 通知のオン/オフ =====
+var notifyG = { reminder: true, pickup: false };
+function notifyPost(url, params) {
+  var p = new URLSearchParams(params); p.set('secret', DELETE_SECRET);
+  return fetch(url, { method: 'POST', body: p }).then(function(r) { return r.json(); });
+}
+function loadNotifyG() {
+  return fetch(REPEAT_API_URL + '?action=getNotifySettings&secret=' + DELETE_SECRET, { cache: 'no-store' })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (res && typeof res.reminder === 'boolean') { notifyG.reminder = res.reminder; notifyG.pickup = res.pickup; }
+      renderNotifyState();
+    }).catch(function() { renderNotifyState(true); });
+}
+function renderNotifyState(err) {
+  ['reminder', 'pickup'].forEach(function(t) {
+    var el = document.getElementById('ns-' + t); if (!el) return;
+    el.innerHTML = err ? '⚠️ 状態を取得できませんでした（GASを「新バージョン」で更新してください）'
+      : (notifyG[t] ? '<span style="color:#1A8F4A;">✅ 全体：オン（送ります）</span>' : '<span style="color:#B91C1C;">⛔ 全体：オフ（送りません）</span>');
+  });
+}
+function openNotify() { document.getElementById('notifyOverlay').style.display = 'block'; loadNotifyG(); }
+function closeNotify() { document.getElementById('notifyOverlay').style.display = 'none'; }
+var NOTIFY_LABEL = { reminder: '前日の連絡', pickup: 'お迎えの連絡' };
+function setGlobalNotify(type, on) {
+  if (!confirm(NOTIFY_LABEL[type] + 'を、全体で' + (on ? 'オン' : 'オフ') + 'にします。よろしいですか？')) return;
+  Promise.all([FIRST_API_URL, REPEAT_API_URL].map(function(u) { return notifyPost(u, { action: 'setNotifySetting', type: type, enabled: on ? '1' : '0' }); }))
+    .then(function(rs) {
+      if (rs.some(function(r) { return !r || r.error; })) { alert('一部の設定に失敗しました。GASを「新バージョン」で更新したか確認してください。'); }
+      notifyG[type] = !!on; renderNotifyState(); refreshChips();
+    }).catch(function() { alert('通信エラーです'); });
+}
+function setBulkNotify(type, on) {
+  if (!confirm('今日以降の予約すべての「' + NOTIFY_LABEL[type] + '」を' + (on ? 'オン' : 'オフ') + 'にします。よろしいですか？')) return;
+  Promise.all([FIRST_API_URL, REPEAT_API_URL].map(function(u) { return notifyPost(u, { action: 'setAllVisitsNotify', type: type, enabled: on ? '1' : '0' }); }))
+    .then(function(rs) {
+      if (rs.some(function(r) { return !r || r.error; })) { alert('一部の設定に失敗しました。GASを「新バージョン」で更新したか確認してください。'); return; }
+      var n = rs.reduce(function(a, r) { return a + (r.changed || 0); }, 0);
+      alert('今後の予約 ' + n + ' 件を' + (on ? 'オン' : 'オフ') + 'にしました。');
+      if (typeof loadData === 'function') loadData();
+    }).catch(function() { alert('通信エラーです'); });
+}
+function visitIsUpcoming(v) {
+  if (visitCancelled(v) || !v.rowNum) return false;
+  var t = new Date(String(v.date || '').replace(/-/g, '/')); if (isNaN(t)) return false;
+  var n = new Date(); n.setHours(0, 0, 0, 0); return t >= n;
+}
+function notifyChipsHtml(uid, v) {
+  if (!visitIsUpcoming(v)) return '';
+  function chip(type, label, off) {
+    var glob = !notifyG[type];
+    var on = !off && !glob;
+    return '<span class="nchip' + (on ? '' : ' off') + (glob ? ' glob' : '') + '" onclick="toggleVisitNotify(\'' + uid + '\',\'' + type + '\')">' +
+      label + '：' + (on ? 'オン' : 'オフ') + (glob ? '（全体オフ）' : '') + '</span>';
+  }
+  return '<div id="nchips-' + uid + '" data-uid="' + uid + '">' + chip('reminder', '🔔 前日の連絡', v.remOff) + chip('pickup', '🚗 お迎えの連絡(自動)', v.pickOff) + '</div>';
+}
+function findVisitByUid(uid) { var i = visitLookup[uid]; return i && i.visitObj; }
+function toggleVisitNotify(uid, type) {
+  var v = findVisitByUid(uid); if (!v) return;
+  var key = type === 'reminder' ? 'remOff' : 'pickOff';
+  var wantOn = !!v[key];
+  if (wantOn && !notifyG[type] && !confirm('全体設定がオフなので、この予約をオンにしても送られません。個別の設定だけオンにしますか？')) return;
+  notifyPost(v.type === 'first' ? FIRST_API_URL : REPEAT_API_URL, { action: 'setVisitNotify', type: type, row: v.rowNum, enabled: wantOn ? '1' : '0' })
+    .then(function(r) {
+      if (!r || r.error) { alert('切り替えに失敗しました：' + ((r && r.error) || '')); return; }
+      v[key] = !wantOn; refreshChips();
+    }).catch(function() { alert('通信エラーです'); });
+}
+function refreshChips() {
+  document.querySelectorAll('[id^="nchips-"]').forEach(function(el) {
+    var uid = el.getAttribute('data-uid'); var v = findVisitByUid(uid); if (!v) return;
+    var h = notifyChipsHtml(uid, v); var d = document.createElement('div'); d.innerHTML = h;
+    if (d.firstChild) el.replaceWith(d.firstChild);
+  });
+}
+loadNotifyG();
+
 function openSlots() { document.getElementById('slotOverlay').style.display = 'block'; }
 function closeSlots() { document.getElementById('slotOverlay').style.display = 'none'; }
 function openFollow() {
@@ -3978,7 +4072,7 @@ function saveBodyNow(uid) {
 (function() {
   var stack = [], skip = 0, raw = {};
   var defs = [
-    ['openSales', 'closeSales'], ['openSlots', 'closeSlots'], ['openFollow', 'closeFollow'], ['openAnalysis', 'closeAnalysis'],
+    ['openSales', 'closeSales'], ['openSlots', 'closeSlots'], ['openNotify', 'closeNotify'], ['openFollow', 'closeFollow'], ['openAnalysis', 'closeAnalysis'],
     ['openSaleEdit', 'closeSaleEdit'], ['openFollowSend', 'closeFollowSend'], ['openMergeDialog', 'closeMergeDialog'],
     ['openReschedule', 'closeReschedule'], ['openCancelVisit', 'closeCancelVisit'],
     ['openPhoneReserve', 'closePhoneReserve'], ['openBlockSlot', 'closeBlockSlot']
@@ -4040,6 +4134,37 @@ function saveBodyNow(uid) {
   <textarea id="flText"></textarea>
   <div style="display:flex;gap:8px;margin-top:10px;"><button class="btn btn-light" style="flex:1;" onclick="closeFollowSend()">キャンセル</button><button class="btn btn-primary" style="flex:2;" id="flSendBtn" onclick="sendFollowNow()">LINEで送信</button></div>
 </div></div>
+<div id="notifyOverlay">
+  <div class="sales-top">
+    <h2>🔔 通知設定</h2>
+    <button class="btn btn-primary btn-sm" onclick="closeNotify()">✕ 閉じる</button>
+  </div>
+  <div class="sales-body" style="max-width:560px;">
+    <div class="ncard">
+      <h3>前日の連絡（リマインド）</h3>
+      <p>予約の前日、毎日13時台に自動で送ります（LINE優先・なければメール）。</p>
+      <div class="nstate" id="ns-reminder">読み込み中…</div>
+      <div class="nrow"><button onclick="setGlobalNotify('reminder',1)">全体を オン</button><button onclick="setGlobalNotify('reminder',0)">全体を オフ</button></div>
+      <div class="nrow"><button onclick="setBulkNotify('reminder',1)">今後の予約すべて オン</button><button onclick="setBulkNotify('reminder',0)">今後の予約すべて オフ</button></div>
+    </div>
+    <div class="ncard">
+      <h3>お迎えの連絡（自動）</h3>
+      <p>終了時間の20〜35分前に自動で送ります（LINE優先・なければメール）。手動の「お迎え通知」ボタンはこの設定に関係なく使えます。</p>
+      <div class="nstate" id="ns-pickup">読み込み中…</div>
+      <div class="nrow"><button onclick="setGlobalNotify('pickup',1)">全体を オン</button><button onclick="setGlobalNotify('pickup',0)">全体を オフ</button></div>
+      <div class="nrow"><button onclick="setBulkNotify('pickup',1)">今後の予約すべて オン</button><button onclick="setBulkNotify('pickup',0)">今後の予約すべて オフ</button></div>
+    </div>
+    <div class="ncard" style="opacity:.6;">
+      <h3>🎂 お誕生日のご連絡（準備中）</h3>
+      <p>お誕生日の日に自動でメッセージを送る機能を、ここに追加予定です。</p>
+    </div>
+    <div style="font-size:11px; color:#7AAAC0; line-height:1.7;">
+      ・「全体」がオフだと、1件ごとの設定に関係なく送られません。<br>
+      ・「今後の予約すべて」は、今日以降でキャンセルでない予約だけが対象です（過去の記録は変わりません）。<br>
+      ・1件ごとの切り替えは、顧客のカルテ内の予約カードで行えます。
+    </div>
+  </div>
+</div>
 <div id="slotOverlay">
   <div class="sales-top">
     <h2>📅 満員・休業の設定</h2>
