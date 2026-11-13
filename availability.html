@@ -253,7 +253,7 @@ body { background: #F5FBFF; font-family: 'Quicksand', 'Zen Maru Gothic', sans-se
     var formType = new URLSearchParams(location.search).get('type') === 'repeat' ? 'repeat' : 'first';
     if (fromForm) {
       var g = document.querySelector('.guide');
-      if (g) g.innerHTML = '🐾 <strong>日時の選びかた</strong><br>① 表の中から、ご希望の空き（○）をタップ<br>② 「この日時で決定」を押すと、入力中の予約フォームに日時が入ります<br><span style="font-size:12px; color:#5A8FAA;">※入力した内容は消えません。決定後は、このタブを閉じてフォームに戻ってください</span>';
+      if (g) g.innerHTML = '🐾 <strong>日時の選びかた</strong><br>① 表の中から、ご希望の空き（○）をタップ<br>② 「この日時で決定」を押すと、入力中の予約フォームに日時が入ります<br><span style="font-size:12px; color:#5A8FAA;">※入力した内容は消えません。決定後は、スマホの「戻る」でフォームに戻ってください</span>';
     }
     window.selectSlot = function(date, time) {
       if (fromForm) { return askConfirm(date, time); }
@@ -336,7 +336,8 @@ body { background: #F5FBFF; font-family: 'Quicksand', 'Zen Maru Gothic', sans-se
     <div style="text-align:center; max-width:320px;">
       <div style="font-size:42px; margin-bottom:10px;">✅</div>
       <div id="done-label" style="font-size:20px; font-weight:700; color:#0C447C; margin-bottom:10px;"></div>
-      <div style="font-size:14px; color:#1A6FA8; line-height:1.9; font-weight:700;">予約フォームに入れました。<br>このタブを閉じて、<br>予約フォームに戻ってください。</div>
+      <div style="font-size:14px; color:#1A6FA8; line-height:1.9; font-weight:700;">予約フォームに入れました。<br>スマホの<span style="background:#E8F6FE; padding:1px 8px; border-radius:6px;">戻る</span>で、<br>予約フォームに戻ってください。</div>
+      <div style="font-size:11.5px; color:#5A8FAA; line-height:1.8; margin-top:14px;">戻れないときは、ブラウザの<br>タブの一覧から、予約フォームを選んでください。<br>（入力した内容は、消えていません）</div>
     </div>
   </div>
   <div class="back"><a href="https://dogsalon-rinon.github.io/">🏠 ホームページへ戻る</a></div>
