@@ -1732,6 +1732,10 @@ loadData();
       ✅ 登録すると、カレンダーに入り、お客様のLINEに「ご予約確定」が届きます。前日のリマインドも自動で届きます。<br>
       ※LINEに届くのは、<b>電話番号</b>がLINEの友だちリストと一致した場合です。メールアドレスを入れると、前日のリマインドはメールにも届きます。
     </div>
+    <label style="display:flex; align-items:center; gap:8px; background:#FFF8E5; border:1px solid #F0DFA8; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:13px; color:#7A5A00; font-weight:700; cursor:pointer;">
+      <input type="checkbox" id="pr-notify" checked style="width:18px; height:18px;"> お客様に、LINEで「ご予約確定」を送る
+    </label>
+    <div style="font-size:11px; color:#9A8A5A; margin:-6px 0 12px; line-height:1.6;">※チェックを外すと、登録した直後の通知を送りません（すでにお客様へお伝え済みの予約を入れ直すときなど）。前日のリマインドは、通常どおり届きます。</div>
     <div style="margin-bottom:12px;">
       <div class="info-label">区分</div>
       <div style="display:flex; gap:8px; margin-top:4px;">
@@ -1957,6 +1961,7 @@ function prToggleMix() {
 }
 
 function openPhoneReserve() {
+  try { var nf = document.getElementById('pr-notify'); if (nf) nf.checked = true; } catch (e) {}
   ['pr-owner','pr-phone','pr-email','pr-dog','pr-mix-detail','pr-request','pr-date','pr-time','pr-endtime'].forEach(function(id) {
     document.getElementById(id).value = '';
   });
@@ -2010,6 +2015,7 @@ function prefillNextReserve(idx) {
 }
 
 function lineResultText(res) {
+  if (res.lineReason === 'skipped') return '（お客様への通知は、送っていません。前日のリマインドは届きます）';
   if (res.lineNotified) return '📩 お客様のLINEに予約確定を送りました。';
   var why = {
     nophone: '電話番号が入っていません。',
@@ -2077,6 +2083,8 @@ function submitPhoneReserve() {
   params.set('date', date);
   params.set('time', time);
   params.set('endTime', endTime);
+  var notifyEl = document.getElementById('pr-notify');
+  if (notifyEl && !notifyEl.checked) params.set('notify', '0');
 
   fetch(apiUrl + '?' + params.toString())
     .then(function(r) { return r.json(); })
