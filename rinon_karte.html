@@ -3662,11 +3662,23 @@ function undoFollow(i) {
 
 // ===== 統合（電話番号が複数あるカルテ）=====
 function custKey(c) { return customerKey(c.owner, c.dog, c.phone); }
+
+// 電話番号をコピー（ハイフンなしの数字だけ。電話アプリやLINEの検索にそのまま貼れる）
+function copyPhone(val, btn) {
+  var digits = String(val || '').replace(/[^0-9]/g, '');
+  var done = function() { if (!btn) return; var t = btn.textContent; btn.textContent = '✅ コピーしました'; setTimeout(function() { btn.textContent = t; }, 1500); };
+  var fallback = function() {
+    var ta = document.createElement('textarea'); ta.value = digits; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { alert('コピーできませんでした：' + digits); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(digits).then(done, fallback); else fallback();
+}
 function phonesHtml(c, idx) {
   var phs = (c.phones && c.phones.length) ? c.phones : [c.phone || (c.profile && c.profile['電話番号'])];
   var h = phs.map(function(ph, i) {
     var info = (c.mergedInfo || []).filter(function(x) { return x.phone === ph; })[0];
-    return '<div>' + formatPhone(ph) + (info && info.id ? ' <a href="javascript:void(0)" style="font-size:10px;color:#C06060;" onclick="unmergePhone(\'' + salesEsc(info.id) + '\', ' + idx + ')">統合を解除</a>' : '') + '</div>';
+    return '<div>' + formatPhone(ph) + ' <button type="button" class="btn btn-light btn-sm" style="padding:2px 9px; font-size:11px; margin-left:6px;" onclick="copyPhone(\'' + salesEsc(formatPhone(ph)) + '\', this)">📋 コピー</button>' + (info && info.id ? ' <a href="javascript:void(0)" style="font-size:10px;color:#C06060;" onclick="unmergePhone(\'' + salesEsc(info.id) + '\', ' + idx + ')">統合を解除</a>' : '') + '</div>';
   }).join('');
   return h + '<div style="margin-top:4px;"><a href="javascript:void(0)" style="font-size:11px;color:#1A6FA8;" onclick="openMergeDialog(' + idx + ')">👥 別の電話番号のカルテを統合する</a></div>';
 }
