@@ -1244,11 +1244,11 @@ function renderList(data) {
   function groupOf(c) {
     var d = _ymd((c.refVisit || c.lastVisit).date);
     if (!d) return { k: 'past-?', l: '日付なし', open: false };
-    if (d === TD) return { k: 'today', l: '📍 今日', open: true };
-    if (d === TM) return { k: 'tomorrow', l: '📅 明日', open: true };
+    if (d === TD) return { k: 'today', l: '📍 今日', open: false };
+    if (d === TM) return { k: 'tomorrow', l: '📅 明日', open: false };
     if (d > TM) return { k: 'future', l: '🗓 それ以降の予約', open: false };
     var m = d.slice(0, 7);
-    return { k: 'past-' + m, l: '🗂 ' + m.replace('-', '年') + '月', open: m === curMonth };
+    return { k: 'past-' + m, l: '🗂 ' + m.replace('-', '年') + '月', open: false };
   }
   // 月ごとの来店数（その月に来店した延べ回数。キャンセルは除く。顧客が最後に来た月に関係なく数える）
   var gVisits = {};
