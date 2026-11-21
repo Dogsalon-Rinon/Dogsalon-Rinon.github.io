@@ -3171,6 +3171,25 @@ function refreshChips() {
     if (d.firstChild) el.replaceWith(d.firstChild);
   });
 }
+// ===== 二重クリック防止：処理系のボタンは、押してから約4秒は2回目を受け付けない =====
+(function() {
+  var RE = /^(setGlobalNotify|setBulkNotify|setCalStatus|submit\w+|notifyComplete|deleteVisit|deleteCustomer|sendFollowNow|markFollowDone|undoFollow|saveSaleEdit|deleteSale|deleteExpense|copyFixedExpenses|issueReceipt|issueCombinedReceipt|doMerge|mergeGroup|unmergePhone|restoreCustomer|purgeHidden|toggleVisitNotify|deleteVisitPhoto|deleteProfilePhoto)\(/;
+  var cancelled = false, origConfirm = window.confirm;
+  window.confirm = function() { var r = origConfirm.apply(window, arguments); if (!r) cancelled = true; return r; };
+  document.addEventListener('click', function(ev) {
+    var el = ev.target && ev.target.closest ? ev.target.closest('[onclick]') : null;
+    if (!el) return;
+    if (!RE.test((el.getAttribute('onclick') || '').trim())) return;
+    var now = Date.now();
+    if (el.__busyUntil && now < el.__busyUntil) { ev.preventDefault(); ev.stopImmediatePropagation(); return; }
+    el.__busyUntil = now + 4000; cancelled = false;
+    var op = el.style.opacity; el.style.opacity = '0.55';
+    var restore = function() { el.__busyUntil = 0; el.style.opacity = op; };
+    setTimeout(function() { if (cancelled) restore(); }, 0); // 確認で「キャンセル」したときはすぐ押し直せる
+    setTimeout(restore, 4000);
+  }, true);
+})();
+
 loadNotifyG();
 
 function openSlots() { document.getElementById('slotOverlay').style.display = 'block'; }
