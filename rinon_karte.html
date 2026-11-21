@@ -1376,6 +1376,7 @@ function showKarte(idx, silent) {
           : '<button class="btn btn-light btn-sm" disabled title="LINE・メールとも未登録" style="opacity:0.5;">✅ お迎え通知(未登録)</button>') +
         '<button class="btn btn-light btn-sm" onclick="openReschedule(\'' + uid + '\')">📅 日時を変更</button>' +
         '<button class="btn btn-light btn-sm" style="color:#C06060; border-color:#F0C8C8;" onclick="openCancelVisit(\'' + uid + '\')">❌ キャンセル</button>' +
+        '<button class="btn btn-light btn-sm" style="color:#999; border-color:#ddd;" onclick="deleteVisit(\'' + uid + '\')">🗑 削除（重複・誤登録）</button>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -2390,6 +2391,27 @@ function noticeSentText(res) {
   if (res && res.lineSent) ch.push('LINE');
   return ch.length ? '（お客様に' + ch.join('と') + 'を送信しました）' : '';
 }
+
+// 予約を1件削除（履歴に残さない）。重複登録・誤登録の整理用。お客様には通知しない
+function deleteVisit(uid) {
+  var info = visitLookup[uid];
+  if (!info || !info.rowNum) { alert('この予約の行情報が見つかりません'); return; }
+  var c = customers[info.customerIdx];
+  var only = c && c.visits.length <= 1;
+  var msg = info.owner + '様 / ' + info.dog + '\n' + (info.date || '') + ' ' + (info.time || '') + '〜 の予約を削除します。\n\n' +
+    '・履歴に残らず、スプレッドシートの行（' + (info.type === 'first' ? '初回用' : 'リピーター用') + info.rowNum + '行目）が消えます\n' +
+    '・カレンダーの予定があれば一緒に消えます\n・お客様には通知しません\n' +
+    (only ? '\n⚠️ この顧客の予約はこれ1件だけです。削除するとカルテ自体が無くなります。\n' : '') +
+    '\nこの操作は元に戻せません。よろしいですか？';
+  if (!confirm(msg)) return;
+  notifyPost(info.type === 'first' ? FIRST_API_URL : REPEAT_API_URL, { action: 'deleteVisit', row: info.rowNum })
+    .then(function(res) {
+      if (!res || !res.success) { alert('削除できませんでした：' + ((res && res.error) || '')); return; }
+      alert('🗑 削除しました' + (res.calendarDeleted ? '（カレンダーの予定も削除）' : ''));
+      loadData();
+    }).catch(function() { alert('通信エラーです'); });
+}
+
 function openCancelVisit(uid) {
   var info = visitLookup[uid];
   if (!info || !info.rowNum) { alert('この来店の行情報が見つかりません'); return; }
