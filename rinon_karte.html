@@ -305,6 +305,8 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 .nrow { display:flex; gap:8px; margin-top:8px; }
 .nrow button { flex:1; padding:11px 6px; border-radius:8px; border:1px solid #B3D9F5; background:#E8F6FE; color:#0C447C; font-size:13px; cursor:pointer; }
 .nstate { font-weight:700; font-size:13px; margin-bottom:6px; }
+.grp-head { position:sticky; top:0; z-index:2; background:#E8F6FE; color:#0C447C; font-size:12.5px; font-weight:700; padding:8px 12px; border-bottom:1px solid #B3D9F5; cursor:pointer; }
+.grp-head b { font-weight:400; color:#7AAAC0; font-size:11.5px; }
 </style>
 </head>
 <body>
@@ -1070,8 +1072,16 @@ function buildCustomers() {
     var day = ('0' + d.getDate()).slice(-2);
     return y + '-' + m + '-' + day;
   }
+  // 並び順の基準にする予約：今日以降の予約があれば「いちばん近い予約」、なければ最終来店
+  function refVisit(c) {
+    var fut = c.visits.filter(function(v) { var d = dateOnlyStr(v.date); return !visitCancelled(v) && d && d >= todayStr; });
+    if (!fut.length) return c.lastVisit;
+    fut.sort(function(a, b) { return dateOnlyStr(a.date).localeCompare(dateOnlyStr(b.date)) || String(a.time || '').localeCompare(String(b.time || '')); });
+    return fut[0];
+  }
+  customers.forEach(function(c) { c.refVisit = refVisit(c); });
   function category(c) {
-    var ds = dateOnlyStr(c.lastVisit.date);
+    var ds = dateOnlyStr(c.refVisit.date);
     if (!ds) return 2; // 日付不明は過去扱い（末尾に）
     if (ds === todayStr) return 0;
     if (ds > todayStr) return 1;
@@ -1082,14 +1092,14 @@ function buildCustomers() {
     if (ca !== cb) return ca - cb;
     if (ca === 0) {
       // 今日→時間順
-      return (a.lastVisit.time || '99:99').localeCompare(b.lastVisit.time || '99:99');
+      return (a.refVisit.time || '99:99').localeCompare(b.refVisit.time || '99:99');
     }
     if (ca === 1) {
       // 未来→日付が近い順
-      return new Date(a.lastVisit.date) - new Date(b.lastVisit.date);
+      return new Date(a.refVisit.date) - new Date(b.refVisit.date);
     }
     // 過去のみ→最終来店が新しい順
-    return new Date(b.lastVisit.date) - new Date(a.lastVisit.date);
+    return new Date(b.refVisit.date) - new Date(a.refVisit.date);
   });
 }
 
@@ -1226,9 +1236,35 @@ function renderList(data) {
 
   var present = {};
   var lastRow = null;
+  // 来店順のときは、「今日」「明日」「それ以降の予約」「過去（月ごと）」に区切って、開閉できるようにする
+  var searching = data.length !== customers.length;
+  var _ymd = function(d) { var t = new Date(d); return isNaN(t) ? '' : t.getFullYear() + '-' + ('0' + (t.getMonth() + 1)).slice(-2) + '-' + ('0' + t.getDate()).slice(-2); };
+  var _t0 = new Date(), _t1 = new Date(Date.now() + 86400000);
+  var TD = _ymd(_t0), TM = _ymd(_t1), curMonth = TD.slice(0, 7);
+  function groupOf(c) {
+    var d = _ymd((c.refVisit || c.lastVisit).date);
+    if (!d) return { k: 'past-?', l: '日付なし', open: false };
+    if (d === TD) return { k: 'today', l: '📍 今日', open: true };
+    if (d === TM) return { k: 'tomorrow', l: '📅 明日', open: true };
+    if (d > TM) return { k: 'future', l: '🗓 それ以降の予約', open: false };
+    var m = d.slice(0, 7);
+    return { k: 'past-' + m, l: m.replace('-', '年') + '月の来店', open: m === curMonth };
+  }
+  var lastG = null, gCount = {};
+  if (sortMode !== 'kana') items.forEach(function(it) { var g = groupOf(it.c); gCount[g.k] = (gCount[g.k] || 0) + 1; });
+  var html = '';
   list.innerHTML = items.map(function(it) {
     var c = it.c, i = it.gi;
     var head = '';
+    if (sortMode !== 'kana') {
+      var g = groupOf(c);
+      if (g.k !== lastG) {
+        if (lastG !== null) head += '</div>';
+        var isOpen = searching || (groupOpenState[g.k] !== undefined ? groupOpenState[g.k] : g.open);
+        head += '<div class="grp-head" onclick="toggleGroup(\'' + g.k + '\')"><span id="gi-' + g.k + '">' + (isOpen ? '▼' : '▶') + '</span> ' + g.l + '　<b>' + gCount[g.k] + '頭</b></div><div class="grp-body" id="gb-' + g.k + '" style="display:' + (isOpen ? 'block' : 'none') + ';">';
+        lastG = g.k;
+      }
+    }
     if (sortMode === 'kana' && it.row !== lastRow) {
       lastRow = it.row;
       present[it.row] = true;
@@ -1239,11 +1275,20 @@ function renderList(data) {
       (ownerKanaText(c) ? '<div class="customer-kana">' + escKana(ownerKanaText(c)) + '</div>' : '') +
       '<div class="customer-name">' + c.owner + ' 様' + lineBadge(c) + vacTagFor(c) + bdTagFor(c) + '</div>' +
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + (temperText(c.profile) ? '　<span style="color:#B5524A;font-size:11px;font-weight:700;">⚠️噛み・苦手</span>' : '') + '</div>' +
-      '<div class="customer-meta"><span>最終来店：' + formatDate(c.lastVisit.date) + '</span>' + (c.cancelCount ? '<span style="font-size:10.5px;color:#C06060;margin-right:6px;">キャンセル' + c.cancelCount + '回</span>' : '') + '<span class="visit-badge">来店' + c.visitCount + '回</span></div>' +
+      '<div class="customer-meta"><span>' + (c.refVisit && c.refVisit !== c.lastVisit ? '次の予約：' + formatDate(c.refVisit.date) : '最終来店：' + formatDate(c.lastVisit.date)) + '</span>' + (c.cancelCount ? '<span style="font-size:10.5px;color:#C06060;margin-right:6px;">キャンセル' + c.cancelCount + '回</span>' : '') + '<span class="visit-badge">来店' + c.visitCount + '回</span></div>' +
       listPrevHtml(c) +
     '</div>';
-  }).join('');
+  }).join('') + (sortMode !== 'kana' && lastG !== null ? '</div>' : '');
   renderKanaIndex(present);
+}
+var groupOpenState = {};
+function toggleGroup(key) {
+  var b = document.getElementById('gb-' + key), i = document.getElementById('gi-' + key);
+  if (!b) return;
+  var open = b.style.display === 'none';
+  b.style.display = open ? 'block' : 'none';
+  if (i) i.textContent = open ? '▼' : '▶';
+  groupOpenState[key] = open;
 }
 
 function formatDate(d) {
