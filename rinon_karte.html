@@ -1248,8 +1248,16 @@ function renderList(data) {
     if (d === TM) return { k: 'tomorrow', l: '📅 明日', open: true };
     if (d > TM) return { k: 'future', l: '🗓 それ以降の予約', open: false };
     var m = d.slice(0, 7);
-    return { k: 'past-' + m, l: m.replace('-', '年') + '月の来店', open: m === curMonth };
+    return { k: 'past-' + m, l: '🗂 ' + m.replace('-', '年') + '月', open: m === curMonth };
   }
+  // 月ごとの来店数（その月に来店した延べ回数。キャンセルは除く。顧客が最後に来た月に関係なく数える）
+  var gVisits = {};
+  customers.forEach(function(c) { c.visits.forEach(function(v) {
+    if (visitCancelled(v)) return;
+    var d = _ymd(v.date); if (!d) return;
+    var key = d === TD ? 'today' : d === TM ? 'tomorrow' : d > TM ? 'future' : 'past-' + d.slice(0, 7);
+    gVisits[key] = (gVisits[key] || 0) + 1;
+  }); });
   var lastG = null, gCount = {};
   if (sortMode !== 'kana') items.forEach(function(it) { var g = groupOf(it.c); gCount[g.k] = (gCount[g.k] || 0) + 1; });
   var html = '';
@@ -1261,7 +1269,7 @@ function renderList(data) {
       if (g.k !== lastG) {
         if (lastG !== null) head += '</div>';
         var isOpen = searching || (groupOpenState[g.k] !== undefined ? groupOpenState[g.k] : g.open);
-        head += '<div class="grp-head" onclick="toggleGroup(\'' + g.k + '\')"><span id="gi-' + g.k + '">' + (isOpen ? '▼' : '▶') + '</span> ' + g.l + '　<b>' + gCount[g.k] + '頭</b></div><div class="grp-body" id="gb-' + g.k + '" style="display:' + (isOpen ? 'block' : 'none') + ';">';
+        head += '<div class="grp-head" onclick="toggleGroup(\'' + g.k + '\')"><span id="gi-' + g.k + '">' + (isOpen ? '▼' : '▶') + '</span> ' + g.l + '　<b>' + (gVisits[g.k] || 0) + (g.k === 'today' || g.k === 'tomorrow' || g.k === 'future' ? '件の予約' : '回来店') + '（この欄に ' + gCount[g.k] + '頭）</b></div><div class="grp-body" id="gb-' + g.k + '" style="display:' + (isOpen ? 'block' : 'none') + ';">';
         lastG = g.k;
       }
     }
