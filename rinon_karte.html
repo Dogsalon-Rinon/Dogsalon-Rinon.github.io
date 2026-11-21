@@ -3473,6 +3473,15 @@ function renderAnalysis() {
       : '<div style="color:#7AAAC0;text-align:center;padding:14px;">該当する子はいません</div>') +
     '<div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※先の予約が入っている子は含みません。90日以内の子は「🔔 フォロー・期限」からご案内できます。</div></div>';
 
+  // 犬種別（ミックスは下の別欄）
+  var pureDogs = dogs.filter(function(d) { return !isMixBreed((d.c.profile || {})['犬種']); });
+  var breedCnt = {};
+  pureDogs.forEach(function(d) { var b = String((d.c.profile || {})['犬種'] || '').trim() || '（犬種が未入力）'; breedCnt[b] = (breedCnt[b] || 0) + 1; });
+  var breedKeys = Object.keys(breedCnt).sort(function(x, y) { return breedCnt[y] - breedCnt[x]; });
+  var breedList = breedKeys.slice(0, 15).map(function(k2) { return { l: k2, v: breedCnt[k2] }; });
+  h += '<div class="sales-box"><h3>🐶 犬種別の頭数　<b>' + pureDogs.length + '頭</b><span style="font-size:11px;font-weight:400;color:#7AAAC0;">　全体の ' + (dogs.length ? Math.round(pureDogs.length / dogs.length * 100) : 0) + '%　／　' + breedKeys.length + '犬種</span></h3>' +
+    (breedList.length ? anBars(breedList) + (breedKeys.length > 15 ? '<div style="font-size:11px;color:#7AAAC0;margin-top:6px;">※上位15犬種を表示（ほか ' + (breedKeys.length - 15) + '犬種）</div>' : '') : '<div style="color:#7AAAC0;">まだいません</div>') + '</div>';
+
   // ミックス犬
   var mixDogs = dogs.filter(function(d) { return isMixBreed((d.c.profile || {})['犬種']); });
   var mixUnset = mixDogs.filter(function(d) { return !String((d.c.profile || {})['料金犬種'] || '').trim(); });
