@@ -307,6 +307,10 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
 .nstate { font-weight:700; font-size:13px; margin-bottom:6px; }
 .grp-head { position:sticky; top:0; z-index:2; background:#E8F6FE; color:#0C447C; font-size:12.5px; font-weight:700; padding:8px 12px; border-bottom:1px solid #B3D9F5; cursor:pointer; }
 .grp-head b { font-weight:400; color:#7AAAC0; font-size:11.5px; }
+.miss-filter { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 2px; }
+.miss-chip { padding:5px 10px; border-radius:14px; font-size:11.5px; border:1px solid #B3D9F5; background:#fff; color:#0C447C; cursor:pointer; }
+.miss-chip.on { background:#1A6FA8; color:#fff; border-color:#1A6FA8; }
+.miss-tag { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:9px; font-size:10.5px; background:#FFF4E5; color:#B4780A; }
 </style>
 </head>
 <body>
@@ -337,6 +341,7 @@ table.sales-table td.num, table.sales-table th.num { text-align:right; white-spa
         <button id="sortVisit" onclick="setSortMode('visit')">来店順</button>
         <button id="sortKana" onclick="setSortMode('kana')">あいうえお順<br><span style="font-size:9px; font-weight:400;">（飼い主名）</span></button>
       </div>
+      <div id="missFilter" class="miss-filter"></div>
       <div class="stats">
         <div class="stat"><div class="stat-num" id="totalCount">-</div><div class="stat-label">登録頭数</div></div>
         <div class="stat"><div class="stat-num" id="totalVisits">-</div><div class="stat-label">来店総数</div></div>
@@ -1285,9 +1290,29 @@ function renderList(data) {
       '<div class="customer-dog">🐾 ' + c.dog + (breed ? '　<span>' + breed + '</span>' : '') + (temperText(c.profile) ? '　<span style="color:#B5524A;font-size:11px;font-weight:700;">⚠️噛み・苦手</span>' : '') + '</div>' +
       '<div class="customer-meta"><span>' + (c.refVisit && c.refVisit !== c.lastVisit ? '次の予約：' + formatDate(c.refVisit.date) : '最終来店：' + formatDate(c.lastVisit.date)) + '</span>' + (c.cancelCount ? '<span style="font-size:10.5px;color:#C06060;margin-right:6px;">キャンセル' + c.cancelCount + '回</span>' : '') + '<span class="visit-badge">来店' + c.visitCount + '回</span></div>' +
       listPrevHtml(c) +
-    '</div>';
+    '</div>' + (function() { var t = missTagsFor(c); return t ? '<div style="margin-top:3px;">' + t + '</div>' : ''; })();
   }).join('') + (sortMode !== 'kana' && lastG !== null ? '</div>' : '');
   renderKanaIndex(present);
+  renderMissFilter();
+}
+
+// ===== 未入力の子を探す（ワクチン接種日・住所）=====
+var missFilter = '';
+function missVac(c) { var p = c.profile || {}; return VAC_DEFS.some(function(d) { return !vacGiven(p, d); }); }
+function missAddr(c) { return !String((c.profile || {})['住所'] || '').trim(); }
+function setMissFilter(m) { missFilter = (missFilter === m) ? '' : m; filterCustomers(); }
+function renderMissFilter() {
+  var el = document.getElementById('missFilter'); if (!el) return;
+  var nv = customers.filter(missVac).length, na = customers.filter(missAddr).length;
+  el.innerHTML = '<span class="miss-chip' + (missFilter === 'vac' ? ' on' : '') + '" onclick="setMissFilter(\'vac\')">💉 ワクチン未入力 ' + nv + '</span>' +
+    '<span class="miss-chip' + (missFilter === 'addr' ? ' on' : '') + '" onclick="setMissFilter(\'addr\')">🏠 住所未入力 ' + na + '</span>';
+}
+function missTagsFor(c) {
+  var p = c.profile || {}, t = '';
+  var vm = VAC_DEFS.filter(function(d) { return !vacGiven(p, d); }).map(function(d) { return d.label; });
+  if (vm.length) t += '<span class="miss-tag">💉' + (vm.length === VAC_DEFS.length ? 'ワクチン未入力' : vm.join('・') + '未入力') + '</span>';
+  if (missAddr(c)) t += '<span class="miss-tag">🏠住所未入力</span>';
+  return t;
 }
 var groupOpenState = {};
 function toggleGroup(key) {
@@ -1318,6 +1343,8 @@ function filterCustomers() {
   var qDigits = q.replace(/[０-９]/g, function(ch) { return String.fromCharCode(ch.charCodeAt(0) - 65248); }).replace(/[^0-9]/g, '');
   var phoneSearch = qDigits.length >= 3 && /^[0-9０-９\-－ー\s()（）+]+$/.test(q);
   var filtered = customers.filter(function(c) {
+    if (missFilter === 'vac' && !missVac(c)) return false;
+    if (missFilter === 'addr' && !missAddr(c)) return false;
     if (phoneSearch) {
       var phs = (c.phones && c.phones.length) ? c.phones : [c.phone || (c.profile && c.profile['電話番号'])];
       if (phs.some(function(ph) { return String(ph || '').replace(/[０-９]/g, function(ch) { return String.fromCharCode(ch.charCodeAt(0) - 65248); }).replace(/[^0-9]/g, '').indexOf(qDigits) !== -1; })) return true;
