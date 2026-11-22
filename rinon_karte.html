@@ -1298,7 +1298,8 @@ function renderList(data) {
 
 // ===== 未入力の子を探す（ワクチン接種日・住所）=====
 var missFilter = '';
-function missVac(c) { var p = c.profile || {}; return VAC_DEFS.some(function(d) { return !vacGiven(p, d); }); }
+// 狂犬病・混合のどちらか一方でも入っていればOK（両方空のときだけ未入力）
+function missVac(c) { var p = c.profile || {}; return VAC_DEFS.every(function(d) { return !vacGiven(p, d); }); }
 function missAddr(c) { return !String((c.profile || {})['住所'] || '').trim(); }
 function setMissFilter(m) { missFilter = (missFilter === m) ? '' : m; filterCustomers(); }
 function renderMissFilter() {
@@ -1309,8 +1310,7 @@ function renderMissFilter() {
 }
 function missTagsFor(c) {
   var p = c.profile || {}, t = '';
-  var vm = VAC_DEFS.filter(function(d) { return !vacGiven(p, d); }).map(function(d) { return d.label; });
-  if (vm.length) t += '<span class="miss-tag">💉' + (vm.length === VAC_DEFS.length ? 'ワクチン未入力' : vm.join('・') + '未入力') + '</span>';
+  if (missVac(c)) t += '<span class="miss-tag">💉ワクチン未入力</span>';
   if (missAddr(c)) t += '<span class="miss-tag">🏠住所未入力</span>';
   return t;
 }
