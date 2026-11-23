@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Yomogi&display=swap" rel="stylesheet">
 <style>
-  @page { size: 182mm 257mm; margin: 0; }
+  @page { size: 148mm 210mm; margin: 0; }
   * { box-sizing: border-box; }
   body {
     margin: 0; padding: 0;
@@ -351,6 +351,10 @@
   .bk-foot .small { margin-top:2mm; font-size:10px; color:#666; }
   .bk-deco { position:absolute; opacity:.9; }
   body.no-back .back-sheet { display:none !important; }
+  body.only-front .back-sheet { display:none !important; }
+  body.only-front .sheet { page-break-after: auto !important; break-after: auto !important; }
+  body.only-back .sheet { display:none !important; }
+  body.only-back .back-sheet { display:block !important; }
   .toolbar label.bkopt { font-size:12px; display:flex; align-items:center; gap:4px; cursor:pointer; }
   @media print {
     .back-sheet { margin:0; box-shadow:none; border:none; border-radius:0; width:182mm; height:255mm; min-height:0; overflow:hidden; page-break-before: auto; break-before: auto; page-break-after: auto; }
@@ -359,6 +363,7 @@
 
   @media print {
     body { background: #fff; }
+    .sheet, .back-sheet { zoom: 0.8132; }
     .toolbar, .add-btn, td.del, .no-print { display: none !important; }
     .sheet { margin: 0; box-shadow: none; width: 182mm; height: 255mm; min-height: 0; overflow: hidden; border-radius: 0; border: none; page-break-after: always; break-after: page; }
     body.no-back .sheet { page-break-after: auto; break-after: auto; }
@@ -383,6 +388,8 @@
       <label class="bkopt"><input type="checkbox" id="bkToggle" checked onchange="toggleBack()"> 裏面にチェックシートも印刷</label>
       <button class="secondary" onclick="addRow()">＋ 行を追加</button>
       <button onclick="printReceipt()">🖨️ 印刷する</button>
+      <button class="secondary" onclick="printOnly('front')">表だけ印刷</button>
+      <button class="secondary" onclick="printOnly('back')">裏だけ印刷</button>
     </div>
   </div>
 
@@ -879,6 +886,15 @@ function recordSale() {
   });
 }
 
+// 片面ずつ印刷（コピー機などで自分で両面にするとき用）
+function printOnly(side) {
+  var cls = side === 'back' ? 'only-back' : 'only-front';
+  document.body.classList.add(cls);
+  function done() { document.body.classList.remove(cls); window.removeEventListener('afterprint', done); }
+  window.addEventListener('afterprint', done);
+  recordSale();
+  window.print();
+}
 function printReceipt() {
   recordSale();
   window.print();
