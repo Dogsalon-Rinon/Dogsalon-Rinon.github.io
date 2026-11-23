@@ -353,14 +353,15 @@
   body.no-back .back-sheet { display:none !important; }
   .toolbar label.bkopt { font-size:12px; display:flex; align-items:center; gap:4px; cursor:pointer; }
   @media print {
-    .back-sheet { margin:0; box-shadow:none; border:none; border-radius:0; page-break-before: always; break-before: page; width:182mm; height:257mm; }
+    .back-sheet { margin:0; box-shadow:none; border:none; border-radius:0; width:182mm; height:255mm; min-height:0; overflow:hidden; page-break-before: auto; break-before: auto; page-break-after: auto; }
     .bk-info input, .bk-foot .next input { border-bottom:1px dotted #888; }
   }
 
   @media print {
     body { background: #fff; }
     .toolbar, .add-btn, td.del, .no-print { display: none !important; }
-    .sheet { margin: 0; box-shadow: none; width: 182mm; min-height: 257mm; border-radius: 0; border: none; }
+    .sheet { margin: 0; box-shadow: none; width: 182mm; height: 255mm; min-height: 0; overflow: hidden; border-radius: 0; border: none; page-break-after: always; break-after: page; }
+    body.no-back .sheet { page-break-after: auto; break-after: auto; }
     input:focus { background: transparent; }
     table.items td.del { display: none; }
     table.items th:last-child, table.items td:last-child.del { display:none; }
