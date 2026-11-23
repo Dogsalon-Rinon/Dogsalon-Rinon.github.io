@@ -351,6 +351,12 @@
   .bk-foot .small { margin-top:2mm; font-size:10px; color:#666; }
   .bk-deco { position:absolute; opacity:.9; }
   body.no-back .back-sheet { display:none !important; }
+  /* A4横に並べて印刷：左=領収書／右=チェックシート（両面不要） */
+  @media print {
+    body.a4side { display:flex; flex-direction:row; width:297mm; height:210mm; overflow:hidden; }
+    body.a4side .sheet, body.a4side .back-sheet { flex:0 0 auto; page-break-after:auto !important; break-after:auto !important; page-break-before:auto !important; break-before:auto !important; }
+    body.a4side .back-sheet { display:block !important; border-left:1px dashed #aaa !important; }
+  }
   body.only-front .back-sheet { display:none !important; }
   body.only-front .sheet { page-break-after: auto !important; break-after: auto !important; }
   body.only-back .sheet { display:none !important; }
@@ -388,6 +394,7 @@
       <label class="bkopt"><input type="checkbox" id="bkToggle" checked onchange="toggleBack()"> 裏面にチェックシートも印刷</label>
       <button class="secondary" onclick="addRow()">＋ 行を追加</button>
       <button onclick="printReceipt()">🖨️ 印刷する</button>
+      <button onclick="printA4Side()">🖨️ A4横に並べて印刷</button>
       <button class="secondary" onclick="printOnly('front')">表だけ印刷</button>
       <button class="secondary" onclick="printOnly('back')">裏だけ印刷</button>
     </div>
@@ -891,6 +898,18 @@ function printOnly(side) {
   var cls = side === 'back' ? 'only-back' : 'only-front';
   document.body.classList.add(cls);
   function done() { document.body.classList.remove(cls); window.removeEventListener('afterprint', done); }
+  window.addEventListener('afterprint', done);
+  recordSale();
+  window.print();
+}
+// A4横：左に領収書、右にチェックシート（1枚に並べて印刷。印刷画面の用紙サイズはA4、向きは横になります）
+function printA4Side() {
+  var st = document.createElement('style');
+  st.id = 'pgA4'; st.textContent = '@page { size: 297mm 210mm; margin: 0; }';
+  document.head.appendChild(st);
+  document.body.classList.add('a4side');
+  document.body.classList.remove('no-back');
+  function done() { document.body.classList.remove('a4side'); var s = document.getElementById('pgA4'); if (s) s.remove(); toggleBack(); window.removeEventListener('afterprint', done); }
   window.addEventListener('afterprint', done);
   recordSale();
   window.print();
